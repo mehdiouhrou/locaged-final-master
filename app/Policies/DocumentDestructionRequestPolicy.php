@@ -165,7 +165,7 @@ class DocumentDestructionRequestPolicy
      */
     public function postpone(User $user): bool
     {
-        // Only master and Super Administrator can postpone (change expiration date)
-        return $user->hasAnyRole(['master', 'Super Administrator', 'super administrator']);
+        // Allow master, Super Administrator, Admin de pole, and Admin de departments to postpone
+        return $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'Admin de departments']);
     }
 }
