@@ -247,7 +247,7 @@ class DocumentDestructionRequestController extends Controller
 
         $destructionRequest->delete();
 
-        return redirect()->route('destruction-requests.index')->with('success', 'Request deleted.');
+        return redirect()->route('destruction-requests.index')->with('success', ui_t('pages.destructions.request_deleted'));
     }
 
     public function approve($id)
@@ -346,7 +346,13 @@ class DocumentDestructionRequestController extends Controller
         $destruction->status = DocumentDestructionStatus::Postponed;
         $destruction->save();
 
-        return back()->with('success', "Expiration postponed by {$amount} {$unit}. New expiry: {$document->expire_at->format('Y-m-d H:i:s')}.");
+        $translatedUnit = ui_t("pages.destructions.postpone.{$unit}");
+
+        return back()->with('success', ui_t('pages.destructions.postpone.success', [
+            'amount' => $amount,
+            'unit' => $translatedUnit,
+            'date' => $document->expire_at->format('Y-m-d H:i:s')
+        ]));
     }
 
     /**
@@ -406,7 +412,13 @@ class DocumentDestructionRequestController extends Controller
         // Log the action
         $document->logAction('expiration_postponed');
 
-        return back()->with('success', "Expiration postponed by {$amount} {$unit}. New expiry: {$document->expire_at->format('Y-m-d H:i:s')}. Document is now active again.");
+        $translatedUnit = ui_t("pages.destructions.postpone.{$unit}");
+
+        return back()->with('success', ui_t('pages.destructions.postpone.success_active', [
+            'amount' => $amount,
+            'unit' => $translatedUnit,
+            'date' => $document->expire_at->format('Y-m-d H:i:s')
+        ]));
     }
 
     public function export()
