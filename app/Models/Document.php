@@ -408,16 +408,35 @@ class Document extends Model
             'occurred_at' => now(),
         ]);
 
-        $notificationService = new NotificationService(
-            $this->title,
-            $this->createdBy,
-            $this->id,
-            $resolvedVersionId
-        );
-        $notificationService->notifyBasedOnAction($action);
+        // Only send notifications if the document creator exists
+        // Load the relationship if not already loaded
+        $creator = $this->createdBy;
+        
+        if ($creator) {
+            $notificationService = new NotificationService(
+                $this->title,
+                $creator,
+                $this->id,
+                $resolvedVersionId
+            );
+            $notificationService->notifyBasedOnAction($action);
 
-        if (in_array($action, ['expired', 'moved'])) {
-            $notificationService->notifyAdmins($action);
+            if (in_array($action, ['expired', 'moved'])) {
+                $notificationService->notifyAdmins($action);
+            }
+        } elseif (in_array($action, ['expired', 'moved'])) {
+            // If creator doesn't exist but action requires admin notification,
+            // create a minimal notification service just for admin notifications
+            // We need to use a valid user, so use the current authenticated user
+            if (auth()->check()) {
+                $notificationService = new NotificationService(
+                    $this->title,
+                    auth()->user(),
+                    $this->id,
+                    $resolvedVersionId
+                );
+                $notificationService->notifyAdmins($action);
+            }
         }
 
     }
