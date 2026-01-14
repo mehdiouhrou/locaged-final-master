@@ -2,6 +2,11 @@
 
 @section('content')
     <div class="mt-3 position-relative mb-5">
+        <!-- Welcome Message -->
+        <div class="px-3 px-md-0 mb-3">
+            <h1 class="fw-bold">{{ ui_t('pages.dashboard.welcome') }} {{ auth()->user()->name }}</h1>
+        </div>
+
         <!-- Overview Section -->
         <div class="overview-section px-3 px-md-0">
             <div class="d-flex justify-content-between">

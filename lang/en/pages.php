@@ -521,6 +521,7 @@ return [
         'delete' => 'Delete',
     ],
 'dashboard' => [
+        'welcome' => 'Welcome',
         'overview' => 'Overview',
         'donut' => [
             'departments_title' => 'Documents by Structure',

@@ -503,6 +503,7 @@ return [
         'delete' => 'Supprimer',
     ],
 'dashboard' => [
+        'welcome' => 'Bienvenue',
         'overview' => 'Vue d’ensemble',
         'pending_documents' => 'Documents en attente',
         'approvals' => 'Documents en Attente',
