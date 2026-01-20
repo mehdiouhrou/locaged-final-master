@@ -190,4 +190,20 @@ class User extends Authenticatable
         return asset('storage/' . ltrim($image, '/'));
     }
 
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $resetUrl = url(route('password.reset', [
+            'token' => $token,
+            'email' => $this->email,
+        ], false));
+
+        \Mail::to($this->email)->send(new \App\Mail\PasswordResetNotification($this, $resetUrl));
+    }
+
 }

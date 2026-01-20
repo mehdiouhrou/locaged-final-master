@@ -13,6 +13,21 @@
                     <h5 class="mb-1">{{ ui_t('auth.ui.secure_space') }}</h5>
                 </div>
 
+                @if (session('status'))
+                    <div class="alert d-flex align-items-start bg-success-subtle border border-success-subtle shadow-sm mb-4 fade show" role="alert" aria-live="polite">
+                        <span class="me-3 mt-1 text-success" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm4.707 7.707l-5 5a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L11 12.586l4.293-4.293a1 1 0 0 1 1.414 1.414Z"/>
+                            </svg>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold text-success mb-1">Success</div>
+                            <p class="mb-0 small">{{ session('status') }}</p>
+                        </div>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert" aria-label="{{ ui_t('actions.close') }}"></button>
+                    </div>
+                @endif
+
                 @if ($errors->any())
                     <div class="alert d-flex align-items-start bg-danger-subtle border border-danger-subtle shadow-sm mb-4 fade show" role="alert" aria-live="assertive">
                         <span class="me-3 mt-1 text-danger" aria-hidden="true">

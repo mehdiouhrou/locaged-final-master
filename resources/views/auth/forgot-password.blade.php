@@ -3,6 +3,7 @@
 @section('content')
 
             <style>
+                body { font-family: Helvetica, Arial, sans-serif !important; }
                 .login-card { width: min(70%, 520px); margin: 0 auto; }
             </style>
             <div class="login-card">
