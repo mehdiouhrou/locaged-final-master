@@ -56,6 +56,8 @@
                             required
                             autofocus
                             autocomplete="email"
+                            readonly
+                            style="background-color: #e9ecef; cursor: not-allowed;"
                         />
                     </div>
 
