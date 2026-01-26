@@ -102,25 +102,25 @@
                 // Translation data
                 const translations = {
                     en: {
-                        pageTitle: "{{ ui_t('auth.ui.forgot_password_q', [], 'en') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.enter_email_send_link', [], 'en') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'en') }}",
-                        submitButton: "{{ ui_t('auth.ui.email_reset_link', [], 'en') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'en') }}"
+                        pageTitle: "{!! ui_t('auth.ui.forgot_password_q', [], 'en') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.enter_email_send_link', [], 'en') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'en') !!}",
+                        submitButton: "{!! ui_t('auth.ui.email_reset_link', [], 'en') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'en') !!}"
                     },
                     fr: {
-                        pageTitle: "{{ ui_t('auth.ui.forgot_password_q', [], 'fr') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.enter_email_send_link', [], 'fr') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'fr') }}",
-                        submitButton: "{{ ui_t('auth.ui.email_reset_link', [], 'fr') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'fr') }}"
+                        pageTitle: "{!! ui_t('auth.ui.forgot_password_q', [], 'fr') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.enter_email_send_link', [], 'fr') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'fr') !!}",
+                        submitButton: "{!! ui_t('auth.ui.email_reset_link', [], 'fr') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'fr') !!}"
                     },
                     ar: {
-                        pageTitle: "{{ ui_t('auth.ui.forgot_password_q', [], 'ar') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.enter_email_send_link', [], 'ar') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'ar') }}",
-                        submitButton: "{{ ui_t('auth.ui.email_reset_link', [], 'ar') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'ar') }}"
+                        pageTitle: "{!! ui_t('auth.ui.forgot_password_q', [], 'ar') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.enter_email_send_link', [], 'ar') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'ar') !!}",
+                        submitButton: "{!! ui_t('auth.ui.email_reset_link', [], 'ar') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'ar') !!}"
                     }
                 };
 

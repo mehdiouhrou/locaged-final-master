@@ -128,34 +128,34 @@
                 // Translation data
                 const translations = {
                     en: {
-                        pageTitle: "{{ ui_t('auth.ui.reset_password', [], 'en') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.reset_password_subtitle', [], 'en') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'en') }}",
-                        passwordLabel: "{{ ui_t('auth.ui.password', [], 'en') }}",
-                        confirmPasswordLabel: "{{ ui_t('auth.ui.confirm_password', [], 'en') }}",
-                        passwordRequirements: "{{ ui_t('auth.ui.password_requirements', [], 'en') }}",
-                        submitButton: "{{ ui_t('auth.ui.reset_password', [], 'en') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'en') }}"
+                        pageTitle: "{!! ui_t('auth.ui.reset_password', [], 'en') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.reset_password_subtitle', [], 'en') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'en') !!}",
+                        passwordLabel: "{!! ui_t('auth.ui.password', [], 'en') !!}",
+                        confirmPasswordLabel: "{!! ui_t('auth.ui.confirm_password', [], 'en') !!}",
+                        passwordRequirements: "{!! ui_t('auth.ui.password_requirements', [], 'en') !!}",
+                        submitButton: "{!! ui_t('auth.ui.reset_password', [], 'en') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'en') !!}"
                     },
                     fr: {
-                        pageTitle: "{{ ui_t('auth.ui.reset_password', [], 'fr') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.reset_password_subtitle', [], 'fr') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'fr') }}",
-                        passwordLabel: "{{ ui_t('auth.ui.password', [], 'fr') }}",
-                        confirmPasswordLabel: "{{ ui_t('auth.ui.confirm_password', [], 'fr') }}",
-                        passwordRequirements: "{{ ui_t('auth.ui.password_requirements', [], 'fr') }}",
-                        submitButton: "{{ ui_t('auth.ui.reset_password', [], 'fr') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'fr') }}"
+                        pageTitle: "{!! ui_t('auth.ui.reset_password', [], 'fr') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.reset_password_subtitle', [], 'fr') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'fr') !!}",
+                        passwordLabel: "{!! ui_t('auth.ui.password', [], 'fr') !!}",
+                        confirmPasswordLabel: "{!! ui_t('auth.ui.confirm_password', [], 'fr') !!}",
+                        passwordRequirements: "{!! ui_t('auth.ui.password_requirements', [], 'fr') !!}",
+                        submitButton: "{!! ui_t('auth.ui.reset_password', [], 'fr') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'fr') !!}"
                     },
                     ar: {
-                        pageTitle: "{{ ui_t('auth.ui.reset_password', [], 'ar') }}",
-                        pageSubtitle: "{{ ui_t('auth.ui.reset_password_subtitle', [], 'ar') }}",
-                        emailLabel: "{{ ui_t('auth.ui.email', [], 'ar') }}",
-                        passwordLabel: "{{ ui_t('auth.ui.password', [], 'ar') }}",
-                        confirmPasswordLabel: "{{ ui_t('auth.ui.confirm_password', [], 'ar') }}",
-                        passwordRequirements: "{{ ui_t('auth.ui.password_requirements', [], 'ar') }}",
-                        submitButton: "{{ ui_t('auth.ui.reset_password', [], 'ar') }}",
-                        errorTitle: "{{ ui_t('auth.ui.we_couldnt_process', [], 'ar') }}"
+                        pageTitle: "{!! ui_t('auth.ui.reset_password', [], 'ar') !!}",
+                        pageSubtitle: "{!! ui_t('auth.ui.reset_password_subtitle', [], 'ar') !!}",
+                        emailLabel: "{!! ui_t('auth.ui.email', [], 'ar') !!}",
+                        passwordLabel: "{!! ui_t('auth.ui.password', [], 'ar') !!}",
+                        confirmPasswordLabel: "{!! ui_t('auth.ui.confirm_password', [], 'ar') !!}",
+                        passwordRequirements: "{!! ui_t('auth.ui.password_requirements', [], 'ar') !!}",
+                        submitButton: "{!! ui_t('auth.ui.reset_password', [], 'ar') !!}",
+                        errorTitle: "{!! ui_t('auth.ui.we_couldnt_process', [], 'ar') !!}"
                     }
                 };
 
