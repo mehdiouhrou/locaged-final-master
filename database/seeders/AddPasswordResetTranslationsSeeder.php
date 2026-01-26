@@ -39,6 +39,14 @@ class AddPasswordResetTranslationsSeeder extends Seeder
                 'ar_text' => 'العربية',
             ],
             
+            // Error messages
+            [
+                'key' => 'auth.ui.we_couldnt_process',
+                'en_text' => 'We couldn\'t process your request',
+                'fr_text' => 'Nous n\'avons pas pu traiter votre demande',
+                'ar_text' => 'لم نتمكن من معالحة طلبك',
+            ],
+            
             // Password reset page specific
             [
                 'key' => 'auth.ui.reset_password_subtitle',
