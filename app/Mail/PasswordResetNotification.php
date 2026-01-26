@@ -15,14 +15,16 @@ class PasswordResetNotification extends Mailable
 
     public $user;
     public $resetUrl;
+    public $locale;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(User $user, string $resetUrl)
+    public function __construct(User $user, string $resetUrl, string $locale = 'fr')
     {
         $this->user = $user;
         $this->resetUrl = $resetUrl;
+        $this->locale = $locale;
     }
 
     /**
@@ -30,8 +32,10 @@ class PasswordResetNotification extends Mailable
      */
     public function envelope(): Envelope
     {
+        $subject = ui_t('auth.ui.email_subject', [], $this->locale) . ' - ' . config('app.name', 'Locaged');
+        
         return new Envelope(
-            subject: 'Reset Your Password - ' . config('app.name', 'Locaged'),
+            subject: $subject,
         );
     }
 
@@ -53,5 +57,20 @@ class PasswordResetNotification extends Mailable
     public function attachments(): array
     {
         return [];
+    }
+
+    /**
+     * Set the locale for the email content
+     */
+    public function build()
+    {
+        return $this->withLocale($this->locale, function () {
+            return $this->view('emails.password-reset')
+                        ->with([
+                            'user' => $this->user,
+                            'resetUrl' => $this->resetUrl,
+                            'locale' => $this->locale,
+                        ]);
+        });
     }
 }

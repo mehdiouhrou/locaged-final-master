@@ -198,12 +198,16 @@ class User extends Authenticatable
      */
     public function sendPasswordResetNotification($token)
     {
+        // Get the selected language from session (default to French)
+        $locale = session('password_reset_locale', 'fr');
+        
         $resetUrl = url(route('password.reset', [
             'token' => $token,
             'email' => $this->email,
+            'lang' => $locale,  // Append language parameter to URL
         ], false));
 
-        \Mail::to($this->email)->send(new \App\Mail\PasswordResetNotification($this, $resetUrl));
+        \Mail::to($this->email)->send(new \App\Mail\PasswordResetNotification($this, $resetUrl, $locale));
     }
 
 }
