@@ -3,19 +3,29 @@
 @section('content')
             <style>
                 body { font-family: Helvetica, Arial, sans-serif !important; }
-                .login-card { width: min(70%, 520px); margin: 0 auto; position: relative; }
+                .login-card { width: min(70%, 520px); margin: 0 auto; position: relative; padding-top: 40px; }
                 .language-selector { 
                     position: absolute; 
-                    top: -10px; 
+                    top: 0; 
                     right: 0; 
-                    z-index: 10;
+                    z-index: 100;
                 }
                 .language-selector select {
-                    padding: 5px 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
+                    padding: 6px 12px;
+                    border: 1px solid #dee2e6;
+                    border-radius: 5px;
                     background-color: white;
                     font-size: 14px;
+                    cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                .language-selector select:hover {
+                    border-color: #adb5bd;
+                }
+                .language-selector select:focus {
+                    outline: none;
+                    border-color: #0d6efd;
+                    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
                 }
             </style>
             <div class="login-card">

@@ -159,8 +159,6 @@ class AddPasswordResetTranslationsSeeder extends Seeder
                     'en_text' => $translation['en_text'],
                     'fr_text' => $translation['fr_text'],
                     'ar_text' => $translation['ar_text'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
                 ]
             );
         }
