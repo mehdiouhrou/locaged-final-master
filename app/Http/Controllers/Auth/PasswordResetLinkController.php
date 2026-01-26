@@ -37,6 +37,9 @@ class PasswordResetLinkController extends Controller
         // Capture and store the selected language
         $language = $request->input('language', 'fr');
         session(['password_reset_locale' => $language]);
+        
+        // Set the app locale for proper translation of error messages
+        app()->setLocale($language);
 
         // We will send the password reset link to this user. Once we have attempted
         // to send the link, we will examine the response then see the message we
@@ -48,6 +51,6 @@ class PasswordResetLinkController extends Controller
         return $status == Password::RESET_LINK_SENT
                     ? back()->with('status', ui_t('passwords.sent', [], $language))
                     : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+                        ->withErrors(['email' => __($status, [], $language)]);
     }
 }
