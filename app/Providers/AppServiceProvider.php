@@ -37,9 +37,10 @@ class AppServiceProvider extends ServiceProvider
             abort(503, 'Application misconfigured: APP_DEBUG must be false in production.');
         }
 
-        if ($this->app->environment('production')) {
-            URL::forceScheme('https');
-        }
+        // Disabled for HTTP deployment
+        // if ($this->app->environment('production')) {
+        //     URL::forceScheme('https');
+        // }
 
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(\App\Models\DocumentDestructionRequest::class, \App\Policies\DocumentDestructionRequestPolicy::class);
