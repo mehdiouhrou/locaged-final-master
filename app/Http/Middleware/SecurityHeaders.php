@@ -40,15 +40,17 @@ class SecurityHeaders
         // Permissions Policy (formerly Feature-Policy)
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-        // Content Security Policy - relaxed for compatibility
-        // TODO: Tighten this once all required resources are identified
+        // Content Security Policy - adapt to HTTP or HTTPS
+        // Dynamically set protocol based on request
+        $protocol = $request->secure() ? 'https:' : 'http: https:';
+        
         $csp = implode('; ', [
-            "default-src 'self' https:",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-            "style-src 'self' 'unsafe-inline' https:",
-            "font-src 'self' https: data:",
-            "img-src 'self' data: blob: https:",
-            "connect-src 'self' wss: ws: https:",
+            "default-src 'self' {$protocol}",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' {$protocol}",
+            "style-src 'self' 'unsafe-inline' {$protocol}",
+            "font-src 'self' {$protocol} data:",
+            "img-src 'self' data: blob: {$protocol}",
+            "connect-src 'self' wss: ws: {$protocol}",
             "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
