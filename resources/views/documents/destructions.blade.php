@@ -13,7 +13,6 @@
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">{{ ui_t('pages.destructions.document_name') }}</th>
-                                <th scope="col">{{ ui_t('pages.destructions.author') }}</th>
                                 <th scope="col">{{ ui_t('pages.destructions.created_by') }}</th>
                                 <th scope="col">{{ __('Deleted By') }}</th>
                                 <th scope="col">{{ __('Deleted At') }}</th>
@@ -31,11 +30,6 @@
                                         </div>
                                         <div class="text-muted small">
                                             ID: {{ $log->document_id }}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="fw-semibold text-truncate" style="max-width: 200px;">
-                                            {{ $doc?->metadata['author'] ?? '—' }}
                                         </div>
                                     </td>
                                     <td>
