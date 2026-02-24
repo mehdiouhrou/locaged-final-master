@@ -645,8 +645,9 @@ class DocumentVersionController extends Controller
         
         Gate::authorize('view', $document);
 
-        // Log the view action (preview/inline viewing)
-        $document->logAction('viewed', $doc->id);
+        // NOTE: Do NOT log 'viewed' here. The preview() or viewFullscreen() method
+        // that called this file route already logged the view. Logging here would
+        // create a duplicate audit entry for every document open.
 
 
         if (!Storage::disk('local')->exists($doc->file_path)) {

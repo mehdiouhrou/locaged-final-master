@@ -136,7 +136,6 @@
                             <option value="downloaded">{{ ui_t('pages.activity.actions.downloaded') }}</option>
                             <option value="viewed">{{ ui_t('pages.activity.actions.viewed') }}</option>
                             <option value="renamed">{{ ui_t('pages.activity.actions.renamed') }}</option>
-                            <option value="locked">{{ ui_t('pages.activity.actions.locked') }}</option>
                             <option value="unlocked">{{ ui_t('pages.activity.actions.unlocked') }}</option>
                             <option value="moved">{{ ui_t('pages.activity.actions.moved') }}</option>
                             <option value="destroyed">{{ ui_t('pages.activity.actions.destroyed') }}</option>
