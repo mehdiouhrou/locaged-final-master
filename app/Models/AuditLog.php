@@ -53,7 +53,9 @@ class AuditLog extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class,'user_id','id');
+        // user_id may be null if the user account was deleted.
+        // Historical audit logs are preserved with user_id set to NULL.
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
     public function document(): BelongsTo
