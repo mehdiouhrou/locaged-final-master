@@ -18,7 +18,6 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="min-width: 220px;">{{ ui_t('pages.destructions.document_name') }}</th>
-                                <th style="min-width: 120px;">{{ ui_t('pages.destructions.author') }}</th>
                                 <th style="min-width: 120px;">{{ ui_t('pages.destructions.created_by') }}</th>
                                 <th style="min-width: 110px;">{{ ui_t('pages.destructions.creation_date') }}</th>
                                 <th style="min-width: 110px;">{{ ui_t('pages.destructions.expiration_date') }}</th>
@@ -43,12 +42,6 @@
                                             <div class="text-truncate" style="max-width: 180px;" title="{{ $doc->title }}">
                                                 {{ $doc->title }}
                                             </div>
-                                        </div>
-                                    </td>
-                                    {{-- Author --}}
-                                    <td>
-                                        <div class="text-truncate" style="max-width: 120px;" title="{{ $doc->metadata['author'] ?? '' }}">
-                                            {{ $doc->metadata['author'] ?? '—' }}
                                         </div>
                                     </td>
                                     {{-- Created By --}}
@@ -145,7 +138,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-4 text-muted">
+                                    <td colspan="6" class="text-center py-4 text-muted">
                                         {{ ui_t('pages.destructions.no_expired_documents') }}
                                     </td>
                                 </tr>
