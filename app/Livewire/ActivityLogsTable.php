@@ -196,6 +196,7 @@ class ActivityLogsTable extends Component
                 $q->where(function($q2) {
                     $q2->where('email', 'like', '%' . $this->search . '%')
                        ->orWhere('ip_address', 'like', '%' . $this->search . '%')
+                       ->orWhere('user_name', 'like', '%' . $this->search . '%')
                        ->orWhereHas('user', function($q3) {
                            $q3->where('full_name', 'like', '%' . $this->search . '%');
                        });

@@ -12,6 +12,7 @@ class LogFailedLogin
     {
         AuthenticationLog::create([
             'user_id' => null, // Failed login - user might not exist
+            'user_name' => $event->user?->full_name ?? null,
             'email' => $event->credentials['email'] ?? 'unknown',
             'type' => 'login_failed',
             'ip_address' => Request::ip(),

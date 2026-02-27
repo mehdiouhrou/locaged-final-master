@@ -216,7 +216,7 @@
                                             />
                                         </div>
                                         <div class="flex-grow-1 ms-2">
-                                            <div class="fw-semibold small">{{ $log->user?->full_name ?? ui_t('pages.activity.table.na') }}</div>
+                                            <div class="fw-semibold small">{{ $log->user?->full_name ?? ($log->user_name ?? ui_t('pages.activity.table.na')) }}</div>
                                             @if($log->user?->departments->first())
                                                 <div class="text-muted" style="font-size: 0.75rem;">{{ $log->user->departments->first()->name }}</div>
                                             @endif

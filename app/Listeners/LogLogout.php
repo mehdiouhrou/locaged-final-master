@@ -13,6 +13,7 @@ class LogLogout
         if ($event->user) {
             AuthenticationLog::create([
                 'user_id' => $event->user->id,
+                'user_name' => $event->user->full_name,
                 'email' => $event->user->email,
                 'type' => 'logout',
                 'ip_address' => Request::ip(),

@@ -401,6 +401,7 @@ class Document extends Model
 
         AuditLog::create([
             'user_id' => auth()->id(),
+            'user_name' => auth()->check() ? auth()->user()->full_name : null,
             'document_id' => $this->id,
             'version_id' => $resolvedVersionId,
             'action' => $action,
