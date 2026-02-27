@@ -372,6 +372,7 @@ class ActivityLogsTable extends Component
                         $q3->where('full_name', 'like', '%' . $this->search . '%')
                            ->orWhere('email', 'like', '%' . $this->search . '%');
                     })
+                    ->orWhere('user_name', 'like', '%' . $this->search . '%')
                     ->orWhereHas('document', function($q3) {
                         $q3->where('title', 'like', '%' . $this->search . '%');
                     })
