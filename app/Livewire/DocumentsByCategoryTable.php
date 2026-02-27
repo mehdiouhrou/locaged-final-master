@@ -1,0 +1,453 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Models\Document;
+use App\Models\DocumentMovement;
+use App\Models\PhysicalLocation;
+use App\Services\DocumentSearchService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Component;
+use Livewire\WithPagination;
+use ZipArchive;
+
+class DocumentsByCategoryTable extends Component
+{
+    use WithPagination;
+
+    public $filterId; // ID of either category or subcategory
+    public $isCategory = false; // true if filtering by category, false if filtering by subcategory
+    public $contextLabel = null; // Optional label like category or subcategory name for UI headings
+
+    public $search = '';
+    public $status = '';
+    public $fileType = '';
+    public $dateFrom = '';
+    public $dateTo = '';
+    public $room = '';
+    public $author = '';
+    public $keywords = '';
+    public $tags = '';
+    public $favoritesOnly = false;
+    public $documentId = null; // Filter by specific document ID
+    public $boxId = ''; // Filter by box ID (physical location)
+    public $showExpired = false; // Show expired documents (from dashboard All Documents card)
+    public $pageTitle = null; // Heading to display (from dashboard cards)
+    public $hideStatusFilter = false; // Hide status filter dropdown (from dashboard cards)
+    public $lockStatusFilter = false; // Lock status filter dropdown (cannot be changed)
+
+
+    public $documentsIds = [];
+    public $checkedDocuments = []; // IDs of selected documents
+    public $selectAll = false;
+    public $page = 1;
+    public $perPage = 10;
+
+    protected $queryString = [
+        'search' => ['except' => ''],
+        'status' => ['except' => ''],
+        'fileType' => ['except' => ''],
+        'dateFrom' => ['except' => ''],
+        'dateTo' => ['except' => ''],
+        'room' => ['except' => ''],
+        'author' => ['except' => ''],
+        'keywords' => ['except' => ''],
+        'tags' => ['except' => ''],
+        'favoritesOnly' => ['except' => false],
+        'perPage' => ['except' => 10],
+        'boxId' => ['except' => '', 'as' => 'box_id'],
+        'documentId' => ['except' => null, 'as' => 'document_id'],
+        'showExpired' => ['except' => false, 'as' => 'show_expired'],
+        'pageTitle' => ['except' => null, 'as' => 'page_title'],
+        'hideStatusFilter' => ['except' => false, 'as' => 'hide_status_filter'],
+        'lockStatusFilter' => ['except' => false, 'as' => 'lock_status'],
+    ];
+
+    public function mount($filterId = null, $isCategory = false, $contextLabel = null): void
+    {
+        $this->filterId = $filterId;
+        $this->isCategory = $isCategory;
+        $this->contextLabel = $contextLabel;
+    }
+
+    public function updated($field)
+    {
+        // Reset to first page when any filter changes
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'perPage'])) {
+            $this->resetPage();
+        }
+    }
+
+    public function resetFilters()
+    {
+        $this->search = '';
+        $this->status = '';
+        $this->fileType = '';
+        $this->dateFrom = '';
+        $this->dateTo = '';
+        $this->room = '';
+        $this->author = '';
+        $this->keywords = '';
+        $this->tags = '';
+        $this->boxId = '';
+        $this->favoritesOnly = false;
+        $this->perPage = 10; // Reset to default
+
+        $this->resetPage();
+    }
+
+
+
+    public function updatedSelectAll($value)
+    {
+
+        if ($value) {
+            $this->checkedDocuments = $this->documentsIds;
+        } else {
+            $this->checkedDocuments = [];
+        }
+    }
+
+    public function downloadSelected()
+    {
+        if (empty($this->checkedDocuments)) {
+            session()->flash('error', 'No documents selected for download.');
+            return null;
+        }
+
+        // Get all selected documents
+        $documents = Document::whereIn('id', $this->checkedDocuments)->get();
+
+        if ($documents->isEmpty()) {
+            session()->flash('error', 'Selected documents not found.');
+            return null;
+        }
+
+        // Create a temporary ZIP file
+        $zipFileName = 'documents_' . now()->timestamp . '.zip';
+        $zipFilePath = storage_path('app/public/' . $zipFileName);
+
+        $zip = new ZipArchive;
+
+        if ($zip->open($zipFilePath, ZipArchive::CREATE) === TRUE) {
+            foreach ($documents as $doc) {
+                if (!empty($doc->latestVersion) && Storage::exists($doc->latestVersion->file_path)) {
+                    $zip->addFile(
+                        Storage::path($doc->latestVersion->file_path),
+                        basename($doc->latestVersion->file_path)
+                    );
+                }
+            }
+
+            // Check if any files were added
+            if ($zip->numFiles === 0) {
+                $zip->close();
+                session()->flash('error', 'No files found for the selected documents.');
+                return back();
+            }
+
+            $zip->close();
+        }
+
+        return response()->download($zipFilePath)->deleteFileAfterSend(true);
+    }
+
+
+    public function render()
+    {
+        // Base documents query using the database only (no Elasticsearch).
+        // This makes search/filtering always work even if the search engine
+        // is not configured.
+        $documentsQuery = Document::with([
+            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion', 'auditLogs.user'
+        ]);
+
+        // By default, hide expired documents (is_expired = 1/true)
+        // They are shown when:
+        // 1. The 'expired' status filter is selected, OR
+        // 2. The showExpired flag is true (from dashboard All Documents card)
+        $showExpiredBool = filter_var($this->showExpired, FILTER_VALIDATE_BOOLEAN);
+        
+        if ($this->status === 'expired') {
+            // Show ONLY expired documents - documents that are either:
+            // 1. Marked as expired (is_expired = true), OR
+            // 2. Have expire_at date in the past (even if not marked yet)
+            // IMPORTANT: Use regular query (not withoutGlobalScopes) to maintain security
+            $documentsQuery->where(function($expQ) {
+                $expQ->where('is_expired', true)
+                     ->orWhere(function($dateQ) {
+                         $dateQ->whereNotNull('expire_at')
+                               ->whereDate('expire_at', '<=', now());
+                     });
+            });
+        } elseif ($showExpiredBool === true) {
+            // Dashboard "All Documents" card: show ALL documents including expired
+            // Don't filter by is_expired at all
+            // Apply regular status filter if set
+            if ($this->status && $this->status !== 'all' && $this->status !== '') {
+                $documentsQuery->where('status', $this->status);
+            }
+        } else {
+            // Default: Hide expired documents (showExpired is false or not set)
+            $documentsQuery->where(function ($q) {
+                $q->where('is_expired', false)
+                  ->orWhereNull('is_expired');
+            });
+            
+            // Apply regular status filter if set
+            if ($this->status && $this->status !== 'all' && $this->status !== 'expired' && $this->status !== '') {
+                $documentsQuery->where('status', $this->status);
+            }
+        }
+
+        // Handle category/subcategory filter
+        if ($this->filterId) {
+            $documentsQuery->when($this->filterId, function ($q) {
+                if ($this->isCategory) {
+                    // Filter directly by category_id so documents linked only to the category
+                    // (without a subcategory) are also included.
+                    $q->where('category_id', $this->filterId);
+                } else {
+                    // If it's a subcategory, filter directly
+                    $q->where('subcategory_id', $this->filterId);
+                }
+            });
+        }
+
+        // Box filter (physical location)
+        $documentsQuery->when($this->boxId, function ($q) {
+            $q->where('box_id', $this->boxId);
+        });
+
+        // File type filter via latest version
+        $documentsQuery->when($this->fileType, function ($q) {
+            $q->whereHas('latestVersion', function ($sub) {
+                $sub->where('file_type', $this->fileType);
+            });
+        });
+
+        // Room filter (convert to box_ids)
+        if ($this->room) {
+            $roomModel = \App\Models\Room::where('name', $this->room)->first();
+            if ($roomModel) {
+                $boxIds = \App\Models\Box::whereHas('shelf.row.room', function ($q) use ($roomModel) {
+                    $q->where('id', $roomModel->id);
+                })->pluck('id');
+                $documentsQuery->whereIn('box_id', $boxIds);
+            }
+        }
+
+        // Specific document filter (from audit page)
+        $documentsQuery->when($this->documentId, function ($q) {
+            $q->where('id', $this->documentId);
+        });
+
+        // Favorites filter
+        $documentsQuery->when($this->favoritesOnly, function ($q) {
+            $q->whereHas('favoritedByUsers', function ($q2) {
+                $q2->where('user_id', auth()->id());
+            });
+        });
+
+        // Date range filters
+        $documentsQuery->when($this->dateFrom, function ($q) {
+            $q->whereDate('created_at', '>=', $this->dateFrom);
+        });
+
+        $documentsQuery->when($this->dateTo, function ($q) {
+            $q->whereDate('created_at', '<=', $this->dateTo);
+        });
+
+        // Full-text search: title AND OCR content from latest version
+        if (! empty($this->search)) {
+            $searchTerm = '%' . strtolower($this->search) . '%';
+            $documentsQuery->where(function ($q) use ($searchTerm) {
+                // Search in document title
+                $q->whereRaw('LOWER(title) LIKE ?', [$searchTerm])
+                  // Also search in OCR text from the latest version
+                  ->orWhereHas('latestVersion', function ($sub) use ($searchTerm) {
+                      $sub->whereRaw('LOWER(ocr_text) LIKE ?', [$searchTerm]);
+                  });
+            });
+        }
+
+        // Keywords filter - searches in title and metadata->keywords JSON field
+        $documentsQuery->when($this->keywords, function ($q) {
+            $keywordsInput = trim($this->keywords);
+            if (empty($keywordsInput)) {
+                return;
+            }
+            
+            // Split by comma and clean up each keyword
+            $keywordsList = array_map('trim', explode(',', $keywordsInput));
+            $keywordsList = array_filter($keywordsList, fn($k) => !empty($k));
+            
+            if (empty($keywordsList)) {
+                return;
+            }
+            
+            $q->where(function ($sub) use ($keywordsList) {
+                foreach ($keywordsList as $keyword) {
+                    $pattern = '%' . strtolower($keyword) . '%';
+                    $sub->orWhereRaw('LOWER(title) LIKE ?', [$pattern])
+                        ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.keywords"))) LIKE ?', [$pattern]);
+                }
+            });
+        });
+
+        // Tags filter - filters documents that have ANY of the specified tags
+        $documentsQuery->when($this->tags, function ($q) {
+            $tagsInput = trim($this->tags);
+            if (empty($tagsInput)) {
+                return;
+            }
+            
+            // Split by comma and clean up each tag name
+            $tagsList = array_map('trim', explode(',', $tagsInput));
+            $tagsList = array_filter($tagsList, fn($t) => !empty($t));
+            
+            if (empty($tagsList)) {
+                return;
+            }
+            
+            $q->whereHas('tags', function ($tagQuery) use ($tagsList) {
+                $tagQuery->where(function ($sub) use ($tagsList) {
+                    foreach ($tagsList as $tagName) {
+                        $sub->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($tagName) . '%']);
+                    }
+                });
+            });
+        });
+
+        // Author filter - matches metadata->author, latest version uploader, or document owner
+        $documentsQuery->when($this->author, function ($q) {
+            $author = $this->author;
+            $q->where(function ($sub) use ($author) {
+                $sub->where('metadata->author', 'like', '%' . $author . '%')
+                    ->orWhereHas('latestVersion.uploadedBy', function ($q2) use ($author) {
+                        $q2->where('full_name', 'like', '%' . $author . '%')
+                           ->orWhere('email', 'like', '%' . $author . '%');
+                    })
+                    ->orWhereHas('createdBy', function ($q3) use ($author) {
+                        $q3->where('full_name', 'like', '%' . $author . '%')
+                           ->orWhere('email', 'like', '%' . $author . '%');
+                    });
+            });
+        });
+
+        // Apply ordering - latest first (same order as displayed in the table)
+        $documentsQuery->latest()->orderBy('id', 'desc');
+        
+        // Get ALL filtered document IDs for navigation BEFORE pagination
+        // This ensures navigation works across all pages in the correct order
+        $this->documentsIds = (clone $documentsQuery)->pluck('id')->toArray();
+
+        // Now paginate for display
+        $documents = $documentsQuery->paginate($this->perPage);
+
+        $movements = DocumentMovement::all();
+        // Load rooms for move modal hierarchical selection
+        $rooms = \App\Models\Room::with(['rows.shelves.boxes'])->get();
+
+        return view('livewire.documents-by-category-table', [
+            'documents' => $documents,
+            'movements' => $movements,
+            'rooms' => $rooms,
+            'documentsIds' => $this->documentsIds,
+        ]);
+    }
+
+    public function toggleFavorite(int $documentId): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return;
+        }
+        $isFav = $user->favoriteDocuments()->where('document_id', $documentId)->exists();
+        if ($isFav) {
+            $user->favoriteDocuments()->detach($documentId);
+        } else {
+            $user->favoriteDocuments()->attach($documentId);
+        }
+        $this->resetPage();
+    }
+
+    public function bulkDelete()
+    {
+        // Only master role can perform bulk delete
+        if (!auth()->user()->hasRole('master')) {
+            session()->flash('error', 'You do not have permission to perform bulk delete.');
+            return;
+        }
+
+        if (empty($this->checkedDocuments)) {
+            session()->flash('error', 'No documents selected for deletion.');
+            return;
+        }
+
+        // Get all selected documents with their versions
+        $documents = Document::with('documentVersions')->whereIn('id', $this->checkedDocuments)->get();
+
+        if ($documents->isEmpty()) {
+            session()->flash('error', 'Selected documents not found.');
+            return;
+        }
+
+        $deletedCount = 0;
+        $errors = [];
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($documents as $document) {
+                try {
+                    // Log the action before deletion (same as individual delete)
+                    $document->logAction('permanently_deleted');
+
+                    // Remove from search index and delete all document versions and their files
+                    foreach ($document->documentVersions as $version) {
+                        // Remove from search index first
+                        $version->unsearchable();
+
+                        // Delete the file if it exists
+                        if ($version->file_path && Storage::exists($version->file_path)) {
+                            Storage::delete($version->file_path);
+                        }
+                        $version->delete();
+                    }
+
+                    // Delete the document itself
+                    $document->delete();
+                    $deletedCount++;
+                } catch (\Exception $e) {
+                    $errors[] = "Failed to delete document '{$document->title}': " . $e->getMessage();
+                }
+            }
+
+            DB::commit();
+
+            // Clear selected documents
+            $this->checkedDocuments = [];
+            $this->selectAll = false;
+
+            if ($deletedCount > 0) {
+                $message = "Successfully permanently deleted {$deletedCount} document(s).";
+                if (!empty($errors)) {
+                    $message .= " Errors: " . implode(', ', $errors);
+                }
+                session()->flash('success', $message);
+            }
+
+            if (!empty($errors) && $deletedCount === 0) {
+                session()->flash('error', 'Failed to delete documents: ' . implode(', ', $errors));
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'An error occurred during bulk delete: ' . $e->getMessage());
+        }
+
+        $this->resetPage();
+    }
+}

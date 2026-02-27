@@ -1,0 +1,442 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\PhysicalLocation;
+use App\Models\Room;
+use App\Models\Row;
+use App\Models\Shelf;
+use App\Models\Box;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Exports\PhysicalLocationsExport;
+use App\Exports\PhysicalLocationFilesExport;
+use Maatwebsite\Excel\Facades\Excel;
+
+class PhysicalLocationController extends Controller
+{
+    public function index()
+    {
+        Gate::authorize('viewAny', PhysicalLocation::class);
+
+        // Legacy admin role should not access Physical Locations settings page
+        if (auth()->user()?->hasRole('admin')) {
+            abort(403);
+        }
+
+        $user = auth()->user();
+        $accessibleServiceIds = Box::getAccessibleServiceIds($user);
+        
+        // Build the hierarchical query with proper filtering
+        if ($accessibleServiceIds === 'all') {
+            // Admin/Super Admin: Load everything
+            $roomsQuery = Room::with([
+                'rows.shelves.boxes' => function ($query) {
+                    $query->with(['documents' => function ($docQuery) {
+                        $docQuery->select('id', 'box_id', 'title');
+                    }]);
+                }
+            ]);
+        } else {
+            // Restricted users: Show partial structures they're building
+            // Load ALL rows and shelves for accessible rooms, but filter boxes
+            $roomsQuery = Room::with([
+                'rows.shelves.boxes' => function($boxQuery) use ($accessibleServiceIds) {
+                    // Only filter boxes by accessible services
+                    $boxQuery->whereIn('service_id', $accessibleServiceIds);
+                    $boxQuery->with(['documents' => function ($docQuery) {
+                        $docQuery->select('id', 'box_id', 'title');
+                    }]);
+                }
+            ]);
+
+            // Filter rooms: show ALL rooms (as per new requirement)
+            // Users can see full structure (Room -> Row -> Shelf) but only their own boxes
+            // The boxes are already filtered in the eager loading above
+        }
+
+        $rooms = $roomsQuery->get();
+        
+        return view('physical_locations.index', compact('rooms'));
+    }
+
+
+    public function store(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'room_name' => 'required|string|max:255',
+            'row_name' => 'required|string|max:255',
+            'shelf_name' => 'required|string|max:255',
+            'box_name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $user = auth()->user();
+            $deptId = $this->getUserDepartmentId($user);
+
+            // Step 1: Find or create room
+            // If creating, assign department ID
+            $room = Room::firstOrCreate(
+                ['name' => $validated['room_name']],
+                ['description' => null, 'department_id' => $deptId]
+            );
+
+            // Step 2: Find or create row inside the room
+            $row = Row::firstOrCreate(
+                [
+                    'room_id' => $room->id,
+                    'name' => $validated['row_name']
+                ],
+                ['description' => null]
+            );
+
+            // Step 3: Find or create shelf inside the row
+            $shelf = Shelf::firstOrCreate(
+                [
+                    'row_id' => $row->id,
+                    'name' => $validated['shelf_name']
+                ],
+                ['description' => null]
+            );
+
+            // Step 4: Create box inside the shelf (this is what gets created - boxes don't reuse)
+            $box = Box::create([
+                'shelf_id' => $shelf->id,
+                'name' => $validated['box_name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', 'Location path created successfully: <strong>' . $box->__toString() . '</strong>');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Failed to create location: ' . $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * Add a new Room
+     */
+    public function addRoom(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:rooms,name',
+            'description' => 'nullable|string',
+        ]);
+
+        // Automatically assign department for restricted users
+        $user = auth()->user();
+        $validated['department_id'] = $this->getUserDepartmentId($user);
+
+        $room = Room::create($validated);
+
+        return back()->with('success', 'Room "<strong>' . $room->name . '</strong>" created successfully.');
+    }
+
+    /**
+     * Helper to get potentially associated department ID for user
+     */
+    private function getUserDepartmentId($user)
+    {
+        if (!$user) return null;
+        
+        // If super admin, return null (global rooms)
+        if ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super_admin')) {
+            return null;
+        }
+
+        // 1. Direct Department Assignment (e.g. Pole Admin)
+        $dept = $user->departments()->first();
+        if ($dept) return $dept->id;
+
+        // 2. Service Assignment (Service -> SubDept -> Dept)
+        if ($user->service_id) {
+            $service = \App\Models\Service::with('subDepartment.department')->find($user->service_id);
+            return $service?->subDepartment?->department_id;
+        } elseif ($user->service) {
+             return $user->service->subDepartment?->department_id;
+        }
+
+        // 3. SubDepartment Assignment (SubDept -> Dept)
+        if ($user->sub_department_id) {
+            $sub = \App\Models\SubDepartment::find($user->sub_department_id);
+            return $sub?->department_id;
+        } elseif ($user->subDepartment) {
+            return $user->subDepartment->department_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Add a Row to an existing Room
+     */
+    public function addRow(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'room_id' => 'required|exists:rooms,id',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        // Check if row with same name already exists in this room
+        $existingRow = Row::where('room_id', $validated['room_id'])
+            ->where('name', $validated['name'])
+            ->first();
+
+        if ($existingRow) {
+            return back()->withErrors(['error' => 'A row with this name already exists in the selected room.']);
+        }
+
+        $row = Row::create([
+            'room_id' => $validated['room_id'],
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        $room = Room::find($validated['room_id']);
+        return back()->with('success', 'Row "<strong>' . $row->name . '</strong>" added to room "<strong>' . $room->name . '</strong>" successfully.');
+    }
+
+    /**
+     * Add a Shelf to an existing Row
+     */
+    public function addShelf(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'row_id' => 'required|exists:rows,id',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        // Check if shelf with same name already exists in this row
+        $existingShelf = Shelf::where('row_id', $validated['row_id'])
+            ->where('name', $validated['name'])
+            ->first();
+
+        if ($existingShelf) {
+            return back()->withErrors(['error' => 'A shelf with this name already exists in the selected row.']);
+        }
+
+        $shelf = Shelf::create([
+            'row_id' => $validated['row_id'],
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        $row = Row::with('room')->find($validated['row_id']);
+        return back()->with('success', 'Shelf "<strong>' . $shelf->name . '</strong>" added to row "<strong>' . $row->name . '</strong>" in room "<strong>' . $row->room->name . '</strong>" successfully.');
+    }
+
+    /**
+     * Add a Box to an existing Shelf
+     */
+    public function addBox(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'shelf_id' => 'required|exists:shelves,id',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        // Check if box with same name already exists in this shelf
+        $existingBox = Box::where('shelf_id', $validated['shelf_id'])
+            ->where('name', $validated['name'])
+            ->first();
+
+        if ($existingBox) {
+            return back()->withErrors(['error' => 'A box with this name already exists in the selected shelf.']);
+        }
+
+        $box = Box::create([
+            'shelf_id' => $validated['shelf_id'],
+            'service_id' => $validated['service_id'],
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        $box->load('shelf.row.room');
+        return back()->with('success', 'Box "<strong>' . $box->name . '</strong>" added successfully. Path: <strong>' . $box->__toString() . '</strong>');
+    }
+
+    /**
+     * Update a box in the hierarchical structure
+     */
+    public function updateBox(Request $request, Box $box)
+    {
+        // Authorize using PhysicalLocation policy (same scope as create)
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'room_name' => 'required|string|max:255',
+            'row_name' => 'required|string|max:255',
+            'shelf_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Store old location before moving
+            $oldShelf = $box->shelf;
+            $oldRow = $oldShelf->row;
+            $oldRoom = $oldRow->room;
+
+            // Find or create the new path structure
+            $room = Room::firstOrCreate(['name' => $validated['room_name']], [
+                'department_id' => $this->getUserDepartmentId(auth()->user())
+            ]);
+            
+            $row = Row::firstOrCreate([
+                'room_id' => $room->id,
+                'name' => $validated['row_name']
+            ]);
+            
+            $shelf = Shelf::firstOrCreate([
+                'row_id' => $row->id,
+                'name' => $validated['shelf_name']
+            ]);
+
+            // Check if a box with this name already exists in the target shelf (excluding current box)
+            $existingBox = Box::where('shelf_id', $shelf->id)
+                ->where('name', $validated['name'])
+                ->where('id', '!=', $box->id)
+                ->first();
+
+            if ($existingBox) {
+                DB::rollBack();
+                return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
+            }
+
+            // Move the box to the new shelf and update details
+            $box->update([
+                'shelf_id' => $shelf->id,
+                'service_id' => $validated['service_id'],
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            // Clean up old empty structures (only if box was moved to different shelf)
+            if ($oldShelf->id !== $shelf->id) {
+                // Refresh to get current state
+                $oldShelf->refresh();
+                
+                // If old shelf is now empty, delete it
+                if ($oldShelf->boxes()->count() === 0) {
+                    $shelfId = $oldShelf->id;
+                    $oldShelf->delete();
+                    
+                    // Check if old row is now empty
+                    $oldRow->refresh();
+                    if ($oldRow->shelves()->count() === 0) {
+                        $rowId = $oldRow->id;
+                        $oldRow->delete();
+                        
+                        // Check if old room is now empty
+                        $oldRoom->refresh();
+                        if ($oldRoom->rows()->count() === 0) {
+                            $oldRoom->delete();
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+            return back()->with('success', 'Box updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            // Check if it's a duplicate entry error (in case we missed something)
+            if (str_contains($e->getMessage(), '1062') || str_contains($e->getMessage(), 'Duplicate entry')) {
+                return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
+            }
+            
+            return back()->withErrors(['error' => ui_t('errors.physical_location.box_update_failed')]);
+        }
+    }
+
+    /**
+     * Delete a box (will cascade delete if no documents)
+     */
+    public function destroyBox(Box $box)
+    {
+        // Authorize via permission name (no PhysicalLocation instance available here)
+        Gate::authorize('delete physical location');
+
+        // Check if box has documents
+        if ($box->documents()->count() > 0) {
+            return back()->withErrors(['error' => 'Cannot delete box with documents. Move documents first.']);
+        }
+
+        $box->delete();
+
+        return back()->with('success', 'Box deleted successfully.');
+    }
+
+    /**
+     * Delete a room (will cascade delete rows/shelves/boxes if no documents)
+     */
+    public function destroyRoom(Room $room)
+    {
+        // Authorize via permission name (no PhysicalLocation instance available here)
+        Gate::authorize('delete physical location');
+
+        // Check if room has documents
+        if ($room->documents()->count() > 0) {
+            return back()->withErrors(['error' => ui_t('messages.physical_location.room_contains_documents') ?? 'Cannot delete room because it contains documents. Please move or delete them first.']);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Manually delete items to ensure consistency
+            foreach ($room->rows as $row) {
+                foreach ($row->shelves as $shelf) {
+                     $shelf->boxes()->delete();
+                     $shelf->delete();
+                }
+                $row->delete();
+            }
+            $room->delete();
+
+            DB::commit();
+            return back()->with('success', ui_t('messages.physical_location.room_deleted') ?? 'Room and all its contents deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Failed to delete room: ' . $e->getMessage()]);
+        }
+    }
+
+
+    public function export()
+    {
+        Gate::authorize('viewAny', PhysicalLocation::class);
+        return Excel::download(new PhysicalLocationsExport(), 'physical-locations-report-' . now()->format('Ymd_His') . '.xlsx');
+    }
+
+    public function exportFiles(PhysicalLocation $physicalLocation)
+    {
+        Gate::authorize('viewAny', PhysicalLocation::class);
+        return Excel::download(new PhysicalLocationFilesExport($physicalLocation), 'location-' . $physicalLocation->id . '-files-' . now()->format('Ymd_His') . '.xlsx');
+    }
+}
