@@ -121,15 +121,17 @@ class ActivityLogsTable extends Component
                 $deptIds = $current->departments?->pluck('id') ?? collect();
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
-                $q->whereHas('user', function($q2) use ($deptIds, $allowedRoleNames) {
-                    // User must be in one of the admin's departments
-                    $q2->whereHas('departments', function($q3) use ($deptIds) {
-                        $q3->whereIn('departments.id', $deptIds);
-                    })
-                    // AND user must have a role below the admin's rank
-                    ->whereHas('roles', function($q3) use ($allowedRoleNames) {
-                        $q3->whereIn('name', $allowedRoleNames);
-                    });
+                $q->where(function($q1) use ($deptIds, $allowedRoleNames) {
+                    $q1->whereHas('user', function($q2) use ($deptIds, $allowedRoleNames) {
+                        // User must be in one of the admin's departments
+                        $q2->whereHas('departments', function($q3) use ($deptIds) {
+                            $q3->whereIn('departments.id', $deptIds);
+                        })
+                        // AND user must have a role below the admin's rank
+                        ->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                            $q3->whereIn('name', $allowedRoleNames);
+                        });
+                    })->orWhereNull('user_id'); // Allow logs from deleted users
                 });
             })
             // Sub-Department Administrator (Admin de departments): only see logs from users in their sub-departments
@@ -137,15 +139,17 @@ class ActivityLogsTable extends Component
                 $subDeptIds = $current->subDepartments?->pluck('id') ?? collect();
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
-                $q->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
-                    // User must be in one of the admin's sub-departments
-                    $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
-                        $q3->whereIn('sub_departments.id', $subDeptIds);
-                    })
-                    // AND user must have a role below the admin's rank
-                    ->whereHas('roles', function($q3) use ($allowedRoleNames) {
-                        $q3->whereIn('name', $allowedRoleNames);
-                    });
+                $q->where(function($q1) use ($subDeptIds, $allowedRoleNames) {
+                    $q1->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
+                        // User must be in one of the admin's sub-departments
+                        $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
+                            $q3->whereIn('sub_departments.id', $subDeptIds);
+                        })
+                        // AND user must have a role below the admin's rank
+                        ->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                            $q3->whereIn('name', $allowedRoleNames);
+                        });
+                    })->orWhereNull('user_id'); // Allow logs from deleted users
                 });
             })
             // Service Manager: only see logs from their services and users below their rank OR their own logs
@@ -153,25 +157,27 @@ class ActivityLogsTable extends Component
                 $serviceIds = $this->getAccessibleServiceIds($current);
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
 
-                $q->whereHas('user', function($q2) use ($serviceIds, $allowedRoleNames, $current) {
-                     $q2->where(function($query) use ($serviceIds, $allowedRoleNames, $current) {
-                        // Case A: Subordinate User in Manager's Service
-                        $query->where(function($subQ) use ($serviceIds, $allowedRoleNames) {
-                             $subQ->where(function($sQ) use ($serviceIds) {
-                                     // Check Service Assignment (Direct or Pivot)
-                                     $sQ->whereIn('users.service_id', $serviceIds)
-                                        ->orWhereHas('services', function($pivot) use ($serviceIds) {
-                                            $pivot->whereIn('services.id', $serviceIds);
-                                        });
-                             })
-                             // Check Rank (Strictly Lower)
-                             ->whereHas('roles', function($r) use ($allowedRoleNames) {
-                                 $r->whereIn('name', $allowedRoleNames);
-                             });
-                        })
-                        // Case B: The Service Manager Themselves
-                        ->orWhere('users.id', $current->id);
-                     });
+                $q->where(function($q1) use ($serviceIds, $allowedRoleNames, $current) {
+                    $q1->whereHas('user', function($q2) use ($serviceIds, $allowedRoleNames, $current) {
+                         $q2->where(function($query) use ($serviceIds, $allowedRoleNames, $current) {
+                            // Case A: Subordinate User in Manager's Service
+                            $query->where(function($subQ) use ($serviceIds, $allowedRoleNames) {
+                                 $subQ->where(function($sQ) use ($serviceIds) {
+                                         // Check Service Assignment (Direct or Pivot)
+                                         $sQ->whereIn('users.service_id', $serviceIds)
+                                            ->orWhereHas('services', function($pivot) use ($serviceIds) {
+                                                $pivot->whereIn('services.id', $serviceIds);
+                                            });
+                                 })
+                                 // Check Rank (Strictly Lower)
+                                 ->whereHas('roles', function($r) use ($allowedRoleNames) {
+                                     $r->whereIn('name', $allowedRoleNames);
+                                 });
+                            })
+                            // Case B: The Service Manager Themselves
+                            ->orWhere('users.id', $current->id);
+                         });
+                    })->orWhereNull('user_id'); // Allow logs from deleted users
                 });
             })
             ->when($this->dateFrom, function($q) {
@@ -272,9 +278,11 @@ class ActivityLogsTable extends Component
                         $q3->withTrashed()->whereIn('documents.department_id', $deptIds);
                     });
                 })
-                // AND user must be subordinate
-                ->whereHas('user.roles', function($q2) use ($allowedRoleNames) {
-                    $q2->whereIn('name', $allowedRoleNames);
+                // AND user must be subordinate (or user is deleted)
+                ->where(function($userQ) use ($allowedRoleNames) {
+                    $userQ->whereHas('user.roles', function($q2) use ($allowedRoleNames) {
+                        $q2->whereIn('name', $allowedRoleNames);
+                    })->orWhereNull('user_id');
                 });
             } else {
                 $q->whereRaw('1 = 0');
@@ -296,15 +304,16 @@ class ActivityLogsTable extends Component
                         $q3->withTrashed()->whereIn('documents.service_id', $serviceIds);
                     });
                 })
-                // AND user must be in one of these sub-departments
-                ->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
-                    $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
-                        $q3->whereIn('sub_departments.id', $subDeptIds);
-                    })
-                    // AND user must be subordinate
-                    ->whereHas('roles', function($q3) use ($allowedRoleNames) {
-                        $q3->whereIn('name', $allowedRoleNames);
-                    });
+                // AND user must be in one of these sub-departments and subordinate (or user is deleted)
+                ->where(function($userQ) use ($subDeptIds, $allowedRoleNames) {
+                    $userQ->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
+                        $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
+                            $q3->whereIn('sub_departments.id', $subDeptIds);
+                        })
+                        ->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                            $q3->whereIn('name', $allowedRoleNames);
+                        });
+                    })->orWhereNull('user_id');
                 });
             } else {
                 $q->whereRaw('1 = 0');
@@ -321,12 +330,13 @@ class ActivityLogsTable extends Component
                 $q->whereHas('document', function($d) use ($serviceIds) {
                     $d->withTrashed()->whereIn('documents.service_id', $serviceIds);
                 })
-                // Constraint 2: Actor MUST be (Subordinate OR Myself)
+                // Constraint 2: Actor MUST be (Subordinate OR Myself OR deleted user)
                 ->where(function($u) use ($allowedRoleNames, $current) {
                      $u->where('user_id', $current->id)
                        ->orWhereHas('user.roles', function($r) use ($allowedRoleNames) {
                            $r->whereIn('name', $allowedRoleNames);
-                       });
+                       })
+                       ->orWhereNull('user_id');
                 });
             } else {
                  // No services assigned -> See specific 'own' actions? 
@@ -418,8 +428,10 @@ class ActivityLogsTable extends Component
                 $q->whereHas('document', function($q2) use ($deptIds) {
                     $q2->withTrashed()->whereIn('department_id', $deptIds);
                 })
-                ->whereHas('user.roles', function($q2) use ($allowedRoleNames) {
-                    $q2->whereIn('name', $allowedRoleNames);
+                ->where(function($userQ) use ($allowedRoleNames) {
+                    $userQ->whereHas('user.roles', function($q2) use ($allowedRoleNames) {
+                        $q2->whereIn('name', $allowedRoleNames);
+                    })->orWhereNull('user_id');
                 });
             })
             // Service Manager: filter by service
@@ -432,11 +444,12 @@ class ActivityLogsTable extends Component
                         $q2->withTrashed()->whereIn('service_id', $serviceIds);
                     })
                     ->where(function($userQ) use ($allowedRoleNames, $current) {
-                        // Include subordinates OR myself
+                        // Include subordinates OR myself OR deleted users
                         $userQ->where('user_id', $current->id)
                               ->orWhereHas('user.roles', function($q2) use ($allowedRoleNames) {
                                   $q2->whereIn('name', $allowedRoleNames);
-                              });
+                              })
+                              ->orWhereNull('user_id');
                     });
                 } else {
                     $q->whereRaw('1 = 0');
