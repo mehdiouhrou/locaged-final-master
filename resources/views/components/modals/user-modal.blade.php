@@ -246,19 +246,19 @@
             serviceRequired: false,
         };
 
-        if (roleName === 'master' || roleName === 'super administrator') {
+        if (roleName === 'master' || roleName === 'Directrice du SPCR') {
             // No org structure required or shown
-        } else if (roleName === 'admin de pole' || roleName === 'department administrator') {
+        } else if (roleName === 'Chef de Pôle' || roleName === 'department administrator') {
             // Department admin: only structures (departments)
             config.showDepartment = true;
             config.departmentRequired = true;
-        } else if (roleName === 'admin de departments' || roleName === 'division chief') {
+        } else if (roleName === 'Chef de Département' || roleName === 'division chief') {
             // Sub-department admin: structures + filtered sub-departments
             config.showDepartment = true;
             config.departmentRequired = true;
             config.showSubDepartment = true;
             config.subDepartmentRequired = true;
-        } else if (roleName === 'admin de cellule' || roleName === 'service manager' || roleName === 'user' || roleName === 'service user') {
+        } else if (roleName === 'Chef de Département' || roleName === 'service manager' || roleName === 'user' || roleName === 'service user') {
             // Service-level roles: structures + sub-departments + services
             config.showDepartment = true;
             config.departmentRequired = true;

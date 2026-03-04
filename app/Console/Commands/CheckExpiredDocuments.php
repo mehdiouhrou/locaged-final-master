@@ -45,7 +45,7 @@ class CheckExpiredDocuments extends Command
             }
 
             // Find a system user (first admin) to assign as requester
-            $systemUser = \App\Models\User::role(['master', 'Super Administrator'])->first() ?? \App\Models\User::first();
+            $systemUser = \App\Models\User::role(['master', 'Directrice du SPCR'])->first() ?? \App\Models\User::first();
 
             if (!$systemUser) {
                 $this->error("No user found to assign as requester.");
@@ -99,7 +99,7 @@ class CheckExpiredDocuments extends Command
             $this->info("\nNotifying administrators...");
 
             try {
-                $admins = \App\Models\User::role(['master', 'Super Administrator', 'Admin de pole'])
+                $admins = \App\Models\User::role(['master', 'Directrice du SPCR', 'Chef de Pôle'])
                     ->get();
 
                 foreach ($admins as $admin) {

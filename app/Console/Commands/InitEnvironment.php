@@ -40,10 +40,10 @@ class InitEnvironment extends Command
             $masterRole = Role::firstOrCreate(['name' => 'master']);
 
             // Core functional roles (renamed as requested)
-            $superAdminRole      = Role::firstOrCreate(['name' => 'Super Administrator']);
-            $departmentAdminRole = Role::firstOrCreate(['name' => 'Admin de pole']);
-            $divisionChiefRole   = Role::firstOrCreate(['name' => 'Admin de departments']);
-            $serviceManagerRole  = Role::firstOrCreate(['name' => 'Admin de cellule']);
+            $superAdminRole      = Role::firstOrCreate(['name' => 'Directrice du SPCR']);
+            $departmentAdminRole = Role::firstOrCreate(['name' => 'Chef de Pôle']);
+            $divisionChiefRole   = Role::firstOrCreate(['name' => 'Chef de Département']);
+            $serviceManagerRole  = Role::firstOrCreate(['name' => 'Chef de Département']);
             // Service User is now the generic "user" role
             $serviceUserRole     = Role::firstOrCreate(['name' => 'user']);
 
@@ -81,22 +81,22 @@ class InitEnvironment extends Command
             $usersToCreate = [
                 [
                     'email' => 'superadmin@example.com',
-                    'full_name' => 'Super Administrator',
+                    'full_name' => 'Directrice du SPCR',
                     'role' => $superAdminRole,
                 ],
                 [
                     'email' => 'deptadmin@example.com',
-                    'full_name' => 'Admin de pole',
+                    'full_name' => 'Chef de Pôle',
                     'role' => $departmentAdminRole,
                 ],
                 [
                     'email' => 'subdeptadmin@example.com',
-                    'full_name' => 'Admin de departments',
+                    'full_name' => 'Chef de Département',
                     'role' => $divisionChiefRole,
                 ],
                 [
                     'email' => 'servicemanager@example.com',
-                    'full_name' => 'Admin de cellule',
+                    'full_name' => 'Chef de Département',
                     'role' => $serviceManagerRole,
                 ],
                 [

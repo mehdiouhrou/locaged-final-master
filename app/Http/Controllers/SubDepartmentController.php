@@ -15,16 +15,16 @@ class SubDepartmentController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        $isAdminDePole = $user?->hasRole('Admin de pole');
+        $isAdminDePole = $user?->hasRole('Chef de Pôle');
 
-        // Admin de pole can create sub-departments in their assigned departments
+        // Chef de Pôle can create sub-departments in their assigned departments
         if ($isAdminDePole) {
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'department_id' => 'required|exists:departments,id',
             ]);
 
-            // Verify the department is assigned to this Admin de pole
+            // Verify the department is assigned to this Chef de Pôle
             $assignedDeptIds = $user->departments->pluck('id')->toArray();
             if (!in_array($data['department_id'], $assignedDeptIds)) {
                 abort(403, 'You can only create sub-departments in your assigned pole.');

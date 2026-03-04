@@ -128,7 +128,7 @@
                             </div>
 
                             <!-- User Filter (Super admin only) -->
-                            @if(auth()->user()->hasRole(['master', 'super_admin', 'super administrator']))
+                            @if(auth()->user()->hasRole(['master', 'super_admin', 'Directrice du SPCR']))
                             <div class="col-md-2">
                                 <label for="user_id" class="form-label">{{ ui_t('pages.reports.filters.user') }}</label>
                                 <select name="user_id" id="user_id" class="form-select">

@@ -123,8 +123,8 @@ class DocumentSearchService
         }
 
         $isSuper = $user->hasRole('master')
-            || $user->hasRole('Super Administrator')
-            || $user->hasRole('super administrator')
+            || $user->hasRole('Directrice du SPCR')
+            || $user->hasRole('Directrice du SPCR')
             || $user->hasRole('super_admin');
 
         // Precompute strict visibility for Division Chief (sub-department admin)

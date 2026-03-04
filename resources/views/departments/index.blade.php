@@ -6,7 +6,7 @@
         <p class="new-mange">{{ ui_t('pages.structures_page.manage') }}</p>
 
         @if($canCreateStructures)
-            {{-- Departments management (only for higher admins, not Admin de pole) --}}
+            {{-- Departments management (only for higher admins, not Chef de Pôle) --}}
             @if($canCreatePole ?? true)
             <h5 class="fw-bold my-4">{{ ui_t('pages.structures_page.add') }}</h5>
             <form method="post" action="{{ route('departments.store') }}">

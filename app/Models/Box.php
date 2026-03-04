@@ -122,15 +122,15 @@ class Box extends Model
             return collect();
         }
 
-        // Master and Super Administrator can see all services
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super_admin')) {
+        // Master and Directrice du SPCR can see all services
+        if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin')) {
             return 'all';
         }
 
         $serviceIds = collect();
 
-        // Admin de Pole (Pole Admin) - sees all services within their department(s)
-        if ($user->hasRole('Admin de pole') || $user->hasRole('Pole Admin')) {
+        // Chef de Pôle (Pole Admin) - sees all services within their department(s)
+        if ($user->hasRole('Chef de Pôle') || $user->hasRole('Pole Admin')) {
             $departmentIds = $user->departments->pluck('id');
             if ($departmentIds->isNotEmpty()) {
                 $subDeptIds = \App\Models\SubDepartment::whereIn('department_id', $departmentIds)->pluck('id');
@@ -142,16 +142,16 @@ class Box extends Model
             }
         }
 
-        // Service-level roles: Admin de cellule, Service Manager, Service User, user
-        // Division Chief, Admin de departments
+        // Service-level roles: Chef de Département, Service Manager, Service User, user
+        // Division Chief, Chef de Département
         // These users only see their directly assigned services
         $isServiceLevelUser = $user->hasAnyRole([
-            'Admin de cellule',
+            'Chef de Département',
             'Service Manager',
             'Service User',
             'user',
             'Division Chief',
-            'Admin de departments',
+            'Chef de Département',
         ]);
 
         if ($isServiceLevelUser) {
@@ -166,7 +166,7 @@ class Box extends Model
             }
 
             // For Division Chief: also include services from their assigned sub-departments
-            if ($user->hasAnyRole(['Division Chief', 'Admin de departments'])) {
+            if ($user->hasAnyRole(['Division Chief', 'Chef de Département'])) {
                 $subDeptIds = collect();
                 
                 if ($user->sub_department_id) {

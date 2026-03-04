@@ -65,7 +65,7 @@ class DocumentsReportExport implements FromQuery, WithHeadings, WithMapping, Sho
         }
 
         // Creator (super admins only)
-        if ($r->filled('user_id') && auth()->user()?->hasRole(['master', 'super_admin', 'super administrator'])) {
+        if ($r->filled('user_id') && auth()->user()?->hasRole(['master', 'super_admin', 'Directrice du SPCR'])) {
             $query->where('created_by', $r->user_id);
         }
 

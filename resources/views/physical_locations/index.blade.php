@@ -222,7 +222,7 @@
                             </div>
                             <div class="d-flex align-items-center">
                                 <span class="badge bg-light text-dark me-2">{{ $room->rows->count() }} {{ ui_t('pages.physical.fields.row') }}(s)</span>
-                                @if(auth()->user()->hasRole(['master', 'Super Administrator']))
+                                @if(auth()->user()->hasRole(['master', 'Directrice du SPCR']))
                                     <form method="POST" action="{{ route('physical-locations.destroy-room', $room->id) }}" 
                                           class="d-inline" onsubmit="return confirm('{{ ui_t('pages.activity_log.are_you_sure') }}');">
                                         @csrf

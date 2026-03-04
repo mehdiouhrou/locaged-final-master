@@ -427,9 +427,9 @@ class DocumentsTable extends Component
             $hierarchyDepartments = cache()->remember($cacheKey, 600, function() use ($user) {
                 $user->loadMissing(['subDepartments', 'services']);
 
-                $isMasterOrSuper = $user->hasRole('master') || $user->hasRole('Super Administrator');
-                $isDepartmentAdmin = $user->hasAnyRole(['Department Administrator', 'Admin de pole']);
-                $isDivisionChief = $user->hasAnyRole(['Division Chief', 'Admin de departments']);
+                $isMasterOrSuper = $user->hasRole('master') || $user->hasRole('Directrice du SPCR');
+                $isDepartmentAdmin = $user->hasAnyRole(['Department Administrator', 'Chef de Pôle']);
+                $isDivisionChief = $user->hasAnyRole(['Division Chief', 'Chef de Département']);
 
                 if ($isMasterOrSuper) {
                     return Department::withoutGlobalScopes()

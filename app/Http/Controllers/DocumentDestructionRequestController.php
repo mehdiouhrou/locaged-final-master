@@ -20,7 +20,7 @@ class DocumentDestructionRequestController extends Controller
     public function index()
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Chef de Département', 'Service Manager', 'Department Administrator'])) {
             abort(403);
         }
 
@@ -35,9 +35,9 @@ class DocumentDestructionRequestController extends Controller
         
         // Department Administrator: only see expired documents from their departments
         // Admin/Super Admin: see all expired documents from all departments
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
+        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle') || $user->hasRole('Chef de Département');
+        $isServiceManager = $user->hasRole('Chef de Département') || $user->hasRole('Service Manager');
+        $isAdmin = $user->hasRole(['master', 'Directrice du SPCR', 'Directrice du SPCR']);
         
         if ($isDeptAdmin && !$isAdmin) {
             $deptIds = $user->departments?->pluck('id') ?? collect();
@@ -72,7 +72,7 @@ class DocumentDestructionRequestController extends Controller
      */
     public function deletionLogs()
     {
-        // We might need to adjust the policy check if it fails for 'Admin de cellule', 
+        // We might need to adjust the policy check if it fails for 'Chef de Département', 
         // but typically 'viewAny' might be open or we fix the policy separately. 
         // For now, assuming the controller gate was the main blocker or policy allows it if we fix permissions.
         // If 403 persists, we check Policy.
@@ -84,7 +84,7 @@ class DocumentDestructionRequestController extends Controller
             \Illuminate\Support\Facades\Log::info("DeletionLog View: User {$user->id} roles: " . $user->getRoleNames()->implode(', '));
         }
 
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Chef de Département', 'Service Manager', 'Department Administrator'])) {
             \Illuminate\Support\Facades\Log::warning("DeletionLog View: 403 Forbidden for User {$user->id}");
             abort(403);
         }
@@ -94,9 +94,9 @@ class DocumentDestructionRequestController extends Controller
             }])
             ->where('action', 'permanently_deleted');
 
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
+        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle') || $user->hasRole('Chef de Département');
+        $isServiceManager = $user->hasRole('Chef de Département') || $user->hasRole('Service Manager');
+        $isAdmin = $user->hasRole(['master', 'Directrice du SPCR', 'Directrice du SPCR']);
 
         if ($isDeptAdmin && !$isAdmin) {
             $deptIds = $user->departments?->pluck('id') ?? collect();
@@ -134,7 +134,7 @@ class DocumentDestructionRequestController extends Controller
     public function exportDeletionLogs()
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Chef de Département', 'Service Manager', 'Department Administrator'])) {
             abort(403);
         }
 
@@ -143,9 +143,9 @@ class DocumentDestructionRequestController extends Controller
             }])
             ->where('action', 'permanently_deleted');
 
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
+        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle') || $user->hasRole('Chef de Département');
+        $isServiceManager = $user->hasRole('Chef de Département') || $user->hasRole('Service Manager');
+        $isAdmin = $user->hasRole(['master', 'Directrice du SPCR', 'Directrice du SPCR']);
 
         if ($isDeptAdmin && !$isAdmin) {
             $deptIds = $user->departments?->pluck('id') ?? collect();

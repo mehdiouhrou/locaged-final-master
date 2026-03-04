@@ -306,7 +306,7 @@ class DocumentVersionController extends Controller
                 ->whereIn('id', $userDeptIdsRaw)
                 ->get();
 
-            if ($user && ($user->hasRole('master') || $user->hasRole('Super Administrator'))) {
+            if ($user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR'))) {
                 // Privileged users see the full hierarchy
                 $userDepartments    = Department::withoutGlobalScopes()->orderBy('name')->get();
                 $userSubDepartments = SubDepartment::with('department')->orderBy('name')->get();

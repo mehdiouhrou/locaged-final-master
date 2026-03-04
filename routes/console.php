@@ -157,7 +157,7 @@ Artisan::command('documents:queue-destructions', function () {
 
     $this->info("Found {$expiredDocuments->count()} expired document(s).");
 
-    $systemUser = \App\Models\User::role(['master', 'Super Administrator'])->first()
+    $systemUser = \App\Models\User::role(['master', 'Directrice du SPCR'])->first()
         ?? \App\Models\User::first();
 
     if (! $systemUser) {

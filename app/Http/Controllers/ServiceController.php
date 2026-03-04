@@ -14,16 +14,16 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        $isAdminDePole = $user?->hasRole('Admin de pole');
+        $isAdminDePole = $user?->hasRole('Chef de Pôle');
 
-        // Admin de pole can create services in sub-departments within their assigned pole
+        // Chef de Pôle can create services in sub-departments within their assigned pole
         if ($isAdminDePole) {
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'sub_department_id' => 'required|exists:sub_departments,id',
             ]);
 
-            // Verify the sub-department belongs to a department assigned to this Admin de pole
+            // Verify the sub-department belongs to a department assigned to this Chef de Pôle
             $assignedDeptIds = $user->departments->pluck('id')->toArray();
             $subDept = \App\Models\SubDepartment::find($data['sub_department_id']);
             

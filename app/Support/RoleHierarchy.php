@@ -14,14 +14,14 @@ class RoleHierarchy
      */
     public const ROLE_RANK = [
         'master' => 999,                 // platform owner
-        'super administrator' => 100,    // general direction
+        'Directrice du SPCR' => 100,    // general direction
         'super_admin' => 100,            // legacy alias, if ever used
         'admin' => 90,                   // legacy admin role
 
         // New canonical role names
-        'admin de pole' => 80,
-        'admin de departments' => 75,
-        'admin de cellule' => 70,
+        'Chef de Pôle' => 80,
+        'Chef de Département' => 75,
+        'Chef de Département' => 70,
         'user' => 60,                    // service-level user
 
         // Backward-compatibility aliases for older role names

@@ -9,23 +9,25 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Reset cached roles and permissions
+        // Vider le cache Spatie avant tout
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // ---------------------------------------------------------------------
-        // 1. Define all permission names used in the application (plus new ones)
-        // ---------------------------------------------------------------------
+        // ----------------------------------------------------------------
+        // 1. Liste complète de toutes les permissions de l'application
+        // ----------------------------------------------------------------
+        // Hiérarchie SPC Rabat :
+        // Department   = Pôle         (ex: Pôle Technique)
+        // SubDepartment = Unité        (ex: Unité Eau Potable)
+        // Service       = Cellule      (ex: Cellule Investissements EP)
+        // ----------------------------------------------------------------
         $permissionNames = [
             // Documents
-            'view any document',
-            'view department document',
-            'view service document', // NEW: service-level scope
-            'view own document',
+            'view any document',              // Tout voir (DG, Assistante, master)
+            'view department document',       // Pôle OU Unité (GlobalScope décide selon le rôle)
+            'view service document',          // Cellule uniquement
+            'view own document',              // Ses propres documents
             'create document',
             'update document',
             'delete document',
@@ -37,7 +39,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // Users
             'view any user',
             'view department user',
-            'view service user', // NEW: service-level user visibility
+            'view service user',
             'view own user',
             'create user',
             'update user',
@@ -85,7 +87,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'restore physical location',
             'forceDelete physical location',
 
-            // Services (logical services under sub-departments)
+            // Services
             'view any service',
             'create service',
             'update service',
@@ -124,7 +126,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'restore ocr job',
             'forceDelete ocr job',
 
-            // UI Translations / Localization
+            // UI Translations
             'view any ui translation',
             'create ui translation',
             'update ui translation',
@@ -133,204 +135,267 @@ class RolesAndPermissionsSeeder extends Seeder
             'forceDelete ui translation',
         ];
 
-        // Create (or find) all permissions
+        // Créer ou retrouver chaque permission
         $permissions = [];
         foreach ($permissionNames as $name) {
             $permissions[$name] = Permission::firstOrCreate([
-                'name' => $name,
+                'name'       => $name,
                 'guard_name' => 'web',
             ]);
         }
 
-        // Helper to fetch Permission models by name
+        // Helper : récupérer plusieurs permissions par nom
         $pick = function (array $names) use ($permissions) {
             return collect($names)
-                ->filter(fn ($name) => isset($permissions[$name]))
-                ->map(fn ($name) => $permissions[$name])
+                ->filter(fn($n) => isset($permissions[$n]))
+                ->map(fn($n) => $permissions[$n])
                 ->all();
         };
 
-        // ------------------------------------------------------------------
-        // 2. Define per-role permission sets based on required responsibilities
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------
+        // 2. Assignation des permissions par rôle
+        // ----------------------------------------------------------------
 
-        // Master: full access to everything
-        $masterRole = Role::firstOrCreate(['name' => 'master']);
-        $masterRole->syncPermissions(array_values($permissions));
+        // ── RÔLE 1 : master (équipe LocaGed — accès total) ──────────────
+        // Accès absolu à tout, y compris pages techniques
+        Role::firstOrCreate(['name' => 'master'])
+            ->syncPermissions(array_values($permissions));
 
-        // Super Administrator (General Direction)
-        $superAdminPermissions = $pick([
-            // Documents
-            'view any document',
-            'create document',
-            'update document',
-            'delete document',
-            'approve document',
-            'decline document',
+        // ── RÔLE 2 : Directrice du SPCR ─────────────────────────────────
+        // Portée : TOUTE la structure
+        // ✅ Accès métier complet sur tous les documents
+        // ✅ Gestion structure (catégories, départements, tags, lieux, services)
+        // ❌ Pas de gestion utilisateurs (réservé IT Admin uniquement)
+        // ❌ Pas de : Workflow, OCR, Traduction, Rôles
+        Role::firstOrCreate(['name' => 'Directrice du SPCR'])
+            ->syncPermissions($pick([
+                // Documents — accès total
+                'view any document',
+                'create document',
+                'update document',
+                'delete document',
+                'approve document',
+                'decline document',
 
-            // Users
-            'view any user',
-            'create user',
-            'update user',
-            'delete user',
+                // Utilisateurs — lecture seule (création réservée IT Admin)
+                'view any user',
 
-            // Departments
-            'view any department',
-            'create department',
-            'update department',
-            'delete department',
+                // Départements / Pôles
+                'view any department',
+                'create department',
+                'update department',
+                'delete department',
 
-            // Categories / Tags / Locations / Services
-            'view any category', 'create category', 'update category', 'delete category',
-            'view any tag', 'create tag', 'update tag', 'delete tag',
-            'view any physical location', 'create physical location', 'update physical location', 'delete physical location',
-            'view any service', 'create service', 'update service', 'delete service',
+                // Catégories
+                'view any category',
+                'create category',
+                'update category',
+                'delete category',
 
-            // Workflow rules
-            'view any workflow rule', 'create workflow rule', 'update workflow rule', 'delete workflow rule',
+                // Tags
+                'view any tag',
+                'create tag',
+                'update tag',
+                'delete tag',
 
-            // Destruction requests
-            'view any document destruction request',
-            'view department document destruction request',
-            'approve document destruction request',
-            'decline document destruction request',
-            'delete document destruction request',
+                // Emplacements physiques
+                'view any physical location',
+                'create physical location',
+                'update physical location',
+                'delete physical location',
 
-            // OCR jobs (operational access; Master controls configuration)
-            'view any ocr job',
-        ]);
-        Role::firstOrCreate(['name' => 'Super Administrator'])->syncPermissions($superAdminPermissions);
+                // Services / Cellules
+                'view any service',
+                'create service',
+                'update service',
+                'delete service',
 
-        // Department admin ("Admin de pole")
-        $departmentAdminPermissions = $pick([
-            // Documents within own poles/structures
-            'view department document',
-            'view own document',
-            'create document',
-            'update document',
-            'delete document',
-            'approve document',
-            'decline document',
+                // Demandes de destruction
+                'view any document destruction request',
+                'approve document destruction request',
+                'decline document destruction request',
+                'delete document destruction request',
+            ]));
 
-            // Users within own departments
-            'view department user',
-            'view own user',
-            'create user',
-            'update user',
-            'delete user',
+        // ── RÔLE 3 : IT Admin (Mme. MERZGIOUI) ──────────────────────────
+        // Portée documents : sa Cellule (Service) uniquement
+        // ✅ SEUL rôle autorisé à créer/modifier/supprimer des utilisateurs
+        // ✅ Peut créer des catégories
+        // ❌ Pas de : Rôles, Traduction, OCR, Workflow
+        // ❌ Ne voit pas les documents des autres services/pôles
+        Role::firstOrCreate(['name' => 'IT Admin'])
+            ->syncPermissions($pick([
+                // Documents — sa cellule seulement
+                'view service document',
+                'view own document',
+                'create document',
+                'update document',
 
-            // Read departments to manage their own scope
-            'view any department',
+                // Utilisateurs — SEUL rôle avec gestion complète
+                'view any user',
+                'create user',
+                'update user',
+                'delete user',
 
-            // Tags: View, Create, Update (NO DELETE)
-            'view any tag', 'create tag', 'update tag',
+                // Départements / Pôles — lecture seule (navigation)
+                'view any department',
 
-            // Categories: View, Create, Update (NO DELETE)
-            'view any category', 'create category', 'update category',
+                // Catégories — peut créer et modifier
+                'view any category',
+                'create category',
+                'update category',
 
-            // Physical locations: View, Create, Update (NO DELETE)
-            'view any physical location', 'create physical location', 'update physical location',
+                // Tags
+                'view any tag',
+                'create tag',
+                'update tag',
 
-            // Services / workflow rules for their departments
-            'view any service', 'create service', 'update service', 'delete service',
-            'view any workflow rule', 'view department workflow rule', 'create workflow rule', 'update workflow rule', 'delete workflow rule',
+                // Emplacements physiques — lecture seule
+                'view any physical location',
 
-            // Destruction requests in their departments
-            'view department document destruction request',
-            'approve document destruction request',
-            'decline document destruction request',
-        ]);
-        $departmentAdminRole = Role::firstOrCreate(['name' => 'Admin de pole']);
-        $departmentAdminRole->syncPermissions($departmentAdminPermissions);
+                // Services / Cellules — lecture seule
+                'view any service',
+            ]));
 
-        // Sub-department admin ("Admin de departments")
-        $divisionChiefPermissions = $pick([
-            // Documents within own departments (scoped via poles/sub-departments)
-            'view department document',
-            'view own document',
-            'create document',
-            'update document',
-            'approve document',
-            'decline document',
+        // ── RÔLE 4 : Assistante de Direction (Mme. Bouchra OUBARI) ──────
+        // Portée : TOUTE la structure
+        // ✅ Voir, ajouter, modifier, approuver, refuser les documents
+        // ✅ Peut créer des emplacements physiques
+        // ❌ Pas de suppression de documents
+        // ❌ Pas de création d'utilisateurs ni de catégories
+        Role::firstOrCreate(['name' => 'Assistante de Direction'])
+            ->syncPermissions($pick([
+                // Documents — accès large sans suppression
+                'view any document',
+                'create document',
+                'update document',
+                'approve document',
+                'decline document',
 
-            // Users within own departments
-            'view department user',
-            'view own user',
-            'create user',
-            'update user',
+                // Utilisateurs — lecture seule
+                'view any user',
 
-            // Categories: View ONLY (no create/update/delete)
-            'view any category',
+                // Départements / Pôles — lecture seule
+                'view any department',
 
-            // Tags: View, Create, Update (NO DELETE)
-            'view any tag', 'create tag', 'update tag',
+                // Catégories — lecture seule
+                'view any category',
 
-            // Physical locations: View, Create, Update (NO DELETE)
-            'view any physical location', 'create physical location', 'update physical location',
-        ]);
-        $divisionChiefRole = Role::firstOrCreate(['name' => 'Admin de departments']);
-        $divisionChiefRole->syncPermissions($divisionChiefPermissions);
+                // Tags
+                'view any tag',
+                'create tag',
+                'update tag',
 
-        // Service Manager ("Admin de cellule")
-        $serviceManagerPermissions = $pick([
-            // Documents in assigned service/cellule
-            'view service document',
-            'view own document',
-            'create document',
-            'update document',
-            'approve document',
-            'decline document',
+                // Emplacements physiques — peut créer et modifier
+                'view any physical location',
+                'create physical location',
+                'update physical location',
 
-            // Categories (service-level classification management - NO DELETE)
-            'view any category',
-            'create category',
-            'update category',
+                // Services / Cellules — lecture seule
+                'view any service',
+            ]));
 
-            // Tags: View, Create, Update (NO DELETE)
-            'view any tag', 'create tag', 'update tag',
+        // ── RÔLE 5 : Chef de Pôle ────────────────────────────────────────
+        // Portée : tout son Pôle (Department)
+        // Le GlobalScope filtre par department_id automatiquement
+        // ✅ Voir/ajouter/modifier/approuver/refuser les docs de tout son pôle
+        // ✅ Toutes les Unités et Cellules de son pôle sont visibles
+        // ❌ Pas de création d'emplacements physiques
+        // ❌ Pas de gestion utilisateurs, Workflow, OCR, Traduction
+        Role::firstOrCreate(['name' => 'Chef de Pôle'])
+            ->syncPermissions($pick([
+                // Documents — tout son pôle (GlobalScope → filtre par department_id)
+                'view department document',
+                'view own document',
+                'create document',
+                'update document',
+                'delete document',
+                'approve document',
+                'decline document',
 
-            // Users: can manage (create/update) users in their services
-            'view service user',
-            'create user',
-            'update user',
+                // Utilisateurs — lecture pour son pôle
+                'view department user',
+                'view own user',
 
-            // Physical locations: View, Create, Update (NO DELETE)
-            'view any physical location', 'create physical location', 'update physical location',
-        ]);
-        $serviceManagerRole = Role::firstOrCreate(['name' => 'Admin de cellule']);
-        $serviceManagerRole->syncPermissions($serviceManagerPermissions);
+                // Structure — lecture seule
+                'view any department',
+                'view any category',
 
-        // Service User → mapped to generic "user" role
-        $serviceUserPermissions = $pick([
-            // Documents in assigned cellule/service
-            'view service document',
-            'view own document',
-            'create document',
-            'update document',
+                // Tags — peut créer et modifier
+                'view any tag',
+                'create tag',
+                'update tag',
 
-            // Categories: READ-ONLY access (can see but not modify)
-            'view any category',
+                // Emplacements physiques — LECTURE SEULE
+                'view any physical location',
 
-            // Tags: can view + create personal/common tags (no update/delete)
-            'view any tag',
-            'create tag',
-        ]);
-        $serviceUserRole = Role::firstOrCreate(['name' => 'user']);
-        $serviceUserRole->syncPermissions($serviceUserPermissions);
+                // Services / Cellules — lecture seule
+                'view any service',
 
-        // Legacy admin role kept for compatibility
-        // Admin: close to Super Admin but without system-level pages
-        $adminPermissions = $pick([
-            'view any document', 'create document', 'update document', 'delete document', 'approve document', 'decline document',
-            'view any user', 'create user', 'update user', 'delete user',
-            'view any department', 'create department', 'update department', 'delete department',
-            'view any category', 'create category', 'update category', 'delete category',
-            'view any tag', 'create tag', 'update tag', 'delete tag',
-            'view any physical location', 'create physical location', 'update physical location', 'delete physical location',
-            'view any service', 'create service', 'update service', 'delete service',
-        ]);
-        Role::firstOrCreate(['name' => 'admin'])->syncPermissions($adminPermissions);
+                // Demandes de destruction — pour son pôle
+                'view department document destruction request',
+                'approve document destruction request',
+                'decline document destruction request',
+            ]));
 
-        // Note: no separate basic "user" role anymore; "user" is the service-level user.
+        // ── RÔLE 6 : Chef de Département ─────────────────────────────────
+        // Portée : toute son Unité (SubDepartment) = toutes ses Cellules
+        // Le GlobalScope filtre par sub_department_id automatiquement
+        // ✅ Voit TOUTES les Cellules sous son Unité
+        // ✅ Peut approuver et refuser les documents
+        // ❌ Pas de création d'emplacements physiques ni d'utilisateurs
+        Role::firstOrCreate(['name' => 'Chef de Département'])
+            ->syncPermissions($pick([
+                // Documents — toute son unité (GlobalScope → filtre par sub_department_id)
+                'view department document',
+                'view own document',
+                'create document',
+                'update document',
+                'approve document',
+                'decline document',
+
+                // Utilisateurs — lecture pour son unité
+                'view department user',
+                'view own user',
+
+                // Structure — lecture seule
+                'view any department',
+                'view any category',
+
+                // Tags — peut créer
+                'view any tag',
+                'create tag',
+                'update tag',
+
+                // Emplacements physiques — lecture seule
+                'view any physical location',
+
+                // Services / Cellules — lecture seule
+                'view any service',
+
+                // Demandes de destruction — pour son unité
+                'view department document destruction request',
+                'approve document destruction request',
+                'decline document destruction request',
+            ]));
+
+        // ── RÔLE 7 : user (simple collaborateur) ─────────────────────────
+        // Portée : sa Cellule (Service) uniquement
+        // Le GlobalScope filtre par service_id automatiquement
+        // ✅ Voir et ajouter des documents de sa cellule
+        // ❌ Pas d'approbation, pas de gestion
+        Role::firstOrCreate(['name' => 'user'])
+            ->syncPermissions($pick([
+                // Documents — sa cellule seulement (GlobalScope → filtre par service_id)
+                'view service document',
+                'view own document',
+                'create document',
+                'update document',
+
+                // Structure — lecture seule
+                'view any category',
+                'view any tag',
+                'create tag',
+            ]));
     }
 }

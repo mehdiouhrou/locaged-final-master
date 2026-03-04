@@ -37,7 +37,7 @@ class DeletionLogsTable extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Department Administrator', 'Chef de Département', 'Service Manager'])) {
             abort(403);
         }
     }
@@ -71,16 +71,16 @@ class DeletionLogsTable extends Component
         
         // Check if current user is Super Admin (not master)
         $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
+            $current->hasRole(['Directrice du SPCR', 'super_admin']) && 
             !$current->hasRole('master');
         
         $isDeptAdmin = $current && (
             $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+            $current->hasRole('Chef de Pôle') ||
+            $current->hasRole('Chef de Département')
         );
         $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
+            $current->hasRole('Chef de Département') ||
             $current->hasRole('Service Manager')
         );
         
@@ -106,7 +106,7 @@ class DeletionLogsTable extends Component
                 })
                 // Hide logs from Master, Super Admin, and Admin users
                 ->whereDoesntHave('user.roles', function($r) {
-                    $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin']);
+                    $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'Directrice du SPCR', 'super_admin', 'admin']);
                 });
             })
             // Service Manager: only see logs from their service AND filter out higher roles
@@ -126,7 +126,7 @@ class DeletionLogsTable extends Component
                     })
                     // Hide logs from Master, Super Admin, Admin, and Dept Admin users
                     ->whereDoesntHave('user.roles', function($r) {
-                        $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin', 'admin de pole', 'department administrator']);
+                        $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'Directrice du SPCR', 'super_admin', 'admin', 'Chef de Pôle', 'department administrator']);
                     });
                 } else {
                     $q->whereRaw('1 = 0');
@@ -174,7 +174,7 @@ class DeletionLogsTable extends Component
     public function export()
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Department Administrator', 'Chef de Département', 'Service Manager'])) {
             abort(403);
         }
 
@@ -187,7 +187,7 @@ class DeletionLogsTable extends Component
     public function exportSinglePdf($logId)
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
+        if (! $user || ! $user->hasAnyRole(['master', 'Directrice du SPCR', 'Directrice du SPCR', 'Chef de Pôle', 'admin de pôle', 'Chef de Département', 'Department Administrator', 'Chef de Département', 'Service Manager'])) {
             abort(403);
         }
 
@@ -248,16 +248,16 @@ class DeletionLogsTable extends Component
         
         // Check if current user is Super Admin (not master)
         $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
+            $current->hasRole(['Directrice du SPCR', 'super_admin']) && 
             !$current->hasRole('master');
             
         $isDeptAdmin = $current && (
             $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+            $current->hasRole('Chef de Pôle') ||
+            $current->hasRole('Chef de Département')
         );
         $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
+            $current->hasRole('Chef de Département') ||
             $current->hasRole('Service Manager')
         );
         
@@ -282,7 +282,7 @@ class DeletionLogsTable extends Component
             })
             // Hide logs from Master, Super Admin, and Admin users (same as main query)
             ->whereDoesntHave('user.roles', function($r) {
-                $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin']);
+                $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'Directrice du SPCR', 'super_admin', 'admin']);
             });
         } elseif ($isServiceManager && !$isDeptAdmin && !$isSuperAdmin) { 
              $serviceIds = collect();
@@ -300,7 +300,7 @@ class DeletionLogsTable extends Component
                 })
                 // Hide logs from Master, Super Admin, Admin, and Dept Admin users (same as main query)
                 ->whereDoesntHave('user.roles', function($r) {
-                    $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin', 'admin de pole', 'department administrator']);
+                    $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'Directrice du SPCR', 'super_admin', 'admin', 'Chef de Pôle', 'department administrator']);
                 });
             } else {
                  $statsBase->whereRaw('1 = 0');
@@ -319,11 +319,11 @@ class DeletionLogsTable extends Component
         $current = auth()->user();
         $isDeptAdmin = $current && (
             $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+            $current->hasRole('Chef de Pôle') ||
+            $current->hasRole('Chef de Département')
         );
         $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
+            $current->hasRole('Chef de Département') ||
             $current->hasRole('Service Manager')
         );
         
@@ -365,7 +365,7 @@ class DeletionLogsTable extends Component
         } else {
             // Super Admin: exclude master users from filter dropdown
             $isSuperAdminNotMaster = $current && 
-                $current->hasRole(['Super Administrator', 'super_admin']) && 
+                $current->hasRole(['Directrice du SPCR', 'super_admin']) && 
                 !$current->hasRole('master');
             
             if ($isSuperAdminNotMaster) {

@@ -68,9 +68,9 @@ class UsersTable extends Component
         
         $actor = auth()->user();
         
-        // Priority 1: Admin de departments - ALWAYS filter by sub-departments
+        // Priority 1: Chef de Département - ALWAYS filter by sub-departments
         // This must come FIRST to prevent them from seeing all users via broad permissions
-        if ($actor->hasAnyRole(['Admin de departments', 'Division Chief'])) {
+        if ($actor->hasAnyRole(['Chef de Département', 'Division Chief'])) {
             // Sub-Department level visibility: users from same sub-departments ONLY
             $subDeptIds = $actor->subDepartments->pluck('id')->toArray();
             
@@ -85,7 +85,7 @@ class UsersTable extends Component
         }
         // Priority 2: Check permissions for other roles
         elseif ($actor->cannot('view any user')) {
-            if ($actor->can('view department user') || $actor->hasRole('Admin de pole')) {
+            if ($actor->can('view department user') || $actor->hasRole('Chef de Pôle')) {
                 // Pole (Department) level visibility: users from same departments
                 $departmentIds = $actor->departments->pluck('id')->toArray();
                 if (!empty($departmentIds)) {
@@ -95,7 +95,7 @@ class UsersTable extends Component
                 } else {
                     $usersQuery->whereRaw('1 = 0'); // Show nothing if no departments assigned
                 }
-            } elseif ($actor->can('view service user') || $actor->hasAnyRole(['Admin de cellule', 'user'])) {
+            } elseif ($actor->can('view service user') || $actor->hasAnyRole(['Chef de Département', 'user'])) {
                 // Service-level visibility: users from same services
                 $serviceIds = $actor->services->pluck('id')->toArray();
                 if (!empty($serviceIds)) {
@@ -166,7 +166,7 @@ class UsersTable extends Component
         $current = $viewer;
         $departmentsQuery = Department::withoutGlobalScopes()->with('subDepartments.services');
 
-        if ($current->hasRole('master') || $current->hasRole('Super Administrator')) {
+        if ($current->hasRole('master') || $current->hasRole('Directrice du SPCR')) {
             $departments = $departmentsQuery->get();
         } else {
             // Base department IDs on explicit department assignments first
@@ -190,9 +190,9 @@ class UsersTable extends Component
                     ->pluck('department_id');
             }
 
-            // Treat "Admin de departments" the same as the English alias "Division Chief"
-            $isDivisionChief = $current->hasAnyRole(['Admin de departments', 'Division Chief']);
-            $isServiceManager = $current->hasAnyRole(['Admin de cellule', 'service manager']);
+            // Treat "Chef de Département" the same as the English alias "Division Chief"
+            $isDivisionChief = $current->hasAnyRole(['Chef de Département', 'Division Chief']);
+            $isServiceManager = $current->hasAnyRole(['Chef de Département', 'service manager']);
 
             if ($isDivisionChief || $isServiceManager) {
                 // Division Chief & Service Manager: only own departments and own sub-departments

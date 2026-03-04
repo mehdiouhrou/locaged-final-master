@@ -37,7 +37,7 @@ class CategoryController extends Controller
         // Get accessible service IDs using the same logic as physical locations
         $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
         
-        if ($accessibleServiceIds === 'all') {
+        if ($accessibleServiceIds === 'all' || $user->can('create category')) {
             // Super admins see all departments
             $departments = \App\Models\Department::with('subDepartments.services')->get();
         } else {
@@ -118,7 +118,7 @@ class CategoryController extends Controller
         // Get accessible service IDs using the same logic as physical locations
         $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
         
-        if ($accessibleServiceIds === 'all') {
+        if ($accessibleServiceIds === 'all' || $user->can('create category')) {
             $departments = \App\Models\Department::with('subDepartments.services')->get();
         } else {
             // Filter to only show departments/sub-departments/services the user has access to

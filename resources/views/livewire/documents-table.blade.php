@@ -1078,7 +1078,7 @@
                                         @endcan
 
 
-                                        @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Super Administrator'))
+                                        @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Directrice du SPCR'))
                                             <li class="pointer">
                                                 <a class="dropdown-item trigger-action"
                                                    data-id="{{ $doc->id }}"
@@ -1137,16 +1137,16 @@
                 <td colspan="8">
                         @php
                             $currentUser = auth()->user();
-                            $isSuperAdmin = $currentUser->hasRole(['Super Administrator', 'super_admin']) && !$currentUser->hasRole('master');
-                            $isAdminDePole = $currentUser->hasRole('Admin de pole') || $currentUser->hasRole('Department Administrator');
-                            $isAdminDeDepartments = $currentUser->hasRole('Admin de departments') || $currentUser->hasRole('Division Chief');
-                            $isAdminDeCellule = $currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('Service Manager');
+                            $isSuperAdmin = $currentUser->hasRole(['Directrice du SPCR', 'super_admin']) && !$currentUser->hasRole('master');
+                            $isAdminDePole = $currentUser->hasRole('Chef de Pôle') || $currentUser->hasRole('Department Administrator');
+                            $isAdminDeDepartments = $currentUser->hasRole('Chef de Département') || $currentUser->hasRole('Division Chief');
+                            $isAdminDeCellule = $currentUser->hasRole('Chef de Département') || $currentUser->hasRole('Service Manager');
                             
                             // Define roles that should be hidden for each user type
                             $hiddenRolesForSuperAdmin = ['master'];
-                            $hiddenRolesForAdminDePole = ['master', 'super administrator', 'admin'];
-                            $hiddenRolesForAdminDeDepartments = ['master', 'super administrator', 'admin', 'admin de pole', 'department administrator'];
-                            $hiddenRolesForAdminDeCellule = ['master', 'super administrator', 'admin', 'admin de pole', 'department administrator', 'admin de departments', 'division chief'];
+                            $hiddenRolesForAdminDePole = ['master', 'Directrice du SPCR', 'admin'];
+                            $hiddenRolesForAdminDeDepartments = ['master', 'Directrice du SPCR', 'admin', 'Chef de Pôle', 'department administrator'];
+                            $hiddenRolesForAdminDeCellule = ['master', 'Directrice du SPCR', 'admin', 'Chef de Pôle', 'department administrator', 'Chef de Département', 'division chief'];
                         @endphp
                         @foreach($doc->auditLogs as $log)
                             @php
@@ -1174,7 +1174,7 @@
                                         }
                                     }
                                     
-                                    // Admin de pole: hide logs from master, super admin, and admin
+                                    // Chef de Pôle: hide logs from master, super admin, and admin
                                     if ($isAdminDePole) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDePole)) {
@@ -1184,7 +1184,7 @@
                                         }
                                     }
 
-                                    // Admin de departments: hide logs from master, super admin, admin, and admin de pole
+                                    // Chef de Département: hide logs from master, super admin, admin, and Chef de Pôle
                                     if ($isAdminDeDepartments && !$isAdminDePole) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDeDepartments)) {
@@ -1194,7 +1194,7 @@
                                         }
                                     }
                                     
-                                    // Admin de cellule: hide logs from master, super admin, admin, admin de pole, and admin de departments
+                                    // Chef de Département: hide logs from master, super admin, admin, Chef de Pôle, and Chef de Département
                                     if ($isAdminDeCellule && !$isAdminDePole && !$isAdminDeDepartments) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDeCellule)) {
@@ -1278,7 +1278,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ ui_t('actions.close') ?? 'Close' }}</button>
-                        @if(auth()->user()?->hasAnyRole(['master', 'Super Administrator', 'Admin de pole', 'Department Administrator', 'Admin de departments', 'Division Chief', 'Admin de cellule', 'Service Manager', 'admin']))
+                        @if(auth()->user()?->hasAnyRole(['master', 'Directrice du SPCR', 'Chef de Pôle', 'Department Administrator', 'Chef de Département', 'Division Chief', 'Chef de Département', 'Service Manager', 'admin']))
                             <button type="button" class="btn btn-primary" id="metadataSaveBtn" disabled>{{ __('Save') }}</button>
                         @endif
                     </div>
@@ -1326,7 +1326,7 @@
     
     // Flag to indicate if the current user is a service user (read-only metadata)
     // If user does NOT have any admin role, they are considered a service user (read-only)
-    window.IS_SERVICE_USER = {{ !auth()->user()?->hasAnyRole(['master', 'Super Administrator', 'Admin de pole', 'Department Administrator', 'Admin de departments', 'Division Chief', 'Admin de cellule', 'Service Manager', 'admin']) ? 'true' : 'false' }};
+    window.IS_SERVICE_USER = {{ !auth()->user()?->hasAnyRole(['master', 'Directrice du SPCR', 'Chef de Pôle', 'Department Administrator', 'Chef de Département', 'Division Chief', 'Chef de Département', 'Service Manager', 'admin']) ? 'true' : 'false' }};
 
     // Toast notification function - GLOBAL
     window.showToast = function(message, type = 'success') {

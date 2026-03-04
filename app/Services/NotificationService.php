@@ -83,33 +83,33 @@ class NotificationService
         $documentDeptId = is_object($this->document) ? $this->document->department_id : null;
         $documentServiceId = is_object($this->document) ? $this->document->service_id : null;
 
-        // Always notify Master, Super Administrator, and legacy admin (global scope)
-        $globalAdmins = User::role(['master', 'Super Administrator', 'admin'])->get();
+        // Always notify Master, Directrice du SPCR, and legacy admin (global scope)
+        $globalAdmins = User::role(['master', 'Directrice du SPCR', 'admin'])->get();
 
-        // Scoped admins: Admin de pole filtered by department
+        // Scoped admins: Chef de Pôle filtered by department
         $poleAdmins = collect();
         if ($documentDeptId) {
-            $poleAdmins = User::role('Admin de pole')
+            $poleAdmins = User::role('Chef de Pôle')
                 ->whereHas('departments', function($q) use ($documentDeptId) {
                     $q->where('departments.id', $documentDeptId);
                 })
                 ->get();
         }
 
-        // Scoped admins: Admin de departments filtered by department
+        // Scoped admins: Chef de Département filtered by department
         $deptAdmins = collect();
         if ($documentDeptId) {
-            $deptAdmins = User::role('Admin de departments')
+            $deptAdmins = User::role('Chef de Département')
                 ->whereHas('departments', function($q) use ($documentDeptId) {
                     $q->where('departments.id', $documentDeptId);
                 })
                 ->get();
         }
 
-        // Scoped admins: Admin de cellule filtered by service
+        // Scoped admins: Chef de Département filtered by service
         $celluleAdmins = collect();
         if ($documentServiceId) {
-            $celluleAdmins = User::role('Admin de cellule')
+            $celluleAdmins = User::role('Chef de Département')
                 ->whereHas('services', function($q) use ($documentServiceId) {
                     $q->where('services.id', $documentServiceId);
                 })

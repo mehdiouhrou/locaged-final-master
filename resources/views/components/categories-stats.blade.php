@@ -6,8 +6,8 @@
     $primarySubDept = null;
 
     if ($currentUser) {
-        // For Admin de cellule / user, capture a primary service (used only for data attributes)
-        if ($currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('user')) {
+        // For Chef de Département / user, capture a primary service (used only for data attributes)
+        if ($currentUser->hasRole('Chef de Département') || $currentUser->hasRole('user')) {
             $primaryService = $currentUser->service ?? $currentUser->services->first();
         }
 
@@ -53,20 +53,20 @@
             $homeController = app(\App\Http\Controllers\HomeController::class);
             $visibleDocsQuery = $homeController->getVisibleDocumentsQuery();
 
-            // Only "master" and "Super Administrator" should see all departments on the dashboard
-            $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+            // Only "master" and "Directrice du SPCR" should see all departments on the dashboard
+            $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin'));
 
             // Department-level administrators:
             //  - legacy "Department Administrator"
-            //  - canonical "Admin de pole" (pole admin)
+            //  - canonical "Chef de Pôle" (pole admin)
             $isDepartmentAdmin = $user && (
                 $user->hasRole('Department Administrator') ||
-                $user->hasRole('Admin de pole')
+                $user->hasRole('Chef de Pôle')
             );
 
-            // Service-level users (Admin de cellule / service user) may have multiple services
-            // NOTE: Admin de pole is NOT treated as service-scoped; they see department -> sub-dept -> service.
-            $isServiceScoped = $user && ($user->hasRole('Admin de cellule') || $user->hasRole('user'));
+            // Service-level users (Chef de Département / service user) may have multiple services
+            // NOTE: Chef de Pôle is NOT treated as service-scoped; they see department -> sub-dept -> service.
+            $isServiceScoped = $user && ($user->hasRole('Chef de Département') || $user->hasRole('user'));
 
             // IMPORTANT: For service-scoped users, we want to show their services first,
             // even if they are also attached to a sub-department.

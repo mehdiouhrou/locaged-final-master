@@ -314,7 +314,7 @@
                                 // Use the departments collection coming from Livewire (pivot-based and
                                 // already bypassing global scopes) instead of reloading here.
                                 $userDepartmentsForCheck = $userDepartments ?? collect();
-                                $isPrivileged = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+                                $isPrivileged = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR'));
                                 $canProceed = $isPrivileged || $userDepartmentsForCheck->count() > 0;
                                 $multiUpload = count($documentInfos) > 1;
                             @endphp

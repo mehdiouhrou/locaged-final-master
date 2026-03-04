@@ -314,18 +314,18 @@ class MultipleDocumentsCreateForm extends Component
             // Also apply this logic to Division Chief (sub-department admin).
             //
             // Support both English and localized role names:
-            // - Service Manager  ↔  Admin de cellule
+            // - Service Manager  ↔  Chef de Département
             // - Service User     ↔  user
-            // - Division Chief   ↔  Admin de departments
+            // - Division Chief   ↔  Chef de Département
             $isServiceRole = $user->hasAnyRole([
                 'Service Manager',
                 'Service User',
-                'Admin de cellule',
+                'Chef de Département',
                 'user',
             ]);
             $isDivisionChief = $user->hasAnyRole([
                 'Division Chief',
-                'Admin de departments',
+                'Chef de Département',
             ]);
             if ($isServiceRole || $isDivisionChief) {
                 $hasOrgSelection = !empty($this->currentInfo['department_id']) || !empty($this->currentInfo['sub_department_id']);
@@ -865,8 +865,8 @@ class MultipleDocumentsCreateForm extends Component
             return false;
         }
 
-        // Master / Super Administrator are always allowed
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator')) {
+        // Master / Directrice du SPCR are always allowed
+        if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR')) {
             return true;
         }
 
@@ -1449,22 +1449,22 @@ class MultipleDocumentsCreateForm extends Component
         $subcategories = $subcategoriesQuery->get();
 
         // Build organization options based directly on pivot tables.
-        // - Master / Super Administrator: all org units.
+        // - Master / Directrice du SPCR: all org units.
         // - Others: only what they are assigned to via pivots (bypassing Department global scope).
-        $isMasterOrSuper = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+        $isMasterOrSuper = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR'));
 
         // Department-level admin roles (English + localized):
-        // - Department Administrator  ↔  Admin de pole
+        // - Department Administrator  ↔  Chef de Pôle
         $isDepartmentAdmin = $user && $user->hasAnyRole([
             'Department Administrator',
-            'Admin de pole',
+            'Chef de Pôle',
         ]);
 
         // Division Chief roles (English + localized):
-        // - Division Chief  ↔  Admin de departments
+        // - Division Chief  ↔  Chef de Département
         $isDivisionChief = $user && $user->hasAnyRole([
             'Division Chief',
-            'Admin de departments',
+            'Chef de Département',
         ]);
 
         if ($isMasterOrSuper) {

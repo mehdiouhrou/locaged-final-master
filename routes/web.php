@@ -78,8 +78,18 @@ Route::middleware('auth')->group(function () {
     // Debug route removed for security - see audit report
     // Original route /debug-service/{id} exposed internal database structure
 
-    Route::group(['middleware' => ['role:master|Super Administrator|Admin de pole|Admin de departments|Admin de cellule']], function () {
-        Route::get('/users/audit',[UserController::class,'audit'])->name('users.audit');
+Route::group(['middleware' => ['role:master|Directrice du SPCR|IT Admin']], function () {
+    Route::get('/users/audit',[UserController::class,'audit'])->name('users.audit');
+    Route::get('/users/logs',[UserController::class,'logs'])->name('users.logs');
+    Route::get('/users/{id}/activity',[UserController::class,'activity'])->name('user.activity');
+});
+
+Route::group(['middleware' => ['role:master|Directrice du SPCR|IT Admin|Assistante de Direction|Chef de Pôle']], function () {
+    Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [\App\Http\Controllers\ReportsController::class, 'export'])->name('reports.export');
+    Route::get('/physical-locations/export', [PhysicalLocationController::class, 'export'])->name('physical-locations.export');
+    Route::get('/physical-locations/{physicalLocation}/export-files', [PhysicalLocationController::class, 'exportFiles'])->name('physical-locations.export-files');
+    Route::resource('physical-locations', PhysicalLocationController::class);        Route::get('/users/audit',[UserController::class,'audit'])->name('users.audit');
         Route::get('/users/logs',[UserController::class,'logs'])->name('users.logs');
         Route::get('/users/{id}/activity',[UserController::class,'activity'])->name('user.activity');
         Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
@@ -95,17 +105,17 @@ Route::middleware('auth')->group(function () {
         Route::resource('users', UserController::class);
     });
 
-    // Structure management (Master & Super Admin & Admin & Admin de pole)
-    Route::group(['middleware' => ['role:master|Super Administrator|admin|Admin de pole']], function () {
-        Route::resources([
-            'departments' => \App\Http\Controllers\DepartmentController::class,
-            'sub-departments' => \App\Http\Controllers\SubDepartmentController::class,
-            'services' => \App\Http\Controllers\ServiceController::class,
-        ]);
-    });
+    // Structure management (Master & Super Admin & Admin & Chef de Pôle)
+    Route::group(['middleware' => ['role:master|Directrice du SPCR|IT Admin']], function () {
+    Route::resources([
+        'departments' => \App\Http\Controllers\DepartmentController::class,
+        'sub-departments' => \App\Http\Controllers\SubDepartmentController::class,
+        'services' => \App\Http\Controllers\ServiceController::class,
+    ]);
+});
 
     // Storage overview (Master & Super Admin)
-    Route::group(['middleware' => ['role:master|Super Administrator']], function () {
+    Route::group(['middleware' => ['role:master|Directrice du SPCR']], function () {
         Route::get('/storage-overview', [\App\Http\Controllers\HomeController::class, 'storageOverview'])
             ->name('storage.overview');
     });

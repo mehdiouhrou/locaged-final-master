@@ -15,24 +15,24 @@ class DepartmentController extends Controller
 
         $user = auth()->user();
 
-        // Check if user is Admin de pole
-        $isAdminDePole = $user?->hasRole('Admin de pole');
+        // Check if user is Chef de Pôle
+        $isAdminDePole = $user?->hasRole('Chef de Pôle');
         
-        // Admin de pole CAN create sub-structures (sub-depts, services) but NOT new poles
+        // Chef de Pôle CAN create sub-structures (sub-depts, services) but NOT new poles
         $canCreateStructures = true;
         $canCreatePole = !$isAdminDePole; // Only higher admins can create new poles
 
         // Eager-load sub-departments and services for tree view
         $departmentsQuery = Department::with('subDepartments.services');
 
-        // Filter to only assigned departments for Admin de pole
+        // Filter to only assigned departments for Chef de Pôle
         if ($isAdminDePole && $user->departments && $user->departments->isNotEmpty()) {
             $departmentsQuery->whereIn('id', $user->departments->pluck('id'));
         }
 
         $departments = $departmentsQuery->latest()->paginate(10);
 
-        // For Admin de pole: only show their assigned departments in dropdowns
+        // For Chef de Pôle: only show their assigned departments in dropdowns
         // For other admins: show all departments
         if ($isAdminDePole && $user->departments && $user->departments->isNotEmpty()) {
             $allDepartments = Department::with('subDepartments.services')

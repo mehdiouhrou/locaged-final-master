@@ -30,87 +30,69 @@ class Category extends Model
     ];
 
     protected static function booted()
-    {
-        static::addGlobalScope('service_hierarchy', function ($query) {
-            if (! auth()->check()) {
-                $query->whereRaw('1 = 0');
-                return;
-            }
+{
+    static::addGlobalScope('service_hierarchy', function ($query) {
+        if (! auth()->check()) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+        $user = auth()->user();
 
-            $user = auth()->user();
+        // 1) Accès total : master, Directrice, Assistante de Direction, IT Admin
+        if ($user->hasAnyRole([
+            'master',
+            'Directrice du SPCR',
+            'Assistante de Direction',
+            'IT Admin',
+        ])) {
+            return;
+        }
 
-            // 1) Global Admins: see everything
-            if ($user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'super_admin', 'admin'])) {
-                return;
-            }
-
-            // 2) Department Administrator (Admin de pole): Filter by department_id
-            if ($user->hasAnyRole(['Department Administrator', 'Admin de pole'])) {
-                 $deptIds = $user->departments->pluck('id');
-                 if ($deptIds->isNotEmpty()) {
-                     $query->whereIn('department_id', $deptIds);
-                 } else {
-                     $query->whereRaw('1 = 0');
-                 }
-                 return;
-            }
-
-            // 3) Sub-Department Administrator (Admin de departments / Division Chief): Filter by sub_department_id
-            if ($user->hasAnyRole(['Admin de departments', 'Division Chief'])) {
-                $subDeptIds = collect();
-                if ($user->sub_department_id) {
-                    $subDeptIds->push($user->sub_department_id);
-                }
-                if (method_exists($user, 'subDepartments')) {
-                    $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
-                }
-                $subDeptIds = $subDeptIds->unique()->filter();
-
-                if ($subDeptIds->isNotEmpty()) {
-                    $query->whereIn('sub_department_id', $subDeptIds);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
-                return;
-            }
-
-            // 4) Service Manager (Admin de cellule): Filter by service_id
-            // (Also catch 'service manager' just in case)
-            if ($user->hasAnyRole(['Admin de cellule', 'Service Manager', 'service manager'])) {
-                $serviceIds = collect();
-                if ($user->service_id) {
-                    $serviceIds->push($user->service_id);
-                }
-                if (method_exists($user, 'services')) {
-                     $serviceIds = $serviceIds->merge($user->services->pluck('id'));
-                }
-                $serviceIds = $serviceIds->unique()->filter();
-
-                if ($serviceIds->isNotEmpty()) {
-                    $query->whereIn('service_id', $serviceIds);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
-                return;
-            }
-
-            // 5) Regular User: usually filtered by service like Service Manager, or strictly own service
-            // For now, let's treat them like Service Manager (filter by service_id)
-            $serviceIds = collect();
-            if ($user->service_id) {
-                $serviceIds->push($user->service_id);
-            }
-            if (method_exists($user, 'services')) {
-                 $serviceIds = $serviceIds->merge($user->services->pluck('id'));
-            }
-            $serviceIds = $serviceIds->unique()->filter();
-
-            if ($serviceIds->isNotEmpty()) {
-                $query->whereIn('service_id', $serviceIds);
+        // 2) Chef de Pôle : filtre par department_id
+        if ($user->hasRole('Chef de Pôle')) {
+            $deptIds = $user->departments->pluck('id');
+            if ($deptIds->isNotEmpty()) {
+                $query->whereIn('department_id', $deptIds);
             } else {
                 $query->whereRaw('1 = 0');
             }
-        });
+            return;
+        }
+
+        // 3) Chef de Département : filtre par sub_department_id
+        if ($user->hasRole('Chef de Département')) {
+            $subDeptIds = collect();
+            if ($user->sub_department_id) {
+                $subDeptIds->push($user->sub_department_id);
+            }
+            if (method_exists($user, 'subDepartments')) {
+                $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
+            }
+            $subDeptIds = $subDeptIds->unique()->filter();
+            if ($subDeptIds->isNotEmpty()) {
+                $query->whereIn('sub_department_id', $subDeptIds);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+            return;
+        }
+
+        // 4) user : filtre par service_id
+        $serviceIds = collect();
+        if ($user->service_id) {
+            $serviceIds->push($user->service_id);
+        }
+        if (method_exists($user, 'services')) {
+            $serviceIds = $serviceIds->merge($user->services->pluck('id'));
+        }
+        $serviceIds = $serviceIds->unique()->filter();
+        if ($serviceIds->isNotEmpty()) {
+            $query->whereIn('service_id', $serviceIds);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+    });
+
     }
 
     public function documents(): HasManyThrough

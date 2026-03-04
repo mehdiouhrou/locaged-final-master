@@ -218,7 +218,7 @@ class DocumentController extends Controller
 
         $isExpired = $document->expire_at && $document->expire_at->isPast();
         $user = auth()->user();
-        $canChangeExpiry = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+        $canChangeExpiry = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Chef de Pôle'));
 
         if ($isExpired) {
             // Only allow updating expire_at and box_id
@@ -498,7 +498,7 @@ class DocumentController extends Controller
                 ->whereIn('id', $userDeptIdsRaw)
                 ->get();
 
-            if ($user->hasRole('master') || $user->hasRole('Super Administrator')) {
+            if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction')) {
                 // Privileged users see the full hierarchy
                 $userDepartments    = Department::withoutGlobalScopes()->orderBy('name')->get();
                 $userSubDepartments = SubDepartment::with('department')->orderBy('name')->get();
@@ -508,7 +508,7 @@ class DocumentController extends Controller
                 $userDepartments = $userDepartmentsRaw;
 
                 // Sub-departments
-                if ($user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments') || $user->hasRole('Division Chief')) {
+                if ($user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle') || $user->hasRole('Chef de Département') || $user->hasRole('Division Chief')) {
                     $deptIds = $userDepartments->pluck('id');
                     $userSubDepartments = SubDepartment::whereIn('department_id', $deptIds)->get();
                 } else {
@@ -516,10 +516,10 @@ class DocumentController extends Controller
                 }
 
                 // Services
-                if ($user->hasRole('Division Chief') || $user->hasRole('Admin de departments') || $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager')) {
+                if ($user->hasRole('Division Chief') || $user->hasRole('Chef de Département') || $user->hasRole('Chef de Département') || $user->hasRole('Service Manager')) {
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
-                } elseif ($user->hasRole('Department Administrator') || $user->hasRole('Admin de pole')) {
+                } elseif ($user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle')) {
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
                 } else {

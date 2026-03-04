@@ -152,7 +152,7 @@ class PhysicalLocationController extends Controller
         if (!$user) return null;
         
         // If super admin, return null (global rooms)
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super_admin')) {
+        if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('super_admin')) {
             return null;
         }
 

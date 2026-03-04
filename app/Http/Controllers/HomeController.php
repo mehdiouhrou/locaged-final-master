@@ -83,7 +83,7 @@ class HomeController extends Controller
         
         // For master/super admin, populate with all departments
         $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isSuperAdmin = $user && ($user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin'));
         
         if ($isMaster || $isSuperAdmin || $user->can('view any department')) {
             $userDepartments = Department::all();
@@ -96,7 +96,7 @@ class HomeController extends Controller
         // Location cards (Rooms or Boxes) based on user role
         $user = auth()->user();
         $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super_admin'));
+        $isSuperAdmin = $user && ($user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin'));
         
         if ($isMaster) {
             // MASTER: Show rooms with document counts
@@ -177,7 +177,7 @@ class HomeController extends Controller
     }
 
     /**
-     * Storage and server space overview for master & Super Administrator roles.
+     * Storage and server space overview for master & Directrice du SPCR roles.
      */
     public function storageOverview()
     {
@@ -286,7 +286,7 @@ class HomeController extends Controller
         }
 
         // Special strict rule for Division Chief (must match department + service pair)
-        if ($user->hasAnyRole(['Division Chief', 'Admin de departments'])) {
+        if ($user->hasAnyRole(['Division Chief', 'Chef de Département'])) {
             $userDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
                 ? $user->departments->pluck('id')->filter()
                 : collect();
@@ -379,13 +379,13 @@ class HomeController extends Controller
         $accessibleServiceIds = $this->getAccessibleServiceIds();
 
         $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isSuperAdmin = $user && ($user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin'));
 
         // Service-level roles:
-        // - "Admin de cellule" is the canonical service manager role
+        // - "Chef de Département" is the canonical service manager role
         // - "user" is the service-level user role
         // Keep backward-compatibility with any legacy "Service Manager" / "Service User" roles.
-        $isServiceManager = $user && ($user->hasRole('Admin de cellule') || $user->hasRole('Service Manager'));
+        $isServiceManager = $user && ($user->hasRole('Chef de Département') || $user->hasRole('Service Manager'));
         $isServiceUser = $user && ($user->hasRole('user') || $user->hasRole('Service User'));
 
         $isGlobalAdmin = $isMaster || $isSuperAdmin;
@@ -547,7 +547,7 @@ class HomeController extends Controller
         }
 
         // Super admins can see all services
-        if ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin')) {
+        if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin')) {
             return Service::pluck('id');
         }
 
@@ -632,7 +632,7 @@ class HomeController extends Controller
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
         $department = Department::find($departmentId);
 
-        $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('Assistante de Direction') || $user->hasRole('IT Admin') || $user->hasRole('super_admin'));
 
         // ------------------------------------------------------------------
         // Global admins: ALWAYS drill down departments -> sub-departments

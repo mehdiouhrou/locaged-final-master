@@ -21,14 +21,13 @@ class ReportsController extends Controller
     {
         Gate::authorize('viewAny', Document::class);
 
-        // NOTE: Access is allowed for Admin de departments, but all
+        // NOTE: Access is allowed for Chef de Département, but all
         // data is automatically scoped to their assigned departments
         // by the logic below (see $isSuperAdmin and department filters).
 
         // Get filter data with proper permission and role-based scoping
         $user = auth()->user();
-        $isSuperAdmin = $user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin');
-
+$isSuperAdmin = $user->can('view any document');
         // Rooms: only show rooms that contain documents (via rows → shelves → boxes → documents)
         $rooms = \App\Models\Room::whereHas('rows.shelves.boxes.documents')
             ->orderBy('name')
@@ -68,7 +67,7 @@ class ReportsController extends Controller
         // Prepare filters for DocumentSearchService
         $filters = [];
 
-        // For department-scoped roles (Department Administrator, Admin de pole),
+        // For department-scoped roles (Department Administrator, Chef de Pôle),
         // always restrict to their assigned departments unless they are super admin
         if (! $isSuperAdmin && $user->departments && $user->departments->isNotEmpty()) {
             $filters['department_ids'] = $user->departments->pluck('id')->all();
@@ -178,7 +177,7 @@ class ReportsController extends Controller
     {
         Gate::authorize('viewAny', Document::class);
 
-        // Admin de departments may export reports, but underlying
+        // Chef de Département may export reports, but underlying
         // query in DocumentsReportExport should already be scoped
         // to their departments via existing permissions.
 
@@ -189,12 +188,12 @@ class ReportsController extends Controller
     {
         // Resolve current user and role-scope first
         $user = auth()->user();
-        $isSuperAdmin = $user && ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isSuperAdmin = $user && ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('super_admin'));
 
         // Prepare filters for DocumentSearchService
         $filters = [];
 
-        // For department-scoped roles (Department Administrator, Admin de pole),
+        // For department-scoped roles (Department Administrator, Chef de Pôle),
         // always restrict to their assigned departments unless they are super admin
         if (! $isSuperAdmin && $user && $user->departments && $user->departments->isNotEmpty()) {
             $filters['department_ids'] = $user->departments->pluck('id')->all();
@@ -262,7 +261,7 @@ class ReportsController extends Controller
             $baseQuery->where('documents.department_id', $request->department_id);
         }
 
-        if ($request->filled('user_id') && auth()->user()->hasRole(['master', 'super_admin', 'super administrator'])) {
+        if ($request->filled('user_id') && auth()->user()->hasRole(['master', 'super_admin', 'Directrice du SPCR'])) {
             $baseQuery->where('created_by', $request->user_id);
         }
 

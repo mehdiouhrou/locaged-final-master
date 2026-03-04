@@ -33,7 +33,7 @@ class AuditLog extends Model
             $user = auth()->user();
 
             // Super admins see all audit logs
-            if ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin')) {
+            if ($user->hasRole('master') || $user->hasRole('Directrice du SPCR') || $user->hasRole('super_admin')) {
                 return;
             }
 

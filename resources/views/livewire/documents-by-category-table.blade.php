@@ -392,7 +392,7 @@
                                     @endcan
 
 
-                                    @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Super Administrator'))
+                                    @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Directrice du SPCR'))
                                         <li class="pointer">
                                             <a class="dropdown-item trigger-action"
                                                data-id="{{ $doc->id }}"
@@ -450,14 +450,14 @@
                     <td colspan="10">
                         @php
                             $currentUser = auth()->user();
-                            $isAdminDePole = $currentUser->hasRole('Admin de pole') || $currentUser->hasRole('Department Administrator');
-                            $isAdminDeDepartments = $currentUser->hasRole('Admin de departments') || $currentUser->hasRole('Division Chief');
-                            $isAdminDeCellule = $currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('Service Manager');
+                            $isAdminDePole = $currentUser->hasRole('Chef de Pôle') || $currentUser->hasRole('Department Administrator');
+                            $isAdminDeDepartments = $currentUser->hasRole('Chef de Département') || $currentUser->hasRole('Division Chief');
+                            $isAdminDeCellule = $currentUser->hasRole('Chef de Département') || $currentUser->hasRole('Service Manager');
                             
                             // Define roles that should be hidden for each user type
-                            $hiddenRolesForAdminDePole = ['master', 'super administrator', 'admin'];
-                            $hiddenRolesForAdminDeDepartments = ['master', 'super administrator', 'admin', 'admin de pole', 'department administrator'];
-                            $hiddenRolesForAdminDeCellule = ['master', 'super administrator', 'admin', 'admin de pole', 'department administrator', 'admin de departments', 'division chief'];
+                            $hiddenRolesForAdminDePole = ['master', 'Directrice du SPCR', 'admin'];
+                            $hiddenRolesForAdminDeDepartments = ['master', 'Directrice du SPCR', 'admin', 'Chef de Pôle', 'department administrator'];
+                            $hiddenRolesForAdminDeCellule = ['master', 'Directrice du SPCR', 'admin', 'Chef de Pôle', 'department administrator', 'Chef de Département', 'division chief'];
                         @endphp
                         @foreach($doc->auditLogs as $log)
                             @php
@@ -475,7 +475,7 @@
                                         return strtolower($name);
                                     })->toArray();
                                     
-                                    // Admin de pole: hide logs from master, super admin, and admin
+                                    // Chef de Pôle: hide logs from master, super admin, and admin
                                     if ($isAdminDePole) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDePole)) {
@@ -485,7 +485,7 @@
                                         }
                                     }
                                     
-                                    // Admin de departments: hide logs from master, super admin, admin, and admin de pole
+                                    // Chef de Département: hide logs from master, super admin, admin, and Chef de Pôle
                                     if ($isAdminDeDepartments && !$isAdminDePole) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDeDepartments)) {
@@ -495,7 +495,7 @@
                                         }
                                     }
                                     
-                                    // Admin de cellule: hide logs from master, super admin, admin, admin de pole, and admin de departments
+                                    // Chef de Département: hide logs from master, super admin, admin, Chef de Pôle, and Chef de Département
                                     if ($isAdminDeCellule && !$isAdminDePole && !$isAdminDeDepartments) {
                                         foreach ($logUserRoles as $roleName) {
                                             if (in_array($roleName, $hiddenRolesForAdminDeCellule)) {

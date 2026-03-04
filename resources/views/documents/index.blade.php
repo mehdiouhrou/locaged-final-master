@@ -13,7 +13,7 @@
                     <button class="me-4  button-active2">
                         <a href="{{ route('documents.index') }}" class="text-decoration-none">{{ ui_t('pages.file_audit') }}</a>
                     </button>
-                    @unless(auth()->user()->hasAnyRole(['Admin de departments', 'Division Chief', 'Admin de cellule', 'service manager']))
+                    @unless(auth()->user()->hasAnyRole(['Chef de Département', 'Division Chief', 'Chef de Département', 'service manager']))
                         <button class="me-4">
                             <a href="{{ route('logs.deletions') }}" class="text-decoration-none">{{ __('Deletion log') }}</a>
                         </button>

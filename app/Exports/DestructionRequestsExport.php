@@ -34,8 +34,8 @@ class DestructionRequestsExport implements FromQuery, WithHeadings, WithMapping,
         
         // Department Administrator: only export expired documents from their departments
         // Admin/Super Admin: export all expired documents from all departments
-        $isDeptAdmin = $user && ($user->hasRole('Department Administrator') || $user->hasRole('Admin de pole'));
-        $isAdmin = $user && $user->hasRole(['master', 'Super Administrator', 'super administrator']);
+        $isDeptAdmin = $user && ($user->hasRole('Department Administrator') || $user->hasRole('Chef de Pôle'));
+        $isAdmin = $user && $user->hasRole(['master', 'Directrice du SPCR', 'Directrice du SPCR']);
         
         if ($isDeptAdmin && !$isAdmin) {
             $deptIds = $user->departments?->pluck('id') ?? collect();
