@@ -25,7 +25,8 @@ Route::middleware('auth')->group(function () {
 
     // Inline preview for temporary uploads (images/PDFs)
     Route::get('/preview/temp/{token}', [\App\Http\Controllers\FilePreviewController::class, 'temp'])
-        ->name('preview.temp');
+    ->where('token', '.*')
+    ->name('preview.temp');
     Route::post('/toggle-rtl', [\App\Http\Controllers\HomeController::class,'toggleRtl'])->name('toggle.rtl');
     Route::get('/categories-by-department/{departmentId}', [\App\Http\Controllers\HomeController::class,'getCategoriesByDepartment'])->name('categories.by.department');
     Route::get('/departments/{departmentId}/sub-departments', [\App\Http\Controllers\HomeController::class,'getSubDepartmentsByDepartment'])->name('dashboard.sub-departments.by-department');
