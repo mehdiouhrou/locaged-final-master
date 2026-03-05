@@ -975,8 +975,8 @@ class MultipleDocumentsCreateForm extends Component
 
         // Build secure server-side preview URL
         $absolutePath = $file->getRealPath();
-        $token = \Crypt::encryptString($absolutePath);
-        $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->getClientOriginalName()]);
+      $token = strtr(base64_encode(\Crypt::encryptString($absolutePath)), '+/', '-_');
+$this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->getClientOriginalName()]);
         $this->previewMime = $file->getMimeType();
         $this->previewName = $file->getClientOriginalName();
 
@@ -999,7 +999,7 @@ class MultipleDocumentsCreateForm extends Component
         }
 
         try {
-            $token = Crypt::encryptString($absolutePath);
+            $token = strtr(base64_encode(Crypt::encryptString($absolutePath)), '+/', '-_');
             $this->currentPreviewUrl = route('preview.temp', [
                 'token' => $token,
                 'name' => $file->getClientOriginalName()

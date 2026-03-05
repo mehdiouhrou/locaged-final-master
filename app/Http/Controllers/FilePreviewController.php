@@ -16,7 +16,7 @@ class FilePreviewController extends Controller
      */
     public function temp(Request $request, string $token): BinaryFileResponse
     {
-        $path = Crypt::decryptString($token);
+        $path = Crypt::decryptString(base64_decode(strtr($token, '-_', '+/')));
 
         if (! file_exists($path)) {
             abort(404, 'File not found.');
