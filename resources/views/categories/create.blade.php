@@ -11,9 +11,6 @@
                                 <h4 class="card-title mb-1">{{ ui_t('pages.categories_form.title') }}</h4>
                                 <p class="text-muted small mb-0">{{ ui_t('pages.categories_form.subtitle') }}</p>
                             </div>
-                          {{--  <button type="button" class="btn btn-dark btn-sm header-btn">
-                                <i class="fas fa-plus me-1"></i> Category and subcategory
-                            </button>--}}
                         </div>
 
                         <form id="categoryForm" method="post" action="{{ route('categories.store') }}">
@@ -22,7 +19,6 @@
                                 <label class="form-label fw-medium">{{ ui_t('pages.categories_form.structure') }} <span class="text-danger">*</span></label>
 
                                 @php
-                                    // $departments is now passed from the controller (filtered by user role)
                                     $oldDept = old('department_id');
                                     $oldSubDept = old('sub_department_id');
                                     $oldService = old('service_id');
@@ -78,7 +74,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label fw-medium">{{ ui_t('pages.categories_form.enter_category') }}</label>
                                 <input type="text" name="category_name" value="{{ old('category_name') }}" class="form-control custom-input" id="categoryInput" placeholder="{{ ui_t('pages.categories_form.enter_category_ph') }}">
@@ -100,16 +96,44 @@
                                 </div>
                             </div>
 
+                            {{-- Services partagés : master et IT Admin uniquement --}}
+                            @if(auth()->user()->hasAnyRole(['master', 'IT Admin']))
+                            <div class="mb-4">
+                                <label class="form-label fw-medium">Services partagés <span class="text-muted small">(optionnel)</span></label>
+                                <p class="text-muted small mb-2">Ces services pourront voir cette catégorie et ses documents en lecture seule.</p>
+                                <div class="border rounded p-3" style="max-height: 220px; overflow-y: auto;" id="sharedServicesContainer">
+                                    @foreach($allServices as $service)
+                                        <div class="form-check mb-1 shared-service-item" data-service-id="{{ $service->id }}">
+                                            <input
+                                                class="form-check-input shared-service-checkbox"
+                                                type="checkbox"
+                                                name="shared_service_ids[]"
+                                                value="{{ $service->id }}"
+                                                id="shared_service_{{ $service->id }}"
+                                                {{ in_array($service->id, old('shared_service_ids', [])) ? 'checked' : '' }}
+                                            >
+                                            <label class="form-check-label small" for="shared_service_{{ $service->id }}">
+                                                {{ $service->name }}
+                                                @if($service->subDepartment?->department)
+                                                    <span class="text-muted">— {{ $service->subDepartment->department->name }}</span>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
                             <div class="subcategory-section">
                                 <label class="form-label fw-medium mb-3">{{ ui_t('pages.categories_form.enter_subcategory') }} <span class="text-muted">{{ ui_t('pages.categories_form.optional') }}</span></label>
                                 <div class="subcategory-visual-container">
                                     <div class="subcategory-container" id="subcategoryContainer">
-                                        {{-- Subcategory inputs will be added dynamically by JS; no default value --}}
+                                        {{-- Subcategory inputs will be added dynamically by JS --}}
                                     </div>
                                 </div>
                             </div>
                             <button type="button" class="btn-upload w-50 d-block mb-3" id="addSubcategoryBtn">{{ ui_t('pages.categories_form.add_new_subcategory') }}</button>
-                            <button type="submit" class="btn-upload w-75 ">{{ ui_t('pages.categories_form.save') }}</button>
+                            <button type="submit" class="btn-upload w-75">{{ ui_t('pages.categories_form.save') }}</button>
                         </form>
                     </div>
                 </div>
@@ -125,11 +149,9 @@
                         <div class="mb-3">
                             <input type="text" class="form-control custom-input" id="liveCategory" placeholder="{{ ui_t('pages.categories_form.category_preview') }}" readonly>
                         </div>
-
                         <div class="subcategory-section">
                             <div class="subcategory-visual-container">
                                 <div class="subcategory-container bg-ver" id="liveSubcategories">
-                                    <!-- Subcategory previews will be appended here -->
                                 </div>
                             </div>
                         </div>
@@ -137,12 +159,11 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     {{-- Scripts --}}
     <script>
-        // Cascading selects for Department -> Sub-Department -> Service
+        // Cascading selects + hide service principal from shared list
         (function() {
             const deptSelect = document.getElementById('categoryDepartmentSelect');
             const subDeptSelect = document.getElementById('categorySubDepartmentSelect');
@@ -150,51 +171,56 @@
 
             function filterSubDepartments() {
                 const deptId = deptSelect.value;
-                
-                // Disable/Enable sub-department select based on department selection
                 if (!deptId) {
                     subDeptSelect.disabled = true;
-                    subDeptSelect.value = ''; // Reset value
-                    filterServices(); // Chain to reset services
+                    subDeptSelect.value = '';
+                    filterServices();
                     return;
                 }
-                
                 subDeptSelect.disabled = false;
-                
-                // Show only relevant options
                 Array.from(subDeptSelect.options).forEach(opt => {
-                    if (!opt.value) return; // keep placeholder
+                    if (!opt.value) return;
                     const match = opt.dataset.departmentId === deptId;
                     opt.hidden = !match;
                     if (!match && opt.selected) {
                         opt.selected = false;
-                        subDeptSelect.value = ''; // Reset if selected option is hidden
+                        subDeptSelect.value = '';
                     }
                 });
-                
                 filterServices();
             }
 
             function filterServices() {
                 const subId = subDeptSelect.value;
-                
-                // Disable/Enable service select based on sub-department selection
                 if (!subId) {
                     serviceSelect.disabled = true;
-                    serviceSelect.value = ''; // Reset value
+                    serviceSelect.value = '';
+                    updateSharedServicesVisibility('');
                     return;
                 }
-                
                 serviceSelect.disabled = false;
-                
-                // Show only relevant options
                 Array.from(serviceSelect.options).forEach(opt => {
                     if (!opt.value) return;
                     const match = opt.dataset.subDepartmentId === subId;
                     opt.hidden = !match;
                     if (!match && opt.selected) {
                         opt.selected = false;
-                        serviceSelect.value = ''; // Reset if selected option is hidden
+                        serviceSelect.value = '';
+                    }
+                });
+                updateSharedServicesVisibility(serviceSelect.value);
+            }
+
+            // Cache le service principal dans la liste des services partagés
+            function updateSharedServicesVisibility(selectedServiceId) {
+                const items = document.querySelectorAll('.shared-service-item');
+                items.forEach(item => {
+                    const sid = item.dataset.serviceId;
+                    if (sid === selectedServiceId) {
+                        item.style.display = 'none';
+                        item.querySelector('input').checked = false;
+                    } else {
+                        item.style.display = '';
                     }
                 });
             }
@@ -202,10 +228,11 @@
             if (deptSelect && subDeptSelect && serviceSelect) {
                 deptSelect.addEventListener('change', filterSubDepartments);
                 subDeptSelect.addEventListener('change', filterServices);
-                // initial filter based on old() values or default state
+                serviceSelect.addEventListener('change', () => updateSharedServicesVisibility(serviceSelect.value));
                 filterSubDepartments();
             }
         })();
+
         const translations = {
             enterSubcategory: @json(ui_t('pages.categories_form.enter_subcategory')),
             removeSubcategory: @json(ui_t('pages.categories_form.remove_subcategory')),
@@ -216,12 +243,10 @@
         const liveSubcategories = document.getElementById('liveSubcategories');
         const addBtn = document.getElementById('addSubcategoryBtn');
 
-        // Sync category input
         categoryInput.addEventListener('input', function () {
             liveCategory.value = this.value;
         });
 
-        // Helper: create a subcategory input with remove button
         function createSubcategoryItem(value = '') {
             const newItem = document.createElement('div');
             newItem.classList.add('subcategory-item', 'mb-3', 'd-flex', 'align-items-center');
@@ -246,14 +271,11 @@
 
             newItem.appendChild(newInput);
             newItem.appendChild(removeBtn);
-
-            // Also sync live preview on input change
             newInput.addEventListener('input', syncSubcategories);
 
             return newItem;
         }
 
-        // Initial setup: replace existing inputs with new styled ones (to add remove buttons)
         function initializeSubcategories() {
             const oldItems = Array.from(subcategoryContainer.querySelectorAll('.subcategory-item'));
             oldItems.forEach(oldItem => {
@@ -263,12 +285,11 @@
             });
         }
 
-        // Sync subcategories preview
         function syncSubcategories() {
             liveSubcategories.innerHTML = '';
             const inputs = subcategoryContainer.querySelectorAll('.subcategory-input');
             inputs.forEach((input) => {
-                if (input.value.trim() !== '') { // Only show non-empty subcategories in preview
+                if (input.value.trim() !== '') {
                     const clone = input.cloneNode();
                     clone.setAttribute('readonly', true);
                     clone.value = input.value;
@@ -285,17 +306,15 @@
             syncSubcategories();
         });
 
-        // Form submission handler to clean up empty subcategories
         document.getElementById('categoryForm').addEventListener('submit', function(e) {
             const subcategoryInputs = subcategoryContainer.querySelectorAll('.subcategory-input');
             subcategoryInputs.forEach(input => {
                 if (input.value.trim() === '') {
-                    input.disabled = true; // Disable empty inputs so they won't be submitted
+                    input.disabled = true;
                 }
             });
         });
 
-        // Run on page load
         initializeSubcategories();
         syncSubcategories();
     </script>

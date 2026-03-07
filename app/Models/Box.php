@@ -108,7 +108,22 @@ class Box extends Model
         }
 
         // Filter by accessible service IDs
-        return $query->whereIn('service_id', $accessibleServiceIds);
+        $sharedCategoryIds = \DB::table('category_service')
+            ->whereIn('service_id', $accessibleServiceIds->all())
+            ->pluck('category_id')
+            ->all();
+
+        $sharedServiceIds = empty($sharedCategoryIds) ? [] :
+            \DB::table('categories')
+                ->whereIn('id', $sharedCategoryIds)
+                ->pluck('service_id')
+                ->filter()
+                ->unique()
+                ->all();
+
+        $allServiceIds = $accessibleServiceIds->merge($sharedServiceIds)->unique()->all();
+
+        return $query->whereIn('service_id', $allServiceIds);
     }
 
     /**

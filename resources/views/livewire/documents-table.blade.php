@@ -988,7 +988,6 @@
                                         </button>
                                     @endcan
                                 @endif
-
                                 @can('view',$doc)
                                     @if($doc->latestVersion)
                                         @php

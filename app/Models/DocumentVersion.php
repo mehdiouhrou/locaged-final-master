@@ -118,15 +118,23 @@ class DocumentVersion extends Model
 
                 $visibleServiceIds = $visibleServiceIds->unique()->filter();
 
-                if ($visibleServiceIds->isNotEmpty()) {
-                    $query->whereHas('document', function ($q) use ($visibleServiceIds) {
-                        $q->whereIn('service_id', $visibleServiceIds->all());
-                    });
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+                // APRÈS
+if ($visibleServiceIds->isNotEmpty()) {
+    $sharedCategoryIds = \DB::table('category_service')
+        ->whereIn('service_id', $visibleServiceIds->all())
+        ->pluck('category_id')
+        ->all();
 
-                return;
+    $query->whereHas('document', function ($q) use ($visibleServiceIds, $sharedCategoryIds) {
+        $q->whereIn('service_id', $visibleServiceIds->all());
+        if (!empty($sharedCategoryIds)) {
+            $q->orWhereIn('category_id', $sharedCategoryIds);
+        }
+    });
+} else {
+    $query->whereRaw('1 = 0');
+}
+return;
             }
 
             // Department-level visibility

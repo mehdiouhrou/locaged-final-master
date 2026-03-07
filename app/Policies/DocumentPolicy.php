@@ -4,6 +4,8 @@ use App\Models\Document;
 use App\Models\Service;
 use App\Models\SubDepartment;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
 class DocumentPolicy
 {
     public function viewAny(User $user): bool
@@ -13,11 +15,13 @@ class DocumentPolicy
             || $user->can('view service document')
             || $user->can('view own document');
     }
+
     public function view(User $user, Document $document): bool
     {
         if ($user->can('view any document')) {
             return true;
         }
+
         if ($user->can('view service document')) {
             $visibleServiceIds = collect();
             if ($user->relationLoaded('services') || method_exists($user, 'services')) {
@@ -34,23 +38,44 @@ class DocumentPolicy
                 );
             }
             $visibleServiceIds = $visibleServiceIds->unique()->filter();
+
+            
             if ($document->service_id && $visibleServiceIds->contains($document->service_id)) {
                 return true;
             }
+
+            if ($visibleServiceIds->isNotEmpty() && $document->category_id) {
+                $sharedCategoryIds = DB::table('category_service')
+                    ->whereIn('service_id', $visibleServiceIds->all())
+                    ->pluck('category_id');
+
+                
+
+                if ($sharedCategoryIds->contains($document->category_id)) {
+                    return true;
+                }
+            } else {
+               
+            }
         }
+
         if ($user->can('view department document')
             && $user->departments->pluck('id')->contains($document->department_id)) {
             return true;
         }
+
         if ($user->can('view own document') && $user->id === $document->created_by) {
             return true;
         }
+
         return false;
     }
+
     public function create(User $user): bool
     {
         return $user->can('create document');
     }
+
     public function update(User $user, Document $document): bool
     {
         if ($user->cannot('update document')) {
@@ -88,10 +113,9 @@ class DocumentPolicy
         }
         return false;
     }
+
     public function delete(User $user, Document $document): bool
     {
-        // CORRIGÉ : supprimé le hasRole('master') en dur
-        // master a déjà 'delete document' via le seeder
         if ($user->cannot('delete document')) {
             return false;
         }
@@ -107,6 +131,7 @@ class DocumentPolicy
         }
         return false;
     }
+
     public function restore(User $user, Document $document): bool
     {
         if ($user->cannot('restore document')) {
@@ -124,6 +149,7 @@ class DocumentPolicy
         }
         return false;
     }
+
     public function forceDelete(User $user, Document $document): bool
     {
         if ($user->cannot('forceDelete document')) {
@@ -141,21 +167,22 @@ class DocumentPolicy
         }
         return false;
     }
+
     public function approve(User $user): bool
     {
         return $user->can('approve document');
     }
+
     public function decline(User $user): bool
     {
         return $user->can('decline document');
     }
+
     public function permanentDelete(User $user, Document $document): bool
     {
-        // CORRIGÉ : utilise la permission forceDelete au lieu des rôles en dur
         if ($user->can('forceDelete document')) {
             return true;
         }
-        // Le créateur peut supprimer définitivement ses propres documents refusés
         if ($document->status === 'declined' && $document->created_by === $user->id) {
             return true;
         }

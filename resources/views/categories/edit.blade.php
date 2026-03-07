@@ -18,7 +18,6 @@
                             @method('PUT')
 
                             @php
-                                // $departments is passed from the controller
                                 $oldDept = old('department_id', $category->department_id);
                                 $oldSubDept = old('sub_department_id', $category->sub_department_id);
                                 $oldService = old('service_id', $category->service_id);
@@ -106,6 +105,38 @@
                                 </div>
                             </div>
 
+                            {{-- Services partagés : master et IT Admin uniquement --}}
+                            @if(auth()->user()->hasAnyRole(['master', 'IT Admin']))
+                            <div class="mb-4">
+                                <label class="form-label fw-medium">Services partagés <span class="text-muted small">(optionnel)</span></label>
+                                <p class="text-muted small mb-2">Ces services pourront voir cette catégorie et ses documents en lecture seule.</p>
+                                <div class="border rounded p-3" style="max-height: 220px; overflow-y: auto;" id="sharedServicesContainer">
+                                    @foreach($allServices as $service)
+                                        @php
+                                            $isMainService = $service->id == $oldService;
+                                            $isChecked = in_array($service->id, old('shared_service_ids', $selectedSharedServiceIds));
+                                        @endphp
+                                        <div class="form-check mb-1 shared-service-item" data-service-id="{{ $service->id }}" style="{{ $isMainService ? 'display:none' : '' }}">
+                                            <input
+                                                class="form-check-input shared-service-checkbox"
+                                                type="checkbox"
+                                                name="shared_service_ids[]"
+                                                value="{{ $service->id }}"
+                                                id="shared_service_{{ $service->id }}"
+                                                {{ $isChecked && !$isMainService ? 'checked' : '' }}
+                                            >
+                                            <label class="form-check-label small" for="shared_service_{{ $service->id }}">
+                                                {{ $service->name }}
+                                                @if($service->subDepartment?->department)
+                                                    <span class="text-muted">— {{ $service->subDepartment->department->name }}</span>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
                             <div class="subcategory-section">
                                 <label class="form-label fw-medium mb-3">{{ ui_t('pages.categories_edit.enter_subcategories') }}</label>
                                 <div class="subcategory-visual-container">
@@ -113,12 +144,10 @@
                                         @php
                                             $oldSubsIds = old('subcategories_id', $category->subcategories->pluck('id')->toArray());
                                             $oldSubsNames = old('subcategories_name', $category->subcategories->pluck('name')->toArray());
-
                                         @endphp
                                         @foreach ($oldSubsNames as $index => $subName)
                                             <div class="subcategory-item mb-3 d-flex align-items-center">
                                                 <input type="hidden" name="subcategories_id[]" value="{{ $oldSubsIds[$index] ?? '' }}">
-
                                                 <input
                                                     type="text"
                                                     name="subcategories_name[]"
@@ -144,7 +173,7 @@
             </div>
         </div>
 
-        {{-- Live Preview Section --}}
+        {{-- Live Preview --}}
         <div class="row mt-5 w-50">
             <div class="col-md-8">
                 <div>
@@ -153,11 +182,9 @@
                         <div class="mb-3">
                             <input type="text" class="form-control custom-input" id="liveCategory" placeholder="{{ ui_t('pages.categories_edit.category_preview') }}" readonly>
                         </div>
-
                         <div class="subcategory-section">
                             <div class="subcategory-visual-container">
                                 <div class="subcategory-container bg-ver" id="liveSubcategories">
-                                    <!-- Subcategory previews will be appended here -->
                                 </div>
                             </div>
                         </div>
@@ -165,12 +192,10 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     {{-- Scripts --}}
     <script>
-        // Cascading selects for Department -> Sub-Department -> Service
         (function() {
             const deptSelect = document.getElementById('categoryDepartmentSelect');
             const subDeptSelect = document.getElementById('categorySubDepartmentSelect');
@@ -179,12 +204,10 @@
             function filterSubDepartments() {
                 const deptId = deptSelect.value;
                 Array.from(subDeptSelect.options).forEach(opt => {
-                    if (!opt.value) return; // keep placeholder
+                    if (!opt.value) return;
                     const match = !deptId || opt.dataset.departmentId === deptId;
                     opt.hidden = !match;
-                    if (!match && opt.selected) {
-                        opt.selected = false;
-                    }
+                    if (!match && opt.selected) opt.selected = false;
                 });
                 filterServices();
             }
@@ -195,8 +218,20 @@
                     if (!opt.value) return;
                     const match = !subId || opt.dataset.subDepartmentId === subId;
                     opt.hidden = !match;
-                    if (!match && opt.selected) {
-                        opt.selected = false;
+                    if (!match && opt.selected) opt.selected = false;
+                });
+                updateSharedServicesVisibility(serviceSelect.value);
+            }
+
+            function updateSharedServicesVisibility(selectedServiceId) {
+                const items = document.querySelectorAll('.shared-service-item');
+                items.forEach(item => {
+                    const sid = item.dataset.serviceId;
+                    if (String(sid) === String(selectedServiceId)) {
+                        item.style.display = 'none';
+                        item.querySelector('input').checked = false;
+                    } else {
+                        item.style.display = '';
                     }
                 });
             }
@@ -204,7 +239,7 @@
             if (deptSelect && subDeptSelect && serviceSelect) {
                 deptSelect.addEventListener('change', filterSubDepartments);
                 subDeptSelect.addEventListener('change', filterServices);
-                // initial filter based on old() values
+                serviceSelect.addEventListener('change', () => updateSharedServicesVisibility(serviceSelect.value));
                 filterSubDepartments();
             }
         })();
@@ -212,26 +247,22 @@
         const translations = {
             enterSubcategory: @json(ui_t('pages.categories_form.enter_subcategory')),
             removeSubcategory: @json(ui_t('pages.categories_form.remove_subcategory')),
-            selectSubDepartment: @json(ui_t('pages.categories_edit.select_sub_department')),
-            selectService: @json(ui_t('pages.categories_edit.select_service')),
         };
+
         const categoryInput = document.getElementById('categoryInput');
         const liveCategory = document.getElementById('liveCategory');
         const subcategoryContainer = document.getElementById('subcategoryContainer');
         const liveSubcategories = document.getElementById('liveSubcategories');
         const addBtn = document.getElementById('addSubcategoryBtn');
 
-        // Sync category input to live preview
         categoryInput.addEventListener('input', function () {
             liveCategory.value = this.value;
         });
 
-        // Helper: create a subcategory input with remove button
         function createSubcategoryItem(value = '', id = '') {
             const newItem = document.createElement('div');
             newItem.classList.add('subcategory-item', 'mb-3', 'd-flex', 'align-items-center');
 
-            // Hidden input for ID, empty for new subcategory
             const idInput = document.createElement('input');
             idInput.type = 'hidden';
             idInput.name = 'subcategories_id[]';
@@ -265,7 +296,6 @@
             return newItem;
         }
 
-        // Sync subcategories live preview
         function syncSubcategories() {
             liveSubcategories.innerHTML = '';
             const inputs = subcategoryContainer.querySelectorAll('.subcategory-input');
@@ -279,7 +309,6 @@
             });
         }
 
-        // Add new subcategory input on button click
         addBtn.addEventListener('click', (e) => {
             e.preventDefault();
             const newItem = createSubcategoryItem();
@@ -287,7 +316,6 @@
             syncSubcategories();
         });
 
-        // Remove buttons for existing subcategories
         document.querySelectorAll('.remove-subcategory').forEach(button => {
             button.addEventListener('click', function () {
                 this.closest('.subcategory-item').remove();
@@ -295,7 +323,6 @@
             });
         });
 
-        // Initialize live preview with current values on page load
         liveCategory.value = categoryInput.value;
         syncSubcategories();
     </script>

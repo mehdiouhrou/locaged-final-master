@@ -871,11 +871,16 @@ class MultipleDocumentsCreateForm extends Component
         }
 
         // Check pivot table directly (bypasses any Department global scopes)
+        // Check pivot table directly (bypasses any Department global scopes)
         $deptCount = DB::table('department_user')
             ->where('user_id', $user->id)
             ->count();
-
-        return $deptCount > 0;
+        if ($deptCount > 0) {
+            return true;
+        }
+        // Fallback: derive department from assigned services via subDepartment
+        $user->loadMissing('services.subDepartment');
+        return $user->services->filter(fn($s) => $s->subDepartment?->department_id)->isNotEmpty();
     }
 
     public function nextStep()
@@ -1497,8 +1502,19 @@ $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->g
             } else {
                 // Others (service roles): explicit service assignments
                 $userServices = $user->services;                     // from service_user
+
+                // Si l'utilisateur n'a pas de département assigné directement,
+                // dériver depuis ses services via subDepartment → department
+                if ($userDepartments->isEmpty() && $userServices->isNotEmpty()) {
+                    $userServices->loadMissing('subDepartment.department');
+                    $derivedSubDepts = $userServices->map(fn($s) => $s->subDepartment)->filter()->unique('id');
+                    $derivedDeptIds = $derivedSubDepts->pluck('department_id')->filter()->unique()->all();
+                    $userDepartments = \App\Models\Department::withoutGlobalScopes()
+                        ->whereIn('id', $derivedDeptIds)
+                        ->get();
+                    $userSubDepartments = $derivedSubDepts->values();
+                }
             }
-        }
 
         // Detailed debug logging to verify what the component sees
         Log::info('Upload org options', [
@@ -1524,4 +1540,5 @@ $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->g
             'tags'              => Tag::all(),
         ]);
     }
+}
 }

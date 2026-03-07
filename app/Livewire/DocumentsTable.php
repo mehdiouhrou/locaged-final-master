@@ -595,16 +595,31 @@ class DocumentsTable extends Component
         if (! $id) {
             return;
         }
-
         if ($type === 'department') {
             $query->where('department_id', $id);
         } elseif ($type === 'subdepartment') {
             $serviceIds = Service::where('sub_department_id', $id)->pluck('id');
             if ($serviceIds->isNotEmpty()) {
-                $query->whereIn('service_id', $serviceIds);
+                $sharedCategoryIds = \DB::table('category_service')
+                    ->whereIn('service_id', $serviceIds->all())
+                    ->pluck('category_id')->all();
+                $query->where(function ($q) use ($serviceIds, $sharedCategoryIds) {
+                    $q->whereIn('service_id', $serviceIds->all());
+                    if (!empty($sharedCategoryIds)) {
+                        $q->orWhereIn('category_id', $sharedCategoryIds);
+                    }
+                });
             }
         } elseif ($type === 'service') {
-            $query->where('service_id', $id);
+            $sharedCategoryIds = \DB::table('category_service')
+                ->where('service_id', $id)
+                ->pluck('category_id')->all();
+            $query->where(function ($q) use ($id, $sharedCategoryIds) {
+                $q->where('service_id', $id);
+                if (!empty($sharedCategoryIds)) {
+                    $q->orWhereIn('category_id', $sharedCategoryIds);
+                }
+            });
         }
     }
 

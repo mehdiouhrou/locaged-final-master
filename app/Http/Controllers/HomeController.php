@@ -343,11 +343,20 @@ class HomeController extends Controller
                 }
 
                 $visibleServiceIds = $visibleServiceIds->unique()->filter();
-
                 if ($visibleServiceIds->isNotEmpty()) {
-                    $q->whereIn('service_id', $visibleServiceIds);
+                    $sharedCategoryIds = \DB::table('category_service')
+                        ->whereIn('service_id', $visibleServiceIds->all())
+                        ->pluck('category_id')
+                        ->all();
+                    $q->where(function ($inner) use ($visibleServiceIds, $sharedCategoryIds) {
+                        $inner->whereIn('service_id', $visibleServiceIds->all());
+                        if (!empty($sharedCategoryIds)) {
+                            $inner->orWhereIn('category_id', $sharedCategoryIds);
+                        }
+                    });
                     $hasCondition = true;
                 }
+                
             }
 
             if ($user->can('view department document')) {
@@ -395,14 +404,26 @@ class HomeController extends Controller
         // 1) Service Manager / Service User → start from their Services
         // ------------------------------------------------------------------
         if ($isServiceScoped && $accessibleServiceIds->isNotEmpty()) {
-            $services = Service::whereIn('id', $accessibleServiceIds)
+            // Inclure aussi les services dont les catégories sont partagées avec l'utilisateur
+            $sharedCatIds = \DB::table('category_service')
+                ->whereIn('service_id', $accessibleServiceIds->all())
+                ->pluck('category_id')->all();
+            $sharedServiceIds = empty($sharedCatIds) ? [] :
+                \DB::table('categories')
+                    ->whereIn('id', $sharedCatIds)
+                    ->pluck('service_id')->filter()->unique()->all();
+            $allVisibleServiceIds = $accessibleServiceIds->merge($sharedServiceIds)->unique()->all();
+
+            $services = Service::whereIn('id', $allVisibleServiceIds)
                 ->orderBy('name')
                 ->get()
                 ->map(function ($service) use ($visibleDocumentsQuery) {
                     return [
                         'id' => $service->id,
                         'name' => $service->name,
-                        'count' => (clone $visibleDocumentsQuery)->where('service_id', $service->id)->count(),
+                        'count' => (clone $visibleDocumentsQuery)
+                            ->where('service_id', $service->id)
+                            ->count(),
                     ];
                 })
                 ->filter(fn ($s) => $s['count'] > 0)
@@ -647,7 +668,15 @@ class HomeController extends Controller
 
                     $documentCount = $serviceIds->isEmpty()
                         ? 0
-                        : (clone $visibleDocumentsQuery)->whereIn('service_id', $serviceIds)->count();
+                         : (clone $visibleDocumentsQuery)->where(function ($q) use ($serviceIds) {
+                            $sharedCategoryIds = \DB::table('category_service')
+                                ->whereIn('service_id', $serviceIds->all())
+                                ->pluck('category_id')->all();
+                            $q->whereIn('service_id', $serviceIds->all());
+                            if (!empty($sharedCategoryIds)) {
+                                $q->orWhereIn('category_id', $sharedCategoryIds);
+                            }
+                        })->count();
 
                     return [
                         'id' => $subDept->id,
@@ -686,7 +715,15 @@ class HomeController extends Controller
 
                 $documentCount = $serviceIds->isEmpty()
                     ? 0
-                    : (clone $visibleDocumentsQuery)->whereIn('service_id', $serviceIds)->count();
+                    :(clone $visibleDocumentsQuery)->where(function ($q) use ($serviceIds) {
+                            $sharedCategoryIds = \DB::table('category_service')
+                                ->whereIn('service_id', $serviceIds->all())
+                                ->pluck('category_id')->all();
+                            $q->whereIn('service_id', $serviceIds->all());
+                            if (!empty($sharedCategoryIds)) {
+                                $q->orWhereIn('category_id', $sharedCategoryIds);
+                            }
+                        })->count();
 
                 return [
                     'id' => $subDept->id,
@@ -709,7 +746,15 @@ class HomeController extends Controller
                     return [
                         'id' => $service->id,
                         'name' => $service->name,
-                        'count' => (clone $visibleDocumentsQuery)->where('service_id', $service->id)->count(),
+                        'count' => (clone $visibleDocumentsQuery)->where(function ($q) use ($service) {
+                            $sharedCategoryIds = \DB::table('category_service')
+                                ->where('service_id', $service->id)
+                                ->pluck('category_id')->all();
+                            $q->where('service_id', $service->id);
+                            if (!empty($sharedCategoryIds)) {
+                                $q->orWhereIn('category_id', $sharedCategoryIds);
+                            }
+                        })->count(),
                     ];
                 })
                 ->filter(fn ($s) => $s['count'] > 0)
@@ -797,7 +842,15 @@ class HomeController extends Controller
                 return [
                     'id' => $service->id,
                     'name' => $service->name,
-                    'count' => (clone $visibleDocumentsQuery)->where('service_id', $service->id)->count(),
+                    'count' => (clone $visibleDocumentsQuery)->where(function ($q) use ($service) {
+                            $sharedCategoryIds = \DB::table('category_service')
+                                ->where('service_id', $service->id)
+                                ->pluck('category_id')->all();
+                            $q->where('service_id', $service->id);
+                            if (!empty($sharedCategoryIds)) {
+                                $q->orWhereIn('category_id', $sharedCategoryIds);
+                            }
+                        })->count(),
                 ];
             });
 
@@ -815,7 +868,17 @@ class HomeController extends Controller
         $accessibleServiceIds = $this->getAccessibleServiceIds();
 
         // Ensure service is visible to this user (unless super admin)
-        if ($accessibleServiceIds->isNotEmpty() && ! $accessibleServiceIds->contains($serviceId)) {
+        // Include services visible via shared categories
+        $sharedCatIds = \DB::table('category_service')
+            ->whereIn('service_id', $accessibleServiceIds->all())
+            ->pluck('category_id')->all();
+        $sharedServiceIds = empty($sharedCatIds) ? collect() :
+            \DB::table('categories')
+                ->whereIn('id', $sharedCatIds)
+                ->pluck('service_id')->filter()->unique();
+        $allVisibleServiceIds = $accessibleServiceIds->merge($sharedServiceIds)->unique();
+
+        if ($allVisibleServiceIds->isNotEmpty() && ! $allVisibleServiceIds->contains($serviceId)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
