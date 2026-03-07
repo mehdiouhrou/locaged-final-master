@@ -37,9 +37,9 @@ class OcrService
             // Image formats → Tesseract OCR with optimization flags
             if (in_array($extension, ['jpg', 'jpeg', 'png', 'tiff', 'tif', 'bmp', 'webp'], true)) {
                 return (new TesseractOCR($absoluteFilePath))
-                    ->lang('fra','ara','eng') // French, Arabic and English languages
-                    ->psm(3)  // Page Segmentation Mode 3: Fully automatic (best for mixed layouts)
-                    ->oem(1)  // OCR Engine Mode 1: LSTM neural net (faster + more accurate than legacy)
+                    ->lang('fra','ara','eng')
+                    ->psm(6)  // Uniform block of text - optimal for administrative documents
+                    ->oem(1)  // LSTM neural net mode - most accurate
                     ->run();
             }
 
@@ -88,8 +88,8 @@ class OcrService
             $tempImagickForPages->clear();
             $tempImagickForPages->destroy();
 
-            // Optimization: Use 300 DPI which is standard for OCR and uses significantly less memory than 500
-            $resolution = 300; 
+            // 400 DPI optimal pour scans de documents administratifs imprimés
+            $resolution = 400; 
 
         } catch (Exception $e) {
             Log::error("Failed to load PDF {$pdfPath} or determine page count. File might be corrupted or encrypted: " . $e->getMessage());
@@ -156,11 +156,7 @@ class OcrService
                         Log::warning("Normalize failed for page {$pageIndex}: " . $e->getMessage());
                     }
 
-                    try {
-                        $pageImagick->despeckleImage(); // Step 2: Remove speckles early
-                    } catch (\ImagickException $e) {
-                        Log::warning("Despeckle failed for page {$pageIndex}: " . $e->getMessage());
-                    }
+                    
 
                     try {
                         // Step 3: Enhanced deskewing with threshold (40% = 0.4 * full range)
@@ -176,12 +172,7 @@ class OcrService
                         Log::warning("Sharpen failed for page {$pageIndex}: " . $e->getMessage());
                     }
 
-                    try {
-                        // Step 5: Adaptive thresholding for better binarization
-                        $pageImagick->thresholdImage(0.5 * \Imagick::getQuantum());
-                    } catch (\ImagickException $e) {
-                        Log::warning("Threshold failed for page {$pageIndex}: " . $e->getMessage());
-                    }
+                    
 
                 } catch (\Exception $e) {
                     // If transformations fail, log but continue with basic image
@@ -199,8 +190,8 @@ class OcrService
                 // OCR on the converted image with optimization flags
                 $pageText = (new TesseractOCR($outputPath))
                     ->lang('fra','ara','eng')
-                    ->psm(3)  // Fully automatic page segmentation
-                    ->oem(1)  // LSTM neural net mode
+                    ->psm(6)  // Uniform block of text - optimal for administrative documents
+                    ->oem(1)  // LSTM neural net mode - most accurate
                     ->run();
 
                 $fullText .= $pageText . "\n";
