@@ -981,7 +981,7 @@ class MultipleDocumentsCreateForm extends Component
         // Build secure server-side preview URL
         $absolutePath = $file->getRealPath();
       $token = strtr(base64_encode(\Crypt::encryptString($absolutePath)), '+/', '-_');
-$this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->getClientOriginalName()]);
+$this->previewUrl = route('preview.temp') . '?' . http_build_query(['token' => $token, 'name' => $file->getClientOriginalName()]);
         $this->previewMime = $file->getMimeType();
         $this->previewName = $file->getClientOriginalName();
 
@@ -1005,7 +1005,7 @@ $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->g
 
         try {
             $token = strtr(base64_encode(Crypt::encryptString($absolutePath)), '+/', '-_');
-            $this->currentPreviewUrl = route('preview.temp', [
+            $this->currentPreviewUrl = route('preview.temp') . '?' . http_build_query([
                 'token' => $token,
                 'name' => $file->getClientOriginalName()
             ]);
@@ -1515,6 +1515,7 @@ $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->g
                     $userSubDepartments = $derivedSubDepts->values();
                 }
             }
+        }
 
         // Detailed debug logging to verify what the component sees
         Log::info('Upload org options', [
@@ -1540,5 +1541,4 @@ $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $file->g
             'tags'              => Tag::all(),
         ]);
     }
-}
 }

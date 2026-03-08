@@ -14,8 +14,12 @@ class FilePreviewController extends Controller
      * Stream a temporary uploaded file inline for preview (images, PDFs).
      * The token is an encrypted absolute path to the file on disk.
      */
-    public function temp(Request $request, string $token): BinaryFileResponse
+    public function temp(Request $request): BinaryFileResponse
     {
+        $token = $request->query('token', '');
+        if (empty($token)) {
+            abort(400, 'Missing token.');
+        }
         $path = Crypt::decryptString(base64_decode(strtr($token, '-_', '+/')));
 
         if (! file_exists($path)) {

@@ -24,8 +24,7 @@ Route::post('/password/setup/{user}', [App\Http\Controllers\Auth\PasswordSetupCo
 Route::middleware('auth')->group(function () {
 
     // Inline preview for temporary uploads (images/PDFs)
-    Route::get('/preview/temp/{token}', [\App\Http\Controllers\FilePreviewController::class, 'temp'])
-    ->where('token', '.*')
+    Route::get('/preview/temp', [\App\Http\Controllers\FilePreviewController::class, 'temp'])
     ->name('preview.temp');
     Route::post('/toggle-rtl', [\App\Http\Controllers\HomeController::class,'toggleRtl'])->name('toggle.rtl');
     Route::get('/categories-by-department/{departmentId}', [\App\Http\Controllers\HomeController::class,'getCategoriesByDepartment'])->name('categories.by.department');

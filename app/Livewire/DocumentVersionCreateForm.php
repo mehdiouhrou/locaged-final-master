@@ -56,7 +56,7 @@ class DocumentVersionCreateForm extends Component
 
         $absolutePath = $this->file->getRealPath();
         $token = strtr(base64_encode(\Crypt::encryptString($absolutePath)), '+/', '-_');
-        $this->previewUrl = route('preview.temp', ['token' => $token, 'name' => $this->file->getClientOriginalName()]);
+        $this->previewUrl = route('preview.temp') . '?' . http_build_query(['token' => $token, 'name' => $this->file->getClientOriginalName()]);
         $this->previewMime = $this->file->getMimeType();
         $this->previewName = $this->file->getClientOriginalName();
         $this->dispatch('show-preview-modal');
