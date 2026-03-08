@@ -88,8 +88,8 @@ class OcrService
             $tempImagickForPages->clear();
             $tempImagickForPages->destroy();
 
-            // 400 DPI optimal pour scans de documents administratifs imprimés
-            $resolution = 400; 
+            // 300 DPI optimal pour scans de documents administratifs imprimés
+            $resolution = 300; 
 
         } catch (Exception $e) {
             Log::error("Failed to load PDF {$pdfPath} or determine page count. File might be corrupted or encrypted: " . $e->getMessage());
@@ -98,123 +98,90 @@ class OcrService
             return ''; 
         }
 
-        $fullText = '';
+        $fullText = array_fill(0, $totalPages, '');
+        $batchSize = 2; // 2 parallel processes - balance speed vs memory
+        $tmpDir = storage_path('app/tmp/');
 
-        // Process each page individually to avoid colorspace issues
-        for ($pageIndex = 0; $pageIndex < $totalPages; $pageIndex++) {
-            $outputPath = storage_path('app/tmp/' . Str::uuid() . "_page{$pageIndex}.png");
-            $pageImagick = null;
+        for ($batchStart = 0; $batchStart < $totalPages; $batchStart += $batchSize) {
+            $batchEnd = min($batchStart + $batchSize, $totalPages);
+            $processes = [];
 
-            try {
-                if (!file_exists(dirname($outputPath))) {
-                    mkdir(dirname($outputPath), 0755, true);
-                }
+            // Step 1: Convert pages to images + launch Tesseract processes in parallel
+            for ($pageIndex = $batchStart; $pageIndex < $batchEnd; $pageIndex++) {
+                $uuid = \Str::uuid();
+                $imagePath = $tmpDir . $uuid . "_page{$pageIndex}.png";
+                $ocrOutputBase = $tmpDir . $uuid . "_ocr{$pageIndex}";
+                $ocrOutputFile = $ocrOutputBase . '.txt';
+                $pageImagick = null;
 
-                // Log progress for large documents (every 5 pages to reduce log spam)
-                if ($totalPages > 10 && ($pageIndex + 1) % 5 == 0) {
-                    Log::info("OCR Progress: page " . ($pageIndex + 1) . " of {$totalPages}");
-                }
-
-                // Load individual page with resolution setting
-                $pageImagick = new \Imagick();
-                $pageImagick->setResolution($resolution, $resolution);
-                $pageImagick->readImage($pdfPath . '[' . $pageIndex . ']');
-                $pageImagick->setImageFormat('png');
-
-                // Apply transformations to individual page with error handling
                 try {
-                    // Try to convert to grayscale for better OCR accuracy
-                    $currentColorspace = $pageImagick->getImageColorspace();
-                    
-                    // Only attempt grayscale conversion if not already grayscale
-                    if ($currentColorspace !== \Imagick::COLORSPACE_GRAY) {
-                        try {
-                            $pageImagick->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-                        } catch (\ImagickException $e) {
-                            // If grayscale conversion fails, try transforming colorspace first
-                            Log::warning("Failed to set image type to grayscale for page {$pageIndex}, attempting colorspace transform: " . $e->getMessage());
-                            try {
-                                // Try to transform to RGB first, then grayscale
-                                if ($currentColorspace === \Imagick::COLORSPACE_CMYK) {
-                                    $pageImagick->transformImageColorspace(\Imagick::COLORSPACE_RGB);
-                                }
-                                $pageImagick->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-                            } catch (\ImagickException $e2) {
-                                // If all transformations fail, continue with original colorspace
-                                Log::warning("Could not convert page {$pageIndex} to grayscale, using original colorspace: " . $e2->getMessage());
-                                // Page will be processed in original colorspace
+                    if (!file_exists($tmpDir)) {
+                        mkdir($tmpDir, 0755, true);
+                    }
+
+                    $pageImagick = new \Imagick();
+                    $pageImagick->setResolution($resolution, $resolution);
+                    $pageImagick->readImage($pdfPath . '[' . $pageIndex . ']');
+                    $pageImagick->setImageFormat('png');
+
+                    try {
+                        $currentColorspace = $pageImagick->getImageColorspace();
+                        if ($currentColorspace !== \Imagick::COLORSPACE_GRAY) {
+                            if ($currentColorspace === \Imagick::COLORSPACE_CMYK) {
+                                $pageImagick->transformImageColorspace(\Imagick::COLORSPACE_RGB);
                             }
+                            $pageImagick->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
                         }
-                    }
-
-                    // Apply image enhancements in optimal order for OCR accuracy
-                    // Note: Normalize FIRST to improve contrast before other operations
-                    
-                    try {
-                        $pageImagick->normalizeImage(); // Step 1: Improve contrast (MOVED TO FIRST)
                     } catch (\ImagickException $e) {
-                        Log::warning("Normalize failed for page {$pageIndex}: " . $e->getMessage());
+                        Log::warning("Grayscale failed page {$pageIndex}: " . $e->getMessage());
                     }
 
-                    
+                    try { $pageImagick->normalizeImage(); } catch (\ImagickException $e) {}
+                    try { $pageImagick->deskewImage(0.4 * \Imagick::getQuantum()); } catch (\ImagickException $e) {}
+                    try { $pageImagick->sharpenImage(0, 1.0); } catch (\ImagickException $e) {}
 
-                    try {
-                        // Step 3: Enhanced deskewing with threshold (40% = 0.4 * full range)
-                        // This detects and corrects rotation more aggressively than default
-                        $pageImagick->deskewImage(0.4 * \Imagick::getQuantum());
-                    } catch (\ImagickException $e) {
-                        Log::warning("Deskew failed for page {$pageIndex}: " . $e->getMessage());
+                    $pageImagick->writeImage($imagePath);
+
+                    // Launch Tesseract asynchronously
+                    $tesseract = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe';
+                    $cmd = "\"{$tesseract}\" \"{$imagePath}\" \"{$ocrOutputBase}\" -l fra+ara+eng --psm 6 --oem 1";
+                    $process = proc_open($cmd, [0 => ['pipe','r'], 1 => ['pipe','w'], 2 => ['pipe','w']], $pipes);
+
+                    $processes[$pageIndex] = [
+                        'process'       => $process,
+                        'pipes'         => $pipes,
+                        'imagePath'     => $imagePath,
+                        'ocrOutputFile' => $ocrOutputFile,
+                    ];
+
+                } catch (Exception $e) {
+                    Log::error("Failed to prepare page {$pageIndex}: " . $e->getMessage());
+                } finally {
+                    if ($pageImagick) { $pageImagick->clear(); $pageImagick->destroy(); }
+                }
+            }
+
+            // Step 2: Wait for all processes in batch and collect results
+            foreach ($processes as $pageIndex => $info) {
+                try {
+                    proc_close($info['process']);
+                    if (file_exists($info['ocrOutputFile'])) {
+                        $fullText[$pageIndex] = file_get_contents($info['ocrOutputFile']);
+                        unlink($info['ocrOutputFile']);
                     }
-
-                    try {
-                        $pageImagick->sharpenImage(0, 1.0); // Step 4: Sharpen text
-                    } catch (\ImagickException $e) {
-                        Log::warning("Sharpen failed for page {$pageIndex}: " . $e->getMessage());
-                    }
-
-                    
-
-                } catch (\Exception $e) {
-                    // If transformations fail, log but continue with basic image
-                    Log::warning("Some transformations failed for page {$pageIndex}, continuing with basic processing: " . $e->getMessage());
+                } catch (Exception $e) {
+                    Log::error("Failed to collect OCR result page {$pageIndex}: " . $e->getMessage());
+                } finally {
+                    if (file_exists($info['imagePath'])) unlink($info['imagePath']);
                 }
+            }
 
-                // Write processed page to temporary file
-                $pageImagick->writeImage($outputPath);
-
-                // Verify image was created successfully
-                if (!file_exists($outputPath) || filesize($outputPath) == 0) {
-                    throw new Exception("Failed to convert page {$pageIndex} to image");
-                }
-
-                // OCR on the converted image with optimization flags
-                $pageText = (new TesseractOCR($outputPath))
-                    ->executable('C:\\Program Files\\Tesseract-OCR\\tesseract.exe')
-                    ->lang('fra','ara','eng')
-                    ->psm(6)
-                    ->oem(1)
-                    ->run();
-
-                $fullText .= $pageText . "\n";
-
-            } catch (Exception $e) {
-                Log::error("Failed to process page {$pageIndex} of PDF {$pdfPath}: " . $e->getMessage());
-                // Skip this page and continue without adding error details to OCR text
-            } finally {
-                // Clean up page Imagick object
-                if ($pageImagick) {
-                    $pageImagick->clear();
-                    $pageImagick->destroy();
-                }
-                
-                // Ensure temporary image is always removed
-                if (file_exists($outputPath)) {
-                    unlink($outputPath);
-                }
+            if ($totalPages > 10) {
+                Log::info("OCR Progress: page " . $batchEnd . " of {$totalPages}");
             }
         }
 
-        return trim($fullText);
+        return trim(implode("\n", $fullText));
     }
 
     private function extractTextFromDocx(string $path): string
