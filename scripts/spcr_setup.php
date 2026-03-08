@@ -5,8 +5,8 @@
  * 76 catégories (7 DG + 27 REDAL + 33 SRM + 9 SPC) + partages exacts
  */
 
-require __DIR__.'/vendor/autoload.php';
-$app = require __DIR__.'/bootstrap/app.php';
+require __DIR__.'/../vendor/autoload.php';
+$app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
