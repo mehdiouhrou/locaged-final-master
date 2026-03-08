@@ -37,12 +37,12 @@ class OcrService
             // Image formats → Tesseract OCR with optimization flags
             if (in_array($extension, ['jpg', 'jpeg', 'png', 'tiff', 'tif', 'bmp', 'webp'], true)) {
                 return (new TesseractOCR($absoluteFilePath))
+                    ->executable('C:\\Program Files\\Tesseract-OCR\\tesseract.exe')
                     ->lang('fra','ara','eng')
-                    ->psm(6)  // Uniform block of text - optimal for administrative documents
-                    ->oem(1)  // LSTM neural net mode - most accurate
+                    ->psm(6)
+                    ->oem(1)
                     ->run();
-            }
-
+}
             // Docx → structured text extraction (no image OCR needed)
             if ($extension === 'docx') {
                 return $this->extractTextFromDocx($absoluteFilePath);
@@ -189,9 +189,10 @@ class OcrService
 
                 // OCR on the converted image with optimization flags
                 $pageText = (new TesseractOCR($outputPath))
+                    ->executable('C:\\Program Files\\Tesseract-OCR\\tesseract.exe')
                     ->lang('fra','ara','eng')
-                    ->psm(6)  // Uniform block of text - optimal for administrative documents
-                    ->oem(1)  // LSTM neural net mode - most accurate
+                    ->psm(6)
+                    ->oem(1)
                     ->run();
 
                 $fullText .= $pageText . "\n";
