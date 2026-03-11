@@ -58,7 +58,6 @@ if ($service_secr) {
 } else {
     $service_secr_id = DB::table('services')->insertGetId([
         'name'              => 'Secrétariat et Bureau d\'ordre du SPCR',
-        'department_id'     => $dept_dg_id,
         'sub_department_id' => $unit_secr_id,
         'created_at'        => now(),
         'updated_at'        => now(),
@@ -114,7 +113,6 @@ foreach ($nouvelles_unites as $u) {
     } else {
         $svc_id = DB::table('services')->insertGetId([
             'name'              => $u['service_name'],
-            'department_id'     => $dept_dg_id,
             'sub_department_id' => $u['sub_dept_id'],
             'created_at'        => now(),
             'updated_at'        => now(),
@@ -187,7 +185,6 @@ foreach ($dg_categories as $cat) {
         'retention_period'  => $cat['retention_period'],
         'expiry_value'      => $cat['expiry_value'],
         'expiry_unit'       => $cat['expiry_unit'],
-        'department_id'     => $dept_dg_id,
         'sub_department_id' => $unit_secr_id,
         'service_id'        => $service_secr_id,
         'description'       => null,
