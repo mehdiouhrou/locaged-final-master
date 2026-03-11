@@ -11,23 +11,17 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Vider le cache Spatie avant tout
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         // ----------------------------------------------------------------
-        // 1. Liste complète de toutes les permissions de l'application
-        // ----------------------------------------------------------------
-        // Hiérarchie SPC Rabat :
-        // Department   = Pôle         (ex: Pôle Technique)
-        // SubDepartment = Unité        (ex: Unité Eau Potable)
-        // Service       = Cellule      (ex: Cellule Investissements EP)
+        // 1. Liste complète de toutes les permissions
         // ----------------------------------------------------------------
         $permissionNames = [
             // Documents
-            'view any document',              // Tout voir (DG, Assistante, master)
-            'view department document',       // Pôle OU Unité (GlobalScope décide selon le rôle)
-            'view service document',          // Cellule uniquement
-            'view own document',              // Ses propres documents
+            'view any document',
+            'view department document',
+            'view service document',
+            'view own document',
             'create document',
             'update document',
             'delete document',
@@ -135,7 +129,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'forceDelete ui translation',
         ];
 
-        // Créer ou retrouver chaque permission
         $permissions = [];
         foreach ($permissionNames as $name) {
             $permissions[$name] = Permission::firstOrCreate([
@@ -144,7 +137,6 @@ class RolesAndPermissionsSeeder extends Seeder
             ]);
         }
 
-        // Helper : récupérer plusieurs permissions par nom
         $pick = function (array $names) use ($permissions) {
             return collect($names)
                 ->filter(fn($n) => isset($permissions[$n]))
@@ -156,20 +148,16 @@ class RolesAndPermissionsSeeder extends Seeder
         // 2. Assignation des permissions par rôle
         // ----------------------------------------------------------------
 
-        // ── RÔLE 1 : master (équipe LocaGed — accès total) ──────────────
-        // Accès absolu à tout, y compris pages techniques
+        // ── RÔLE 1 : master ─────────────────────────────────────────────
         Role::firstOrCreate(['name' => 'master'])
             ->syncPermissions(array_values($permissions));
 
         // ── RÔLE 2 : Directrice du SPCR ─────────────────────────────────
-        // Portée : TOUTE la structure
-        // ✅ Accès métier complet sur tous les documents
-        // ✅ Gestion structure (catégories, départements, tags, lieux, services)
-        // ❌ Pas de gestion utilisateurs (réservé IT Admin uniquement)
-        // ❌ Pas de : Workflow, OCR, Traduction, Rôles
+        // Portée totale — approbation, audit, destruction, emplacements physiques
+        // ❌ Pas de gestion utilisateurs (réservé IT Admin)
         Role::firstOrCreate(['name' => 'Directrice du SPCR'])
             ->syncPermissions($pick([
-                // Documents — accès total
+                // Documents
                 'view any document',
                 'create document',
                 'update document',
@@ -177,10 +165,10 @@ class RolesAndPermissionsSeeder extends Seeder
                 'approve document',
                 'decline document',
 
-                // Utilisateurs — lecture seule (création réservée IT Admin)
+                // Utilisateurs — lecture seule
                 'view any user',
 
-                // Départements / Pôles
+                // Départements
                 'view any department',
                 'create department',
                 'update department',
@@ -198,38 +186,41 @@ class RolesAndPermissionsSeeder extends Seeder
                 'update tag',
                 'delete tag',
 
-                // Emplacements physiques
+                // Emplacements physiques — accès complet
                 'view any physical location',
                 'create physical location',
                 'update physical location',
                 'delete physical location',
 
-                // Services / Cellules
+                // Services
                 'view any service',
                 'create service',
                 'update service',
                 'delete service',
 
-                // Demandes de destruction
+                // Destruction — accès complet (DG + Chef de Pôle uniquement)
                 'view any document destruction request',
                 'approve document destruction request',
                 'decline document destruction request',
                 'delete document destruction request',
+
+                // Audit — accès complet (DG + IT Admin uniquement)
+                'view any ocr job',
             ]));
 
-        // ── RÔLE 3 : IT Admin (Mme. MERZGIOUI) ──────────────────────────
-        // Portée documents : sa Cellule (Service) uniquement
-        // ✅ SEUL rôle autorisé à créer/modifier/supprimer des utilisateurs
-        // ✅ Peut créer des catégories
-        // ❌ Pas de : Rôles, Traduction, OCR, Workflow
-        // ❌ Ne voit pas les documents des autres services/pôles
+        // ── RÔLE 3 : IT Admin ───────────────────────────────────────────
+        // ✅ SEUL rôle avec gestion utilisateurs
+        // ✅ Accès audit (DG + IT Admin uniquement)
+        // ❌ Pas destruction, pas emplacements physiques
         Role::firstOrCreate(['name' => 'IT Admin'])
             ->syncPermissions($pick([
-                // Documents — sa cellule seulement
+                // Documents — sa cellule
                 'view service document',
                 'view own document',
                 'create document',
                 'update document',
+                'approve document',
+                'decline document',
 
                 // Utilisateurs — SEUL rôle avec gestion complète
                 'view any user',
@@ -237,15 +228,40 @@ class RolesAndPermissionsSeeder extends Seeder
                 'update user',
                 'delete user',
 
-                // Départements / Pôles — lecture seule (navigation)
+                // Structure — lecture
                 'view any department',
-
-                // Catégories — peut créer et modifier
                 'view any category',
                 'create category',
                 'update category',
+                'view any tag',
+                'create tag',
+                'update tag',
+                'view any service',
 
-                // Tags
+                // Emplacements physiques — lecture seule
+                'view any physical location',
+
+                // Audit — accès complet (DG + IT Admin uniquement)
+                'view any ocr job',
+            ]));
+
+        // ── RÔLE 4 : Assistante de Direction ────────────────────────────
+        // Portée totale — lecture/écriture
+        // ❌ Ne peut PAS approuver ni refuser
+        // ❌ Pas de destruction, pas d'audit
+        Role::firstOrCreate(['name' => 'Assistante de Direction'])
+            ->syncPermissions($pick([
+                // Documents — sans approbation
+                'view any document',
+                'create document',
+                'update document',
+
+                // Utilisateurs — lecture seule
+                'view any user',
+
+                // Structure — lecture seule
+                'view any department',
+                'view any category',
                 'view any tag',
                 'create tag',
                 'update tag',
@@ -253,35 +269,32 @@ class RolesAndPermissionsSeeder extends Seeder
                 // Emplacements physiques — lecture seule
                 'view any physical location',
 
-                // Services / Cellules — lecture seule
+                // Services — lecture seule
                 'view any service',
             ]));
 
-        // ── RÔLE 4 : Assistante de Direction (Mme. Bouchra OUBARI) ──────
-        // Portée : TOUTE la structure
-        // ✅ Voir, ajouter, modifier, approuver, refuser les documents
-        // ✅ Peut créer des emplacements physiques
-        // ❌ Pas de suppression de documents
-        // ❌ Pas de création d'utilisateurs ni de catégories
-        Role::firstOrCreate(['name' => 'Assistante de Direction'])
+        // ── RÔLE 5 : Chef de Pôle ───────────────────────────────────────
+        // Portée : tout son pôle
+        // ✅ Approbation, destruction (DG + Chef de Pôle), emplacements physiques
+        // ❌ Pas d'audit, pas de gestion utilisateurs
+        Role::firstOrCreate(['name' => 'Chef de Pôle'])
             ->syncPermissions($pick([
-                // Documents — accès large sans suppression
-                'view any document',
+                // Documents — tout son pôle
+                'view department document',
+                'view own document',
                 'create document',
                 'update document',
+                'delete document',
                 'approve document',
                 'decline document',
 
-                // Utilisateurs — lecture seule
-                'view any user',
+                // Utilisateurs — lecture son pôle
+                'view department user',
+                'view own user',
 
-                // Départements / Pôles — lecture seule
+                // Structure — lecture
                 'view any department',
-
-                // Catégories — lecture seule
                 'view any category',
-
-                // Tags
                 'view any tag',
                 'create tag',
                 'update tag',
@@ -291,62 +304,22 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create physical location',
                 'update physical location',
 
-                // Services / Cellules — lecture seule
-                'view any service',
-            ]));
-
-        // ── RÔLE 5 : Chef de Pôle ────────────────────────────────────────
-        // Portée : tout son Pôle (Department)
-        // Le GlobalScope filtre par department_id automatiquement
-        // ✅ Voir/ajouter/modifier/approuver/refuser les docs de tout son pôle
-        // ✅ Toutes les Unités et Cellules de son pôle sont visibles
-        // ❌ Pas de création d'emplacements physiques
-        // ❌ Pas de gestion utilisateurs, Workflow, OCR, Traduction
-        Role::firstOrCreate(['name' => 'Chef de Pôle'])
-            ->syncPermissions($pick([
-                // Documents — tout son pôle (GlobalScope → filtre par department_id)
-                'view department document',
-                'view own document',
-                'create document',
-                'update document',
-                'delete document',
-                'approve document',
-                'decline document',
-
-                // Utilisateurs — lecture pour son pôle
-                'view department user',
-                'view own user',
-
-                // Structure — lecture seule
-                'view any department',
-                'view any category',
-
-                // Tags — peut créer et modifier
-                'view any tag',
-                'create tag',
-                'update tag',
-
-                // Emplacements physiques — LECTURE SEULE
-                'view any physical location',
-
-                // Services / Cellules — lecture seule
+                // Services — lecture
                 'view any service',
 
-                // Demandes de destruction — pour son pôle
+                // Destruction — accès complet (DG + Chef de Pôle uniquement)
                 'view department document destruction request',
                 'approve document destruction request',
                 'decline document destruction request',
             ]));
 
-        // ── RÔLE 6 : Chef de Département ─────────────────────────────────
-        // Portée : toute son Unité (SubDepartment) = toutes ses Cellules
-        // Le GlobalScope filtre par sub_department_id automatiquement
-        // ✅ Voit TOUTES les Cellules sous son Unité
-        // ✅ Peut approuver et refuser les documents
-        // ❌ Pas de création d'emplacements physiques ni d'utilisateurs
+        // ── RÔLE 6 : Chef de Département ────────────────────────────────
+        // Portée : son unité
+        // ✅ Approbation, emplacements physiques
+        // ❌ Pas de destruction, pas d'audit
         Role::firstOrCreate(['name' => 'Chef de Département'])
             ->syncPermissions($pick([
-                // Documents — toute son unité (GlobalScope → filtre par sub_department_id)
+                // Documents — toute son unité
                 'view department document',
                 'view own document',
                 'create document',
@@ -354,48 +327,50 @@ class RolesAndPermissionsSeeder extends Seeder
                 'approve document',
                 'decline document',
 
-                // Utilisateurs — lecture pour son unité
+                // Utilisateurs — lecture son unité
                 'view department user',
                 'view own user',
 
-                // Structure — lecture seule
+                // Structure — lecture
                 'view any department',
                 'view any category',
-
-                // Tags — peut créer
                 'view any tag',
                 'create tag',
                 'update tag',
 
-                // Emplacements physiques — lecture seule
+                // Emplacements physiques — peut créer et modifier
                 'view any physical location',
+                'create physical location',
+                'update physical location',
 
-                // Services / Cellules — lecture seule
+                // Services — lecture
                 'view any service',
 
-                // Demandes de destruction — pour son unité
+                // Destruction — lecture seule (approbation réservée DG + Chef de Pôle)
                 'view department document destruction request',
-                'approve document destruction request',
-                'decline document destruction request',
             ]));
 
-        // ── RÔLE 7 : user (simple collaborateur) ─────────────────────────
-        // Portée : sa Cellule (Service) uniquement
-        // Le GlobalScope filtre par service_id automatiquement
-        // ✅ Voir et ajouter des documents de sa cellule
-        // ❌ Pas d'approbation, pas de gestion
+        // ── RÔLE 7 : user ───────────────────────────────────────────────
+        // Portée : sa cellule uniquement
         Role::firstOrCreate(['name' => 'user'])
             ->syncPermissions($pick([
-                // Documents — sa cellule seulement (GlobalScope → filtre par service_id)
                 'view service document',
                 'view own document',
                 'create document',
                 'update document',
-
-                // Structure — lecture seule
                 'view any category',
                 'view any tag',
                 'create tag',
+            ]));
+
+        // ── RÔLE 8 : Chargée de dépôt (Mme. Aicha EL GHANDOURI) ────────
+        // Upload uniquement dans toutes les catégories autorisées
+        // ❌ Pas d'approbation, pas de consultation étendue, pas de gestion
+        Role::firstOrCreate(['name' => 'Chargée de dépôt'])
+            ->syncPermissions($pick([
+                'create document',
+                'view own document',
+                'view any category',
             ]));
     }
 }

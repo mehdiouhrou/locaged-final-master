@@ -9,32 +9,28 @@ class RoleHierarchy
 {
     /**
      * Define role ranks (higher number = higher privilege)
-     *
-     * Note: keys are lowercased role names as stored by Spatie (spaces preserved).
      */
     public const ROLE_RANK = [
-        'master' => 999,                 // platform owner
-        'Directrice du SPCR' => 100,    // general direction
-        'super_admin' => 100,            // legacy alias, if ever used
-        'admin' => 90,                   // legacy admin role
-
-        // New canonical role names
-        'Chef de Pôle' => 80,
-        'Chef de Département' => 75,
-        'Chef de Département' => 70,
-        'user' => 60,                    // service-level user
-
-        // Backward-compatibility aliases for older role names
+        'master'                  => 999,
+        'Directrice du SPCR'      => 100,
+        'super_admin'             => 100,
+        'admin'                   => 90,
+        'IT Admin'                => 85,
+        'Chef de Pôle'            => 80,
+        'Chef de Département'     => 70,
+        'Assistante de Direction' => 65,
+        'user'                    => 60,
+        'Chargée de dépôt'        => 50,
+        // Backward-compatibility aliases
         'department administrator' => 80,
-        'division chief' => 75,
-        'service manager' => 70,
-        'service user' => 60,
+        'division chief'           => 75,
+        'service manager'          => 70,
+        'service user'             => 60,
     ];
 
     public static function getRoleRank(string $roleName): int
     {
-        // Unknown roles default to 20 (slightly above basic user but well below admins)
-        return self::ROLE_RANK[strtolower($roleName)] ?? 20;
+        return self::ROLE_RANK[$roleName] ?? 20;
     }
 
     public static function getUserMaxRank(User $user): int
@@ -46,15 +42,13 @@ class RoleHierarchy
         return max(array_map([self::class, 'getRoleRank'], $roles));
     }
 
-/**
+    /**
      * Roles current user may VIEW.
      * - Master: may view all roles.
-     * - Others: may only view users whose max role rank is STRICTLY lower
-     *   than their own (no equal-rank or higher users).
+     * - Others: may only view users whose max role rank is STRICTLY lower than their own.
      */
     public static function allowedRoleNamesFor(User $currentUser): array
     {
-        // Master can view all roles
         if ($currentUser->hasRole('master')) {
             return Role::pluck('name')->all();
         }
@@ -86,7 +80,6 @@ class RoleHierarchy
 
     public static function canAssignRole(User $currentUser, Role $targetRole): bool
     {
-        // Master can assign any role, including master itself
         if ($currentUser->hasRole('master')) {
             return true;
         }
@@ -94,7 +87,6 @@ class RoleHierarchy
         $currentRank = self::getUserMaxRank($currentUser);
         $targetRank = self::getRoleRank($targetRole->name);
 
-        // Non-master users may only assign roles STRICTLY below their own rank
         return $targetRank < $currentRank;
     }
 
@@ -103,5 +95,3 @@ class RoleHierarchy
         return self::getUserMaxRank($other) <= self::getUserMaxRank($currentUser);
     }
 }
-
-
