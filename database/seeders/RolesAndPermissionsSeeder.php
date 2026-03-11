@@ -21,7 +21,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view any document',
             'view department document',
             'view service document',
-            'view own document',
+            'view any document',
             'create document',
             'update document',
             'delete document',
@@ -216,7 +216,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ->syncPermissions($pick([
                 // Documents — sa cellule
                 'view service document',
-                'view own document',
+                'view any document',
                 'create document',
                 'update document',
                 'approve document',
@@ -281,7 +281,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ->syncPermissions($pick([
                 // Documents — tout son pôle
                 'view department document',
-                'view own document',
+                'view any document',
                 'create document',
                 'update document',
                 'delete document',
@@ -321,7 +321,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ->syncPermissions($pick([
                 // Documents — toute son unité
                 'view department document',
-                'view own document',
+                'view any document',
                 'create document',
                 'update document',
                 'approve document',
@@ -355,7 +355,7 @@ class RolesAndPermissionsSeeder extends Seeder
         Role::firstOrCreate(['name' => 'user'])
             ->syncPermissions($pick([
                 'view service document',
-                'view own document',
+                'view any document',
                 'create document',
                 'update document',
                 'view any category',
@@ -369,7 +369,7 @@ class RolesAndPermissionsSeeder extends Seeder
         Role::firstOrCreate(['name' => 'Chargée de dépôt'])
             ->syncPermissions($pick([
                 'create document',
-                'view own document',
+                'view any document',
                 'view any category',
             ]));
     }
