@@ -176,7 +176,7 @@
                 <div class="form-check form-switch small">
                     <input class="form-check-input" type="checkbox" id="useSharedMetadataSwitch" wire:model="useSharedMetadata">
                     <label class="form-check-label" for="useSharedMetadataSwitch">
-                        {{ $useSharedMetadata ? 'Same metadata for all files' : 'Different metadata for each file' }}
+                        {{ $useSharedMetadata ? ui_t('pages.upload.shared_metadata_all') : ui_t('pages.upload.shared_metadata_each') }}
                     </label>
                 </div>
             @endif
