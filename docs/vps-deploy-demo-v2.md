@@ -2,6 +2,26 @@
 
 Ce guide suppose **Ubuntu 22.04** (ou équivalent), accès **root/sudo**, et un domaine ou IP pointant vers le serveur.
 
+## Installation en **une seule commande** (recommandé)
+
+Sur le VPS, connecté en **root** :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mehdiouhrou/locaged-final-master/demo-v2/scripts/vps-one-shot-install.sh | bash
+```
+
+Avec une autre URL publique et un mot de passe MySQL imposé :
+
+```bash
+export APP_URL="http://VOTRE_IP_OU_DOMAINE"
+export DB_PASSWORD="VotreMotDePasseMySQL"
+curl -fsSL https://raw.githubusercontent.com/mehdiouhrou/locaged-final-master/demo-v2/scripts/vps-one-shot-install.sh | bash
+```
+
+Le script installe les paquets, MySQL, Nginx, PHP 8.2, Node 20, clone `demo-v2`, configure `.env` (dont `SCOUT_DRIVER=null` pour ne pas exiger Typesense), lance `composer`, `npm run build`, `init:env`, et affiche à la fin **le mot de passe MySQL généré** (si vous n’avez pas défini `DB_PASSWORD`) et le compte **`admin@example.com` / `password`**.
+
+Durée typique : **5 à 15 minutes** selon le VPS.
+
 ## 1. Stack minimale
 
 | Composant | Rôle |
