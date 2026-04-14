@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  * 
  * Adds security headers to all responses to protect against:
  * - XSS attacks (Content-Security-Policy, X-XSS-Protection)
- * - Clickjacking (X-Frame-Options)
+ * - Clickjacking (X-Frame-Options SAMEORIGIN + CSP frame-ancestors)
  * - MIME sniffing (X-Content-Type-Options)
  * - Information leakage (Referrer-Policy)
  * - Protocol downgrade attacks (Strict-Transport-Security)
@@ -25,8 +25,8 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        // Prevent clickjacking.
-        $response->headers->set('X-Frame-Options', 'DENY');
+        // Prevent third-party clickjacking while allowing same-origin iframes (document/PDF preview).
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
 
         // Prevent MIME type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
