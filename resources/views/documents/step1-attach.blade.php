@@ -1,5 +1,4 @@
-@if($step === 1)
-    @php
+@php
         $translations = [
             'uploadBlocked' => ui_t('pages.upload.upload_blocked'),
             'fileSize' => __('File size'),
@@ -330,4 +329,3 @@
         @include('livewire.preview-modal')
 
     </div>
-@endif

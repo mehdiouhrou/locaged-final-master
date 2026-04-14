@@ -56,6 +56,9 @@ class MultipleDocumentsCreateForm extends Component
     // For folder uploads: relative OS paths (index-aligned with $documents)
     public array $relativePaths = [];
 
+    /** Original client file names (index-aligned with $documents); survives Livewire better than reading uploads in Blade only */
+    public array $documentOriginalNames = [];
+
     public $documentInfos = [];
 
     public $currentDocumentIndex = 0;
@@ -123,6 +126,7 @@ class MultipleDocumentsCreateForm extends Component
             }
         } catch (\Throwable $e) {
             $this->documents = [];
+            $this->documentOriginalNames = [];
             $this->addError('documents', $e->getMessage());
             Log::warning('Upload rejected by ClamAV gate', ['message' => $e->getMessage()]);
         }
@@ -804,9 +808,22 @@ class MultipleDocumentsCreateForm extends Component
         }
         $this->documentInfos = $oldDocumentInfos;
 
+        $this->syncDocumentOriginalNamesFromUploads();
+
         // After updating the main array, load the current info into the form
         $this->loadCurrentInfo();
         $this->updateCurrentPreview();
+    }
+
+    private function syncDocumentOriginalNamesFromUploads(): void
+    {
+        $names = [];
+        foreach ($this->documents as $i => $file) {
+            if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
+                $names[$i] = (string) $file->getClientOriginalName();
+            }
+        }
+        $this->documentOriginalNames = $names;
     }
 
     protected function getStep2Rules(): array
@@ -1097,6 +1114,7 @@ class MultipleDocumentsCreateForm extends Component
         unset($this->documents[$index], $this->documentInfos[$index]);
         $this->documents = array_values($this->documents);
         $this->documentInfos = array_values($this->documentInfos);
+        $this->syncDocumentOriginalNamesFromUploads();
 
         // Re-index duplicate decisions to match new file indices (for the future if deleting is done at any point after duplicateDecisions)
         $newDecisions = [];
@@ -1301,7 +1319,9 @@ class MultipleDocumentsCreateForm extends Component
 
         $this->hydrateOrgFromUserContext();
         $this->saveCurrentInfo();
-        $this->validate($this->getStep2Rules());
+
+        $uploadRules = array_intersect_key($this->rules(), array_flip(['documents', 'documents.*']));
+        $this->validate(array_merge($uploadRules, $this->getStep2Rules()));
 
         // IMPORTANT: Apply shared metadata to all files BEFORE checking for duplicates
         // This ensures that when useSharedMetadata is ON, all files get metadata from file 1

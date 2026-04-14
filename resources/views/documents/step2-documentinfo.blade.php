@@ -1,19 +1,18 @@
-@if($step === 2)
-    @php
-        $multiUpload = count($documentInfos) > 1;
-    @endphp
-    <div>
+@php
+    $multiUpload = count($documentInfos) > 1;
+@endphp
+<div>
         <h3 class="section-label py-4 px-5 px-md-0">
             <img src="{{ asset('assets/Clip path group (1).svg') }}" alt="{{ ui_t('actions.file') }}"> {{ ui_t('pages.upload.document_information') }}
         </h3>
-        @if($multiUpload && count($documents) > 0)
+        @if($multiUpload)
             <div class="px-5 px-md-0 mb-4">
                 <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-stretch align-items-sm-center gap-2 mb-2">
                     <span class="small text-muted text-nowrap">{{ __('Fichiers') }}</span>
                     <div class="d-flex flex-column flex-sm-row flex-sm-wrap gap-2 flex-grow-1" style="min-width: 0;">
-                        @foreach($documents as $i => $doc)
+                        @foreach($documentInfos as $i => $_meta)
                             @php
-                                $fname = $doc->getClientOriginalName();
+                                $fname = $documentOriginalNames[$i] ?? ($_meta['title'] ?? '—');
                             @endphp
                             <button type="button"
                                     wire:click="selectDocument({{ $i }})"
@@ -288,7 +287,7 @@
 
                             @if($multiUpload && $useSharedMetadata)
                                 {{-- Multiple files with shared metadata: one form applies to all --}}
-                                <button type="button" class="btn btn-outline-secondary" wire:click="prevStep">&lt; {{ ui_t('pages.upload.back') }}</button>
+                                <a href="#upload-flow-top" class="btn btn-outline-secondary">&lt; {{ ui_t('pages.upload.back') }}</a>
                                 <button type="button" 
                                         class="btn btn-danger" 
                                         wire:click="submit"
@@ -303,7 +302,7 @@
                             @else
                                 {{-- Per-file metadata (single file or multi with separate metadata) --}}
                                 @if($currentDocumentIndex === 0)
-                                    <button type="button" class="btn btn-outline-secondary" wire:click="prevStep">&lt; {{ ui_t('pages.upload.back') }}</button>
+                                    <a href="#upload-flow-top" class="btn btn-outline-secondary">&lt; {{ ui_t('pages.upload.back') }}</a>
                                 @else
                                     <button type="button" class="btn btn-outline-secondary" wire:click="prevDocument">&lt; {{ ui_t('pages.upload.back') }}</button>
                                 @endif
@@ -450,4 +449,3 @@
         });
     </script>
     @endpush
-@endif

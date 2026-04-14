@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class DocumentMovementController extends Controller
@@ -114,28 +115,47 @@ class DocumentMovementController extends Controller
         Gate::authorize('create', DocumentMovement::class);
         Gate::authorize('view', $document);
 
-        $openLoan = DocumentMovement::query()
-            ->where('document_id', $document->id)
-            ->openLoan()
-            ->latest('moved_at')
-            ->first();
-
-        if (! $openLoan) {
-            return back()->with('error', __('Aucun emprunt actif pour ce document.'));
-        }
-
         $data = $request->validate([
             'return_note' => 'nullable|string|max:2000',
         ]);
 
-        $openLoan->update([
+        $returnPayload = [
             'returned_at' => now(),
             'returned_by_user_id' => Auth::id(),
             'return_note' => $data['return_note'] ?? null,
-        ]);
+        ];
+
+        // Clôturer tous les emprunts encore « ouverts » pour ce document. Sinon, s’il existe
+        // plusieurs lignes retrieval sans returned_at (doublon / anciennes données), n’en mettre
+        // qu’une à jour laissait un autre emprunt actif : l’aperçu, le physique et le dashboard
+        // restaient sur « Emprunté ».
+        [$affected, $closedIds] = DB::transaction(function () use ($document, $returnPayload) {
+            $ids = DocumentMovement::query()
+                ->where('document_id', $document->id)
+                ->openLoan()
+                ->orderByDesc('moved_at')
+                ->orderByDesc('id')
+                ->pluck('id');
+
+            if ($ids->isEmpty()) {
+                return [0, []];
+            }
+
+            $closedIds = $ids->all();
+            $n = DocumentMovement::query()
+                ->whereIn('id', $closedIds)
+                ->update($returnPayload);
+
+            return [$n, $closedIds];
+        });
+
+        if ($affected === 0) {
+            return back()->with('error', __('Aucun emprunt actif pour ce document.'));
+        }
 
         $document->logAction('returned', $document->latestVersion?->id, [
-            'movement_id' => $openLoan->id,
+            'movement_ids' => $closedIds,
+            'closed_movements' => count($closedIds),
             'returned_by_user_id' => Auth::id(),
         ]);
 

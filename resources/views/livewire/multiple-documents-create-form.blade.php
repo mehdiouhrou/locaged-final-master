@@ -4,41 +4,16 @@
 <div>
     <div class="form-section">
         <div class="form-title">{{ ui_t('pages.upload.upload_documents') }}</div>
+        <p class="text-muted small mb-0 px-1">{{ __('Ajoutez un ou plusieurs fichiers, puis complétez les métadonnées sur cette même page.') }}</p>
 
-        <div class="step-indicator justify-content-center d-flex gap-3 w-50">
-            <button type="button" class="step-tab text-decoration-none border-0 bg-transparent" data-step="1">
-                <p class="step {{ $step === 1 ? 'active' : '' }}">
-                    <i class="fa-solid fa-file me-2"></i> {{ ui_t('pages.upload.attach_document') }}
-                    <i class="fa-solid fa-chevron-right ms-3"></i>
-                </p>
-            </button>
-
-            <button type="button" id="step2Btn" class="step-tab text-decoration-none border-0 bg-transparent" data-step="2" {{ $step < 2 ? 'disabled' : '' }}>
-                <p class="step {{ $step === 2 ? 'active' : '' }}">
-                    <i class="fa-solid fa-pen-to-square mx-2"></i> {{ ui_t('pages.upload.document_info') }}
-                    @if($step === 2 && $multiUpload && count($documentInfos) > 0)
-                        ({{ $currentDocumentIndex + 1 }}/{{ count($documentInfos) }})
-                    @endif
-                    <i class="fa-solid fa-chevron-right ms-3"></i>
-                </p>
-            </button>
-        </div>
-
-        {{-- Step 1 --}}
-        <div class="step-content mt-4 {{ $step !== 1 ? 'd-none' : '' }}">
+        <div id="upload-flow-top" class="mt-4">
             @include('documents.step1-attach')
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-outline-secondary btn-nav doc-history next-step" wire:click="nextStep">
-                    {{ ui_t('actions.next') }} &gt;
-                </button>
+        </div>
+
+        @if(count($documents) > 0)
+            <div class="mt-4 pt-4 border-top">
+                @include('documents.step2-documentinfo')
             </div>
-        </div>
-
-        {{-- Step 2 --}}
-        <div class="step-content mt-4 {{ $step !== 2 ? 'd-none' : '' }}">
-            @include('documents.step2-documentinfo')
-        </div>
-
-
+        @endif
     </div>
 </div>
