@@ -71,6 +71,31 @@ Générer la clé si besoin :
 php artisan key:generate --force
 ```
 
+### Instance actuelle : accès par IP **62.238.16.89**
+
+Tant qu’il n’y a pas de nom de domaine, utilisez **HTTP** et la même valeur pour les assets (sinon cookies, redirections et images peuvent être faux).
+
+Dans `.env` :
+
+```env
+APP_URL=http://62.238.16.89
+ASSET_URL=http://62.238.16.89
+# Si vous exposez l’API Sanctum avec un front sur cette IP, ajoutez par ex. :
+# SANCTUM_STATEFUL_DOMAINS=62.238.16.89
+```
+
+Puis sur le serveur, après modification du `.env` :
+
+```bash
+cd /var/www/locaged-v2
+php artisan config:clear
+php artisan config:cache
+```
+
+**Nginx** : `server_name 62.238.16.89;` (voir §7). Accès navigateur : **http://62.238.16.89**
+
+**HTTPS / Let’s Encrypt** : en pratique il faut souvent un **nom de domaine** (A ou AAAA vers cette IP). Sans domaine, restez en HTTP pour les tests ou utilisez un certificat géré par votre hébergeur.
+
 ## 5. Première initialisation données
 
 ```bash
@@ -91,12 +116,12 @@ sudo chmod -R ug+rwx storage bootstrap/cache
 
 ## 7. Nginx (exemple)
 
-Remplacez `server_name` et `root` :
+Bloc complet pour **`server_name 62.238.16.89`** (remplacez par votre domaine si vous en avez un). Vérifiez le chemin du socket PHP-FPM (`php8.2-fpm.sock` ou `php8.3-fpm.sock`).
 
 ```nginx
 server {
     listen 80;
-    server_name votre-domaine.tld;
+    server_name 62.238.16.89;
     root /var/www/locaged-v2/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -128,7 +153,7 @@ server {
 }
 ```
 
-Puis : `sudo nginx -t && sudo systemctl reload nginx`.
+Enregistrer sous `/etc/nginx/sites-available/locaged-v2`, activer le site (`ln -s` vers `sites-enabled`), puis : `sudo nginx -t && sudo systemctl reload nginx`.
 
 HTTPS : utilisez **Certbot** (`certbot --nginx`).
 
