@@ -6,7 +6,6 @@ use App\Services\ProfileCategoryAccessService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Spatie\Permission\Models\Role;
 
 class Category extends Model
@@ -52,9 +51,14 @@ class Category extends Model
         });
     }
 
-    public function documents(): HasManyThrough
+    /**
+     * Tous les documents rattachés à cette catégorie (via documents.category_id).
+     * N’utilise pas seulement les sous-catégories, sinon les pièces « catégorie seule »
+     * (subcategory_id null) n’apparaissent pas dans withCount / listes.
+     */
+    public function documents(): HasMany
     {
-        return $this->hasManyThrough(Document::class, Subcategory::class);
+        return $this->hasMany(Document::class, 'category_id');
     }
 
     public function subcategories(): HasMany

@@ -232,7 +232,7 @@
                                 </div>
                             </td>
                             <td>
-                                <div>{{ $doc->box ? $doc->box->__toString() : ui_t('pages.activity.table.na') }}</div>
+                                <div>@if($doc->box){{ $doc->box->__toString() }}@elseif($doc->isDigitalOnly()){{ __('pages.documents.digital_only_location') }}@else{{ ui_t('pages.activity.table.na') }}@endif</div>
                             </td>
                             <td>
                                 <button class="status-badge approved border-0">

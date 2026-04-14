@@ -39,6 +39,7 @@ class DocumentsByCategoryTable extends Component
     public $boxId = ''; // Filter by box ID (physical location)
     public $showExpired = false; // Show expired documents (from dashboard All Documents card)
     public $physicalOnly = false; // Only documents assigned to a box (dashboard physical storage cards)
+    public $digitalOnly = false; // metadata digital_only + no box (dashboard digital card)
     public $onLoanOnly = false; // Only documents with an open retrieval / borrow movement
     public $pageTitle = null; // Heading to display (from dashboard cards)
     public $hideStatusFilter = false; // Hide status filter dropdown (from dashboard cards)
@@ -68,6 +69,7 @@ class DocumentsByCategoryTable extends Component
         'documentId' => ['except' => null, 'as' => 'document_id'],
         'showExpired' => ['except' => false, 'as' => 'show_expired'],
         'physicalOnly' => ['except' => false, 'as' => 'physical'],
+        'digitalOnly' => ['except' => false, 'as' => 'digital_only'],
         'onLoanOnly' => ['except' => false, 'as' => 'on_loan'],
         'pageTitle' => ['except' => null, 'as' => 'page_title'],
         'hideStatusFilter' => ['except' => false, 'as' => 'hide_status_filter'],
@@ -84,8 +86,14 @@ class DocumentsByCategoryTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage', 'digitalOnly', 'physicalOnly'])) {
             $this->resetPage();
+        }
+        if ($field === 'digitalOnly' && filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
+            $this->physicalOnly = false;
+        }
+        if ($field === 'physicalOnly' && filter_var($this->physicalOnly, FILTER_VALIDATE_BOOLEAN)) {
+            $this->digitalOnly = false;
         }
     }
 
@@ -104,6 +112,7 @@ class DocumentsByCategoryTable extends Component
         $this->favoritesOnly = false;
         $this->ocrFilter = '';
         $this->physicalOnly = false;
+        $this->digitalOnly = false;
         $this->onLoanOnly = false;
         $this->perPage = 10; // Reset to default
 
@@ -237,7 +246,9 @@ class DocumentsByCategoryTable extends Component
             $q->where('box_id', $this->boxId);
         });
 
-        if (filter_var($this->physicalOnly, FILTER_VALIDATE_BOOLEAN)) {
+        if (filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
+            $documentsQuery->digitalOnly();
+        } elseif (filter_var($this->physicalOnly, FILTER_VALIDATE_BOOLEAN)) {
             $documentsQuery->whereNotNull('box_id');
         }
 

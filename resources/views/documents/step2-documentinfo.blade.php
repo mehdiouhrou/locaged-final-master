@@ -6,9 +6,18 @@
             <img src="{{ asset('assets/Clip path group (1).svg') }}" alt="{{ ui_t('actions.file') }}"> {{ ui_t('pages.upload.document_information') }}
         </h3>
         @if($multiUpload)
+            <div class="px-5 px-md-0 mb-3">
+                <div class="form-check form-switch small">
+                    <input class="form-check-input" type="checkbox" id="useSharedMetadataSwitch" wire:model.live="useSharedMetadata">
+                    <label class="form-check-label" for="useSharedMetadataSwitch">
+                        {{ $useSharedMetadata ? ui_t('pages.upload.shared_metadata_all') : ui_t('pages.upload.shared_metadata_each') }}
+                    </label>
+                </div>
+                <p class="small text-muted mb-0">{{ ui_t('pages.upload.shared_metadata_help') }}</p>
+            </div>
             <div class="px-5 px-md-0 mb-4">
                 <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-stretch align-items-sm-center gap-2 mb-2">
-                    <span class="small text-muted text-nowrap">{{ __('Fichiers') }}</span>
+                    <span class="small text-muted text-nowrap">{{ ui_t('pages.upload.files_heading') }}</span>
                     <div class="d-flex flex-column flex-sm-row flex-sm-wrap gap-2 flex-grow-1" style="min-width: 0;">
                         @foreach($documentInfos as $i => $_meta)
                             @php
@@ -27,7 +36,7 @@
                 <button type="button"
                         class="btn btn-outline-primary btn-sm"
                         wire:click="applyCurrentMetadataToAllDocuments">
-                    {{ __('Appliquer les métadonnées à tous les documents') }}
+                    {{ ui_t('pages.upload.apply_metadata_all') }}
                 </button>
             </div>
         @endif
@@ -287,7 +296,7 @@
 
                             @if($multiUpload && $useSharedMetadata)
                                 {{-- Multiple files with shared metadata: one form applies to all --}}
-                                <a href="#upload-flow-top" class="btn btn-outline-secondary">&lt; {{ ui_t('pages.upload.back') }}</a>
+                                <button type="button" class="btn btn-outline-secondary" wire:click="prevStep">&lt; {{ ui_t('pages.upload.back') }}</button>
                                 <button type="button" 
                                         class="btn btn-danger" 
                                         wire:click="submit"
@@ -302,7 +311,7 @@
                             @else
                                 {{-- Per-file metadata (single file or multi with separate metadata) --}}
                                 @if($currentDocumentIndex === 0)
-                                    <a href="#upload-flow-top" class="btn btn-outline-secondary">&lt; {{ ui_t('pages.upload.back') }}</a>
+                                    <button type="button" class="btn btn-outline-secondary" wire:click="prevStep">&lt; {{ ui_t('pages.upload.back') }}</button>
                                 @else
                                     <button type="button" class="btn btn-outline-secondary" wire:click="prevDocument">&lt; {{ ui_t('pages.upload.back') }}</button>
                                 @endif

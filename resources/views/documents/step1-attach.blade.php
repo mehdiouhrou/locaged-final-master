@@ -5,6 +5,7 @@
             'maxAllowed' => __('Maximum allowed'),
             'tooManyFiles' => __('Too many files selected'),
             'filesSelected' => __('Files selected'),
+            'validationError' => __('An error occurred while validating files. Please try again.'),
         ];
     @endphp
     
@@ -68,7 +69,7 @@
                         console.error('[File Validation] Error during validation:', error);
                         return {
                             valid: false,
-                            message: 'An error occurred while validating files. Please try again.'
+                            message: this.translations.validationError
                         };
                     }
                 },
@@ -172,14 +173,6 @@
             <label class="form-label fw-semibold text-muted mb-0">
                 <img src="{{ asset('assets/Vector (25).svg') }}" alt=""> {{ ui_t('pages.upload.upload_file') }}
             </label>
-            @if(count($documents) > 1)
-                <div class="form-check form-switch small">
-                    <input class="form-check-input" type="checkbox" id="useSharedMetadataSwitch" wire:model="useSharedMetadata">
-                    <label class="form-check-label" for="useSharedMetadataSwitch">
-                        {{ $useSharedMetadata ? ui_t('pages.upload.shared_metadata_all') : ui_t('pages.upload.shared_metadata_each') }}
-                    </label>
-                </div>
-            @endif
         </div>
 
         {{-- Simple Custom Error Modal (No Bootstrap JS dependency) --}}

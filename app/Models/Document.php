@@ -7,6 +7,7 @@ use App\Jobs\ProcessOcrJob;
 use App\Services\AuditService;
 use App\Services\NotificationService;
 use App\Services\ProfileCategoryAccessService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -539,6 +540,24 @@ class Document extends Model
     public function box(): BelongsTo
     {
         return $this->belongsTo(Box::class, 'box_id');
+    }
+
+    /**
+     * Documents déposés comme « numériques uniquement » (pas de boîte / stockage physique).
+     */
+    public function scopeDigitalOnly(Builder $query): Builder
+    {
+        return $query->whereNull('box_id')->where(function ($q) {
+            $q->where('metadata->digital_only', true)
+                ->orWhere('metadata->digital_only', 1)
+                ->orWhere('metadata->digital_only', '1')
+                ->orWhere('metadata->digital_only', 'true');
+        });
+    }
+
+    public function isDigitalOnly(): bool
+    {
+        return filter_var(data_get($this->metadata, 'digital_only'), FILTER_VALIDATE_BOOLEAN);
     }
 
     public function favoritedByUsers(): BelongsToMany

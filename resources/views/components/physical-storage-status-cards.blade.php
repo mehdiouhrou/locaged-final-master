@@ -13,6 +13,7 @@
             ['bg' => '#e5f0ff', 'bar' => '#68a0fd'],
         ];
         $iconFor = fn (string $key) => match ($key) {
+            'digital_only' => "\u{1F4BB}",
             'total' => "\u{1F4E6}",
             'approved' => "\u{2705}",
             'pending' => "\u{23F3}",

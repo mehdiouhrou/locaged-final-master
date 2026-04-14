@@ -2,13 +2,20 @@
 
 @section('content')
     <div class="mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <h3 class="mb-0">{{ ui_t('pages.destructions.title') }}</h3>
-            @can('viewAny', \App\Models\DocumentDestructionRequest::class)
-                <a href="{{ route('documents-destructions.export') }}" class="btn btn-outline-dark">
-                    <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> {{ ui_t('pages.destructions.export') }}
-                </a>
-            @endcan
+            <div class="d-flex flex-wrap gap-2">
+                @can('viewAny', \App\Models\DestructionCertificate::class)
+                    <a href="{{ route('destruction-certificates.index') }}" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-file-shield me-1"></i>{{ __('pages.destruction_certificates.registry_link') }}
+                    </a>
+                @endcan
+                @can('viewAny', \App\Models\DocumentDestructionRequest::class)
+                    <a href="{{ route('documents-destructions.export') }}" class="btn btn-outline-dark">
+                        <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> {{ ui_t('pages.destructions.export') }}
+                    </a>
+                @endcan
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm">

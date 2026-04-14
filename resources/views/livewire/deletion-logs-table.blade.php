@@ -135,6 +135,7 @@
                             <th style="width: 120px;">{{ ui_t('pages.deletion_log.table.deleted_at') }}</th>
                             <th style="width: 140px;">{{ ui_t('pages.deletion_log.table.deleted_by') }}</th>
                             <th>{{ ui_t('pages.deletion_log.table.structure') }}</th>
+                            <th style="min-width: 88px;" class="text-center">{{ __('pages.deletion_log.table.pv') }}</th>
                             <th style="width: 60px;" class="text-center">{{ ui_t('pages.deletion_log.table.pdf') }}</th>
                         </tr>
                     </thead>
@@ -233,6 +234,29 @@
                                         @endif
                                     </div>
                                 </td>
+                                <td class="text-center">
+                                    @php
+                                        $pv = $doc?->destructionCertificates->first();
+                                    @endphp
+                                    @if($pv && $pv->pdf_path)
+                                        @can('view', $pv)
+                                            <div class="d-inline-flex gap-1 justify-content-center">
+                                                <a href="{{ route('destruction-certificates.download', $pv) }}"
+                                                   class="btn btn-sm btn-outline-primary py-0 px-2"
+                                                   title="{{ __('pages.destruction_certificates.download_pdf') }}">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                </a>
+                                                <a href="{{ route('destruction-certificates.proof.verify', $pv) }}"
+                                                   class="btn btn-sm btn-outline-dark py-0 px-2"
+                                                   title="{{ __('pages.destruction_certificates.verify_proof') }}">
+                                                    <i class="fa-solid fa-shield-check"></i>
+                                                </a>
+                                            </div>
+                                        @endcan
+                                    @else
+                                        <span class="text-muted small">—</span>
+                                    @endif
+                                </td>
                                 {{-- PDF Export Button --}}
                                 <td class="text-center">
                                     <button type="button" 
@@ -245,7 +269,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <div class="text-muted">{{ ui_t('pages.deletion_log.no_documents') }}</div>
                                 </td>

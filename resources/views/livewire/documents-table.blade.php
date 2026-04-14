@@ -957,6 +957,8 @@
                         <div>
                             @if($doc->box)
                                 <span class="text-muted small">{{ $doc->box->__toString() }}</span>
+                            @elseif($doc->isDigitalOnly())
+                                <span class="text-muted small fst-italic">{{ __('pages.documents.digital_only_location') }}</span>
                             @else
                                 <span class="text-muted">—</span>
                             @endif

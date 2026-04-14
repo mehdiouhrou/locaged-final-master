@@ -77,7 +77,13 @@ class DeletionLogsTable extends Component
         $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
 
         return AuditLog::with(['user.roles', 'document' => function ($q) {
-                $q->withoutGlobalScopes()->withTrashed()->with(['department', 'service.subDepartment']);
+                $q->withoutGlobalScopes()->withTrashed()->with([
+                    'department',
+                    'service.subDepartment',
+                    'destructionCertificates' => function ($cq) {
+                        $cq->whereNotNull('pdf_path')->latest('id');
+                    },
+                ]);
             }])
             ->where('action', 'permanently_deleted')
             ->when($isSuperAdminNotMaster, function($q) {

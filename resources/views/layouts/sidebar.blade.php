@@ -106,7 +106,7 @@
             $myFavoriteCategories = $sidebarMyCategories['favorites'] ?? [];
             $hasMyCategories = !empty($myCategories) || !empty($myFavoriteCategories);
         @endphp
-        <li class="has-submenu {{ request()->has('category') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('documents.by-category') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/category.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ __('Mes catégories') }}</span>
@@ -119,7 +119,7 @@
                 @if(!empty($myCategories))
                     @foreach($myCategories as $myCategory)
                         <li class="mt-1">
-                            <a href="{{ route('documents.all', ['category' => $myCategory['id']]) }}">
+                            <a href="{{ route('documents.by-category', ['categoryId' => $myCategory['id']]) }}">
                                 <i class="fa-regular fa-folder me-2"></i>
                                 <span class="sidebar-text">{{ \Illuminate\Support\Str::limit($myCategory['name'], 28) }}</span>
                             </a>
@@ -143,7 +143,7 @@
 
                 @if($myCategoriesTotal > 5)
                     <li class="mt-2">
-                        <a href="{{ route('documents.all') }}">
+                        <a href="{{ route('categories.index') }}">
                             <i class="fa-solid fa-ellipsis me-2"></i>
                             <span class="sidebar-text">{{ __('Voir plus') }}</span>
                         </a>
@@ -187,7 +187,7 @@
                     </li>
                     @foreach($favoriteCategories as $favoriteCategory)
                         <li class="mt-1">
-                            <a href="{{ route('documents.all', ['category' => $favoriteCategory['id']]) }}">
+                            <a href="{{ route('documents.by-category', ['categoryId' => $favoriteCategory['id']]) }}">
                                 <i class="fa-regular fa-folder me-2"></i>
                                 <span class="sidebar-text">{{ $favoriteCategory['name'] }}</span>
                                 <span class="sidebar-text ms-auto text-muted small">{{ $favoriteCategory['count'] }}</span>
@@ -325,7 +325,7 @@
             $canAdministrationAccordion = $canViewUsers || $canViewRoles || $canViewAuditLogs || $canViewDestruction || $canViewOcr || $canViewLocalization || $canViewStorage || $canViewHorizon;
         @endphp
         @if($canAdministrationAccordion)
-        <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('destruction-certificates.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ __('Administration') }}</span>
@@ -361,6 +361,12 @@
                         <a href="{{ route('documents.destructions') }}" class="{{ request()->routeIs('documents.destructions') ? 'active' : '' }}">
                             <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
                             <span class="sidebar-text">{{ ui_t('nav.destruction') }}</span>
+                        </a>
+                    </li>
+                    <li class="mt-2">
+                        <a href="{{ route('destruction-certificates.index') }}" class="{{ request()->routeIs('destruction-certificates.*') ? 'active' : '' }}">
+                            <img src="{{ asset('assets/template/document-text.svg') }}" class="me-2" style="width: 1.1rem; height: 1.1rem; opacity: .85;" alt="" />
+                            <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
                         </a>
                     </li>
                 @endif

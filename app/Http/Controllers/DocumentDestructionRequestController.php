@@ -23,6 +23,27 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentDestructionRequestController extends Controller
 {
+    /**
+     * Registre des PV / certificats de destruction (documents supprimés ou archivés y restent traçables).
+     */
+    public function certificatesIndex()
+    {
+        Gate::authorize('viewAny', DestructionCertificate::class);
+
+        $certificates = DestructionCertificate::query()
+            ->with([
+                'approvedByUser:id,full_name',
+                'document' => function ($q) {
+                    $q->withoutGlobalScopes()->withTrashed()->select(['id', 'title', 'uid', 'deleted_at', 'created_by']);
+                },
+            ])
+            ->whereNotNull('pdf_path')
+            ->latest('id')
+            ->paginate(25);
+
+        return view('destruction-certificates.index', compact('certificates'));
+    }
+
     // List all expired documents (ready for destruction or postponement)
     public function index()
     {

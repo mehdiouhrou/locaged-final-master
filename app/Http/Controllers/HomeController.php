@@ -423,11 +423,15 @@ class HomeController extends Controller
         ];
     }
 
-    private function getDonutChartDataByCategories(): array
+    /**
+     * Agrège le nombre de documents visibles par category_id (documents.category_id,
+     * ou category_id issu de la sous-catégorie si la fiche n’a que subcategory_id).
+     *
+     * @return Collection<int|string, int>
+     */
+    private function aggregateVisibleDocumentsByCategory(Builder $visibleDocumentsQuery): Collection
     {
-        $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
-
-        $visibleCategoryCounts = (clone $visibleDocumentsQuery)
+        return (clone $visibleDocumentsQuery)
             ->leftJoin('subcategories', 'documents.subcategory_id', '=', 'subcategories.id')
             ->where(function ($q) {
                 $q->whereNotNull('documents.category_id')
@@ -436,7 +440,15 @@ class HomeController extends Controller
             ->selectRaw('COALESCE(documents.category_id, subcategories.category_id) as resolved_category_id, COUNT(*) as documents_count')
             ->groupByRaw('COALESCE(documents.category_id, subcategories.category_id)')
             ->pluck('documents_count', 'resolved_category_id')
-            ->filter(fn ($count, $categoryId) => $categoryId !== null && $categoryId !== '');
+            ->filter(fn ($documentsCount, $categoryId) => $categoryId !== null && $categoryId !== '')
+            ->mapWithKeys(fn ($documentsCount, $categoryId) => [(int) $categoryId => (int) $documentsCount]);
+    }
+
+    private function getDonutChartDataByCategories(): array
+    {
+        $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
+
+        $visibleCategoryCounts = $this->aggregateVisibleDocumentsByCategory($visibleDocumentsQuery);
 
         if ($visibleCategoryCounts->isEmpty()) {
             return [
@@ -448,14 +460,14 @@ class HomeController extends Controller
         }
 
         $categories = Category::withoutGlobalScopes()
-            ->whereIn('id', $visibleCategoryCounts->keys())
+            ->whereIn('id', $visibleCategoryCounts->keys()->all())
             ->orderBy('name')
             ->get()
             ->map(function ($category) use ($visibleCategoryCounts) {
                 return [
                     'id' => $category->id,
                     'name' => $category->name,
-                    'count' => (int) ($visibleCategoryCounts[$category->id] ?? 0),
+                    'count' => (int) ($visibleCategoryCounts->get((int) $category->id, 0)),
                 ];
             })
             ->filter(fn ($cat) => $cat['count'] > 0)
@@ -482,27 +494,24 @@ class HomeController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // Use the same visibility rules as the main donut chart
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
 
-        // documents reference subcategories; join through subcategories to aggregate by category
-        $visibleCategoryCounts = (clone $visibleDocumentsQuery)
-            ->where('department_id', $departmentId)
-            ->join('subcategories', 'documents.subcategory_id', '=', 'subcategories.id')
-            ->selectRaw('subcategories.category_id as category_id, COUNT(*) as documents_count')
-            ->groupBy('subcategories.category_id')
-            ->pluck('documents_count', 'category_id');
+        $visibleCategoryCounts = $this->aggregateVisibleDocumentsByCategory(
+            (clone $visibleDocumentsQuery)->where('documents.department_id', $departmentId),
+        );
 
         $categories = Category::query()
-            ->whereIn('id', $visibleCategoryCounts->keys())
+            ->whereIn('id', $visibleCategoryCounts->keys()->all())
             ->get()
             ->map(function ($category) use ($visibleCategoryCounts) {
                 return [
                     'id' => $category->id,
                     'name' => $category->name,
-                    'count' => $visibleCategoryCounts[$category->id] ?? 0,
+                    'count' => (int) $visibleCategoryCounts->get((int) $category->id, 0),
                 ];
-            });
+            })
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
 
         $department = Department::find($departmentId);
 
@@ -909,7 +918,19 @@ class HomeController extends Controller
             }
         })->count();
 
+        $digitalCount = (clone $visibleDocumentsQuery)->digitalOnly()->count();
+
         $definitions = [
+            [
+                'key' => 'digital_only',
+                'label' => __('pages.dashboard.physical_storage.digital_only'),
+                'count' => $digitalCount,
+                'params' => [
+                    'digital_only' => 1,
+                    'show_expired' => 1,
+                    'page_title' => 'digital_only_docs',
+                ],
+            ],
             [
                 'key' => 'total',
                 'label' => __('pages.dashboard.physical_storage.total'),

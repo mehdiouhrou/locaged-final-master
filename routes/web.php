@@ -207,6 +207,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents-destructions/{id}/postpone', [DocumentDestructionRequestController::class, 'postpone'])->name('documents-destructions.postpone');
     Route::put('/documents/{documentId}/postpone-expiration', [DocumentDestructionRequestController::class, 'postponeDocument'])->name('documents.postpone-expiration');
 
+    Route::get('/destruction-certificates', [DocumentDestructionRequestController::class, 'certificatesIndex'])
+        ->name('destruction-certificates.index');
     Route::get('/destruction-certificates/{certificate}/download', [DocumentDestructionRequestController::class, 'downloadDestructionCertificate'])
         ->name('destruction-certificates.download');
     Route::get('/destruction-certificates/{certificate}/proof', [DocumentDestructionRequestController::class, 'verifyDestructionProof'])
