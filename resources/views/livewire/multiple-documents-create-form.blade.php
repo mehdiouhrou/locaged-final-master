@@ -1,3 +1,6 @@
+@php
+    $multiUpload = count($documentInfos) > 1;
+@endphp
 <div>
     <div class="form-section">
         <div class="form-title">{{ ui_t('pages.upload.upload_documents') }}</div>
@@ -13,10 +16,7 @@
             <button type="button" id="step2Btn" class="step-tab text-decoration-none border-0 bg-transparent" data-step="2" {{ $step < 2 ? 'disabled' : '' }}>
                 <p class="step {{ $step === 2 ? 'active' : '' }}">
                     <i class="fa-solid fa-pen-to-square mx-2"></i> {{ ui_t('pages.upload.document_info') }}
-                    @php
-                        $multiUpload = count($documentInfos) > 1;
-                    @endphp
-                    @if($step === 2 && count($documentInfos) > 0 && (!$multiUpload || !$useSharedMetadata))
+                    @if($step === 2 && $multiUpload && count($documentInfos) > 0)
                         ({{ $currentDocumentIndex + 1 }}/{{ count($documentInfos) }})
                     @endif
                     <i class="fa-solid fa-chevron-right ms-3"></i>

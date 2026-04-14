@@ -300,6 +300,7 @@ class MultipleDocumentsCreateForm extends Component
         // This ensures fresh duplicate checks when user navigates between files
         unset($this->duplicateDecisions[$this->currentDocumentIndex]);
 
+        $this->syncPhysicalLocationSelectorsFromCurrentInfo();
         $this->updateCurrentPreview();
         // Ensure expiry is auto-calculated on first load when subcategory is present
         $this->recalculateExpiry();
@@ -475,9 +476,32 @@ class MultipleDocumentsCreateForm extends Component
             'total_files' => count($this->documentInfos),
         ]);
 
-        // These fields will be copied from the first document to all others.
-        // The title is intentionally excluded so each file keeps its own name.
-        $sharedKeys = [
+        $sharedKeys = $this->sharedMetadataKeysToPropagate();
+
+        // Apply to all files except the first one
+        for ($i = 1; $i < count($this->documentInfos); $i++) {
+            foreach ($sharedKeys as $key) {
+                if (array_key_exists($key, $firstMeta)) {
+                    $this->documentInfos[$i][$key] = $firstMeta[$key];
+                }
+            }
+
+            // Ensure title exists (use filename if missing)
+            if (empty($this->documentInfos[$i]['title']) && isset($this->documents[$i])) {
+                $this->documentInfos[$i]['title'] = pathinfo($this->documents[$i]->getClientOriginalName(), PATHINFO_FILENAME);
+            }
+        }
+
+        Log::info('Shared metadata applied successfully');
+    }
+
+    /**
+     * Metadata fields (except title) propagated when "same metadata for all" is enabled
+     * or when applying current metadata to every file.
+     */
+    private function sharedMetadataKeysToPropagate(): array
+    {
+        return [
             'category_id',
             'subcategory_id',
             'color',
@@ -494,30 +518,107 @@ class MultipleDocumentsCreateForm extends Component
             'sub_department_id',
             'service_id',
         ];
+    }
 
-        // Apply to all files except the first one
-        for ($i = 1; $i < count($this->documentInfos); $i++) {
-            foreach ($sharedKeys as $key) {
-                if (isset($firstMeta[$key])) {
-                    $this->documentInfos[$i][$key] = $firstMeta[$key];
-                }
-            }
+    /**
+     * Keep room / row / shelf / box dropdowns in sync when switching files.
+     */
+    private function syncPhysicalLocationSelectorsFromCurrentInfo(): void
+    {
+        $digital = filter_var($this->currentInfo['digital_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-            // Ensure title exists (use filename if missing)
-            if (empty($this->documentInfos[$i]['title']) && isset($this->documents[$i])) {
-                $this->documentInfos[$i]['title'] = pathinfo($this->documents[$i]->getClientOriginalName(), PATHINFO_FILENAME);
-            }
+        if ($digital) {
+            $this->selectedRoomId = null;
+            $this->selectedRowId = null;
+            $this->selectedShelfId = null;
+            $this->selectedBoxId = null;
+
+            return;
         }
 
-        Log::info('Shared metadata applied successfully');
+        $boxId = $this->currentInfo['box_id'] ?? null;
+
+        if (! $boxId) {
+            $this->selectedRoomId = null;
+            $this->selectedRowId = null;
+            $this->selectedShelfId = null;
+            $this->selectedBoxId = null;
+
+            return;
+        }
+
+        $box = Box::query()->with(['shelf.row.room'])->find((int) $boxId);
+
+        if (! $box?->shelf?->row) {
+            return;
+        }
+
+        $row = $box->shelf->row;
+        $this->selectedRoomId = $row->room_id;
+        $this->selectedRowId = $row->id;
+        $this->selectedShelfId = $box->shelf_id;
+        $this->selectedBoxId = $box->id;
     }
 
     // Helper to save the form data back to the main array
     private function saveCurrentInfo()
     {
-        if (isset($this->documentInfos[$this->currentDocumentIndex])) {
-            $this->documentInfos[$this->currentDocumentIndex] = $this->currentInfo;
+        if (! isset($this->documentInfos[$this->currentDocumentIndex])) {
+            return;
         }
+
+        if ($this->useSharedMetadata && count($this->documentInfos) > 1) {
+            $keys = $this->sharedMetadataKeysToPropagate();
+            foreach ($this->documentInfos as $i => $meta) {
+                $title = $meta['title'] ?? null;
+                foreach ($keys as $key) {
+                    if (array_key_exists($key, $this->currentInfo)) {
+                        $this->documentInfos[$i][$key] = $this->currentInfo[$key];
+                    }
+                }
+                if ($title !== null) {
+                    $this->documentInfos[$i]['title'] = $title;
+                }
+            }
+
+            return;
+        }
+
+        $this->documentInfos[$this->currentDocumentIndex] = $this->currentInfo;
+    }
+
+    /**
+     * Copy metadata from the current form to every file (titles unchanged).
+     */
+    public function applyCurrentMetadataToAllDocuments(): void
+    {
+        if (empty($this->documentInfos) || empty($this->currentInfo)) {
+            return;
+        }
+
+        $this->saveCurrentInfo();
+
+        if (! $this->useSharedMetadata || count($this->documentInfos) === 1) {
+            $keys = $this->sharedMetadataKeysToPropagate();
+            $this->documentInfos[$this->currentDocumentIndex] = $this->currentInfo;
+
+            foreach ($this->documentInfos as $i => $_) {
+                if ($i === $this->currentDocumentIndex) {
+                    continue;
+                }
+                $title = $this->documentInfos[$i]['title'] ?? null;
+                foreach ($keys as $key) {
+                    if (array_key_exists($key, $this->currentInfo)) {
+                        $this->documentInfos[$i][$key] = $this->currentInfo[$key];
+                    }
+                }
+                if ($title !== null) {
+                    $this->documentInfos[$i]['title'] = $title;
+                }
+            }
+        }
+
+        $this->loadCurrentInfo();
     }
 
     public function applyCurrentInfoToIncomplete(): void
@@ -973,6 +1074,17 @@ class MultipleDocumentsCreateForm extends Component
             $this->loadCurrentInfo();
             $this->updateCurrentPreview();
         }
+    }
+
+    public function selectDocument(int $index): void
+    {
+        if ($index < 0 || $index >= count($this->documentInfos)) {
+            return;
+        }
+
+        $this->saveCurrentInfo();
+        $this->currentDocumentIndex = $index;
+        $this->loadCurrentInfo();
     }
 
     public function removeDocument($index)

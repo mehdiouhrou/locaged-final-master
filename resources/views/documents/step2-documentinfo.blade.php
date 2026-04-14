@@ -1,8 +1,37 @@
 @if($step === 2)
+    @php
+        $multiUpload = count($documentInfos) > 1;
+    @endphp
     <div>
         <h3 class="section-label py-4 px-5 px-md-0">
             <img src="{{ asset('assets/Clip path group (1).svg') }}" alt="{{ ui_t('actions.file') }}"> {{ ui_t('pages.upload.document_information') }}
         </h3>
+        @if($multiUpload && count($documents) > 0)
+            <div class="px-5 px-md-0 mb-4">
+                <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-stretch align-items-sm-center gap-2 mb-2">
+                    <span class="small text-muted text-nowrap">{{ __('Fichiers') }}</span>
+                    <div class="d-flex flex-column flex-sm-row flex-sm-wrap gap-2 flex-grow-1" style="min-width: 0;">
+                        @foreach($documents as $i => $doc)
+                            @php
+                                $fname = $doc->getClientOriginalName();
+                            @endphp
+                            <button type="button"
+                                    wire:click="selectDocument({{ $i }})"
+                                    class="btn btn-sm text-start {{ (int) $currentDocumentIndex === $i ? 'btn-primary' : 'btn-outline-secondary' }}"
+                                    style="min-width: 0; max-width: 100%;"
+                                    title="{{ $fname }}">
+                                <span class="d-block text-truncate">{{ $fname }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        wire:click="applyCurrentMetadataToAllDocuments">
+                    {{ __('Appliquer les métadonnées à tous les documents') }}
+                </button>
+            </div>
+        @endif
         <div class="d-none" x-data x-init="$wire.currentInfo?.color || $wire.set('currentInfo.color','Blue')">
             <label class="form-label">{{ ui_t('pages.upload.organize_by_color') }} <span class="text-danger">*</span></label>
             <div class="d-flex gap-3 align-items-center">
@@ -40,9 +69,6 @@
                 <div class="form-box shadow-sm bg-white p-4 w-100 h-100">
                     <div class="row">
                         <!-- File Name -->
-                        @php
-                            $multiUpload = count($documentInfos) > 1;
-                        @endphp
                         @if(count($documentInfos) === 1 || ($multiUpload && !$useSharedMetadata))
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">{{ ui_t('pages.upload.file_name') }}<span class="text-danger">*</span></label>
@@ -250,7 +276,7 @@
                         </div>
 
 
-                        <div class="d-flex justify-content-between mt-2">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 mt-2">
                             @php
                                 $user = auth()->user();
                                 // Use the departments collection coming from Livewire (pivot-based and
@@ -258,16 +284,7 @@
                                 $userDepartmentsForCheck = $userDepartments ?? collect();
                                 $isPrivileged = $user && $user->can('manage document global expiry');
                                 $canProceed = ($canProceedUpload ?? false) || $isPrivileged || $userDepartmentsForCheck->count() > 0;
-                                $multiUpload = count($documentInfos) > 1;
                             @endphp
-
-                            @if($multiUpload && !$useSharedMetadata)
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-primary me-2"
-                                        wire:click="applyCurrentInfoToIncomplete">
-                                    {{ __('Appliquer ces données aux documents manquants') }}
-                                </button>
-                            @endif
 
                             @if($multiUpload && $useSharedMetadata)
                                 {{-- Multiple files with shared metadata: one form applies to all --}}
