@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 return [
@@ -32,7 +33,7 @@ return [
     'reports' => [
         'document_reports' => 'Rapports de documents',
         'departments' => 'Structures',
-'search_placeholder' => 'Rechercher par nom de document',
+        'search_placeholder' => 'Rechercher par nom de document',
         'export_csv' => 'Exporter Excel',
         'apply' => 'Appliquer',
         'clear' => 'Réinitialiser',
@@ -64,7 +65,7 @@ return [
             'active_users' => 'Utilisateurs actifs',
         ],
         'filters' => [
-            'search_placeholder' => "Rechercher par utilisateur, document ou action...",
+            'search_placeholder' => 'Rechercher par utilisateur, document ou action...',
             'date_from' => 'Date de début',
             'date_to' => 'Date de fin',
             'user' => 'Utilisateur',
@@ -170,6 +171,10 @@ return [
         'shelf_help' => 'Saisir le nom de l’étagère',
         'box_placeholder' => 'ex. Boîte 1',
         'box_help' => 'Saisir le nom de la boîte',
+        'service_optional_checkbox' => 'Boîte sans rattachement à un service (emplacement partagé)',
+        'service_optional_help' => 'Cochez pour ne lier cette boîte à aucun service. Sinon, choisissez un service ci-dessous.',
+        'select_service_optional' => '— Choisir un service (optionnel) —',
+        'service_shared_badge' => 'Partagée',
     ],
     'structures_page' => [
         'title' => 'Structures',
@@ -227,7 +232,7 @@ return [
         'enter_category_ph' => 'Saisir la catégorie',
         'expiry_value_example' => 'ex. 30',
         'expiry_value' => 'Durée d’expiration (valeur)',
-        'expiry_unit' => "Unité d’expiration",
+        'expiry_unit' => 'Unité d’expiration',
         'select_unit' => '-- Sélectionner une unité --',
         'days' => 'Jours',
         'months' => 'Mois',
@@ -250,7 +255,7 @@ return [
         'export_users' => 'Exporter',
         'add_user' => 'Ajouter un utilisateur',
         'add_user_limit_reached_title' => "Limite d'utilisateurs atteinte (:max utilisateurs)",
-        'add_user_limit_reached_btn' => "Ajouter un utilisateur (limite atteinte)",
+        'add_user_limit_reached_btn' => 'Ajouter un utilisateur (limite atteinte)',
         'search_by_name' => 'Rechercher par nom',
         'filters' => [
             'role' => 'Rôle',
@@ -503,7 +508,7 @@ return [
         'edit' => 'Modifier',
         'delete' => 'Supprimer',
     ],
-'dashboard' => [
+    'dashboard' => [
         'welcome' => 'Bienvenue',
         'overview' => 'Vue d’ensemble',
         'pending_documents' => 'Documents en attente',
@@ -638,7 +643,7 @@ return [
         'creation_date' => 'Date de création',
         'expire_date' => "Date d'expiration",
         'expiry_hint' => 'Calculé à partir de la catégorie (:value :unit) sur la base d’aujourd’hui',
-'select_subcategory_hint' => 'Sélectionnez une catégorie pour calculer automatiquement la date d’expiration.',
+        'select_subcategory_hint' => 'Sélectionnez une catégorie pour calculer automatiquement la date d’expiration.',
         'select_service_first' => 'Sélectionnez un service pour débloquer les catégories.',
         'select_category_first' => 'Sélectionnez une catégorie pour débloquer les sous-catégories.',
         'tags' => 'Étiquettes',
@@ -780,7 +785,7 @@ return [
             'remove' => 'Retirer des favoris',
             'label' => 'Favoris',
         ],
-'status' => [
+        'status' => [
             'approved' => 'Approuvé',
             'pending' => 'En attente',
             'declined' => 'Refusé',
@@ -806,7 +811,7 @@ return [
         'unlock_title' => 'Voulez-vous vraiment déverrouiller ce document ?',
         'unlock_body' => 'Vous pourrez de nouveau modifier le document.',
         'lock_title' => 'Voulez-vous vraiment verrouiller ce document ?',
-        'lock_body' => "Vous ne pourrez pas le modifier à moins de le déverrouiller à nouveau.",
+        'lock_body' => 'Vous ne pourrez pas le modifier à moins de le déverrouiller à nouveau.',
         'archive_title' => 'Voulez-vous vraiment archiver ce document ?',
         'permanent_delete_title' => 'Voulez-vous vraiment supprimer définitivement ce document ?',
         'permanent_delete_body' => 'Le document et tous ses fichiers seront complètement supprimés du système. Cette action est irréversible.',
@@ -843,7 +848,7 @@ return [
             'cancel' => 'Annuler',
         ],
     ],
-    
+
     'status' => [
         'title' => 'Documents en Attente',
         'file_name' => 'Nom du document',
@@ -904,5 +909,3 @@ return [
         ],
     ],
 ];
-
-

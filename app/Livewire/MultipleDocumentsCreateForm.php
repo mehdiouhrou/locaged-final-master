@@ -2,30 +2,27 @@
 
 namespace App\Livewire;
 
-use App\Jobs\ProcessOcrJob;
+use App\Models\Box;
 use App\Models\Category;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\Folder;
-use App\Models\OcrJob;
-use App\Models\PhysicalLocation;
 use App\Models\Room;
 use App\Models\Row;
-use App\Models\Shelf;
-use App\Models\Box;
-use App\Models\Subcategory;
-use App\Models\Tag;
-use App\Models\SubDepartment;
 use App\Models\Service;
+use App\Models\Shelf;
+use App\Models\Subcategory;
+use App\Models\SubDepartment;
+use App\Models\Tag;
 use App\Services\ClamAvScanner;
 use App\Services\PdfConversionService;
 use App\Services\ProfileCategoryAccessService;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Crypt;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Illuminate\Support\Facades\DB;
 
 class MultipleDocumentsCreateForm extends Component
 {
@@ -33,7 +30,7 @@ class MultipleDocumentsCreateForm extends Component
 
     public function mount(?int $folderId = null, ?int $categoryId = null): void
     {
-        $this->folderId   = $folderId;
+        $this->folderId = $folderId;
         $this->categoryId = $categoryId;
     }
 
@@ -49,6 +46,7 @@ class MultipleDocumentsCreateForm extends Component
     public $step = 1;
 
     public $documents = [];
+
     public $newDocuments = [];
 
     // Controls whether one metadata form is applied to all files (true)
@@ -59,6 +57,7 @@ class MultipleDocumentsCreateForm extends Component
     public array $relativePaths = [];
 
     public $documentInfos = [];
+
     public $currentDocumentIndex = 0;
 
     // SOLUTION: Add a property to hold the data for the current form
@@ -66,15 +65,23 @@ class MultipleDocumentsCreateForm extends Component
 
     // Hierarchical location selection
     public $selectedRoomId = null;
+
     public $selectedRowId = null;
+
     public $selectedShelfId = null;
+
     public $selectedBoxId = null;
 
     public $uploadProgress = 0;
+
     public $previewUrl;
+
     public $currentPreviewUrl = null;
+
     public $currentPreviewType = null; // image|pdf|other
+
     public $previewMime;
+
     public $previewName;
 
     // Prevent duplicate submissions
@@ -82,11 +89,14 @@ class MultipleDocumentsCreateForm extends Component
 
     // Duplicate detection state (DEPRECATED - now using batch detection)
     public $showDuplicateModal = false;
+
     public $currentDuplicates = [];
+
     public $duplicateDecisions = []; // index => 'upload' | 'skip'
-    
+
     // Batch duplicate detection state
     public $allDuplicates = []; // ['fileIndex' => [duplicates]]
+
     public $filesWithDuplicates = []; // [fileIndex, fileIndex, ...]
 
     protected $listeners = ['previewFile'];
@@ -120,13 +130,13 @@ class MultipleDocumentsCreateForm extends Component
 
     protected function rules()
     {
-        $maxFileSizeKb   = (int) config('uploads.max_file_size_kb', 50000);
-        $maxBatchFiles   = (int) config('uploads.max_batch_files', 50);
-        $maxBatchSizeKb  = (int) config('uploads.max_batch_size_kb', 500000);
+        $maxFileSizeKb = (int) config('uploads.max_file_size_kb', 50000);
+        $maxBatchFiles = (int) config('uploads.max_batch_files', 50);
+        $maxBatchSizeKb = (int) config('uploads.max_batch_size_kb', 500000);
         $allowedExtensions = config('uploads.allowed_extensions', []);
 
-        $mimesRule = !empty($allowedExtensions)
-            ? 'mimes:' . implode(',', $allowedExtensions)
+        $mimesRule = ! empty($allowedExtensions)
+            ? 'mimes:'.implode(',', $allowedExtensions)
             : '';
 
         return [
@@ -134,9 +144,9 @@ class MultipleDocumentsCreateForm extends Component
                 'required',
                 'array',
                 'min:1',
-                'max:' . $maxBatchFiles,
+                'max:'.$maxBatchFiles,
                 function ($attribute, $value, $fail) use ($maxBatchSizeKb) {
-                    if (!is_array($value) || $maxBatchSizeKb <= 0) {
+                    if (! is_array($value) || $maxBatchSizeKb <= 0) {
                         return;
                     }
 
@@ -158,7 +168,7 @@ class MultipleDocumentsCreateForm extends Component
             'documents.*' => trim(sprintf(
                 'required|file|max:%d%s',
                 $maxFileSizeKb,
-                $mimesRule ? '|' . $mimesRule : ''
+                $mimesRule ? '|'.$mimesRule : ''
             ), '|'),
         ];
     }
@@ -188,68 +198,27 @@ class MultipleDocumentsCreateForm extends Component
     public function getRoomsProperty()
     {
         $user = auth()->user();
-        
+
         // Find rooms that have at least one accessible box
         return Room::whereHas('rows.shelves.boxes', function ($query) use ($user) {
-            $selectedServiceId = $this->currentInfo['service_id'] ?? null;
-            
-            // If specific service is selected, filter boxes by that service
-            if ($selectedServiceId) {
-                $query->where('service_id', $selectedServiceId);
-                return;
-            }
-
-            $accessibleServiceIds = Box::getAccessibleServiceIds($user);
-            
-            if ($accessibleServiceIds === 'all') {
-                // Admin/SuperAdmin - no filtering needed
-                return;
-            }
-            
-            if ($accessibleServiceIds->isEmpty()) {
-                // No accessible services - no rooms should be shown
-                $query->whereRaw('1 = 0');
-                return;
-            }
-            
-            // Filter boxes by accessible service IDs
-            $query->whereIn('service_id', $accessibleServiceIds);
+            Box::applyPhysicalAccessFilter($query, $user, $this->currentInfo['service_id'] ?? null);
         })
-        ->orderBy('name')
-        ->get();
+            ->orderBy('name')
+            ->get();
     }
 
     public function getRowsProperty()
     {
-        if (!$this->selectedRoomId) {
+        if (! $this->selectedRoomId) {
             return collect();
         }
-        
+
         $user = auth()->user();
-        
+
         // Find rows (in selected room) that have at least one accessible box
         return Row::where('room_id', $this->selectedRoomId)
             ->whereHas('shelves.boxes', function ($query) use ($user) {
-                $selectedServiceId = $this->currentInfo['service_id'] ?? null;
-                
-                // If specific service is selected, filter boxes by that service
-                if ($selectedServiceId) {
-                    $query->where('service_id', $selectedServiceId);
-                    return;
-                }
-
-                $accessibleServiceIds = Box::getAccessibleServiceIds($user);
-                
-                if ($accessibleServiceIds === 'all') {
-                    return;
-                }
-                
-                if ($accessibleServiceIds->isEmpty()) {
-                    $query->whereRaw('1 = 0');
-                    return;
-                }
-                
-                $query->whereIn('service_id', $accessibleServiceIds);
+                Box::applyPhysicalAccessFilter($query, $user, $this->currentInfo['service_id'] ?? null);
             })
             ->orderBy('name')
             ->get();
@@ -257,35 +226,16 @@ class MultipleDocumentsCreateForm extends Component
 
     public function getShelvesProperty()
     {
-        if (!$this->selectedRowId) {
+        if (! $this->selectedRowId) {
             return collect();
         }
-        
+
         $user = auth()->user();
-        
+
         // Find shelves (in selected row) that have at least one accessible box
         return Shelf::where('row_id', $this->selectedRowId)
             ->whereHas('boxes', function ($query) use ($user) {
-                $selectedServiceId = $this->currentInfo['service_id'] ?? null;
-                
-                // If specific service is selected, filter boxes by that service
-                if ($selectedServiceId) {
-                    $query->where('service_id', $selectedServiceId);
-                    return;
-                }
-
-                $accessibleServiceIds = Box::getAccessibleServiceIds($user);
-                
-                if ($accessibleServiceIds === 'all') {
-                    return;
-                }
-                
-                if ($accessibleServiceIds->isEmpty()) {
-                    $query->whereRaw('1 = 0');
-                    return;
-                }
-                
-                $query->whereIn('service_id', $accessibleServiceIds);
+                Box::applyPhysicalAccessFilter($query, $user, $this->currentInfo['service_id'] ?? null);
             })
             ->orderBy('name')
             ->get();
@@ -293,14 +243,14 @@ class MultipleDocumentsCreateForm extends Component
 
     public function getBoxesProperty()
     {
-        if (!$this->selectedShelfId) {
+        if (! $this->selectedShelfId) {
             return collect();
         }
-        
+
         $query = Box::where('shelf_id', $this->selectedShelfId)
             ->forUser(auth()->user());
 
-        if (!empty($this->currentInfo['service_id'])) {
+        if (! empty($this->currentInfo['service_id'])) {
             $query->where('service_id', $this->currentInfo['service_id']);
         }
 
@@ -359,51 +309,53 @@ class MultipleDocumentsCreateForm extends Component
     private function checkCurrentDuplicates(): array
     {
         $meta = $this->currentInfo;
-        
+
         // PERFORMANCE OPTIMIZATION: Early return if required fields are missing
         if (empty($meta['title']) || empty($meta['created_at']) || empty($meta['department_id'])) {
             Log::info('Duplicate check skipped - missing required fields', [
-                'has_title' => !empty($meta['title']),
-                'has_created_at' => !empty($meta['created_at']),
-                'has_department_id' => !empty($meta['department_id']),
+                'has_title' => ! empty($meta['title']),
+                'has_created_at' => ! empty($meta['created_at']),
+                'has_department_id' => ! empty($meta['department_id']),
             ]);
+
             return [];
         }
-        
+
         Log::info('Checking for duplicates', [
             'title' => $meta['title'],
             'department_id' => $meta['department_id'],
             'created_at' => $meta['created_at'],
             'created_at_date_only' => \Carbon\Carbon::parse($meta['created_at'])->format('Y-m-d'),
         ]);
-        
+
         // Extract just the date portion for comparison
         $searchDate = \Carbon\Carbon::parse($meta['created_at'])->format('Y-m-d');
-        
+
         Log::info('Searching database for duplicates with date', ['search_date' => $searchDate]);
-        
+
         // PERFORMANCE OPTIMIZATION: Use exists() for faster check before fetching records
         $hasMatches = Document::whereRaw('LOWER(title) = ?', [strtolower($meta['title'])])
             ->where('department_id', $meta['department_id'])
             ->whereDate('created_at', $searchDate)
             ->exists();
-            
-        if (!$hasMatches) {
+
+        if (! $hasMatches) {
             Log::info('No duplicates found');
+
             return []; // No duplicates found, skip expensive mapping
         }
-        
+
         Log::info('Duplicates found, fetching details');
-        
+
         return Document::whereRaw('LOWER(title) = ?', [strtolower($meta['title'])])
             ->where('department_id', $meta['department_id'])
             ->whereDate('created_at', $searchDate)
             ->limit(10) // Limit to 10 duplicates max for performance
             ->get(['id', 'title'])
-            ->map(fn($d) => [
+            ->map(fn ($d) => [
                 'id' => $d->id,
                 'title' => $d->title,
-                'url' => route('documents.show', ['document' => $d->id])
+                'url' => route('documents.show', ['document' => $d->id]),
             ])
             ->toArray();
     }
@@ -413,20 +365,20 @@ class MultipleDocumentsCreateForm extends Component
     {
         // Always check for duplicates, even if user previously made a decision
         // This allows them to reconsider if they navigate back
-        
+
         Log::info('checkAndShowDuplicateModal called', [
             'currentInfo' => $this->currentInfo,
             'currentDocumentIndex' => $this->currentDocumentIndex,
         ]);
-        
+
         $dups = $this->checkCurrentDuplicates();
-        
+
         Log::info('Duplicate check result', [
             'duplicates_found' => count($dups),
             'duplicates' => $dups,
         ]);
-        
-        if (!empty($dups)) {
+
+        if (! empty($dups)) {
             $this->currentDuplicates = $dups;
             $this->showDuplicateModal = true;
             Log::info('Setting showDuplicateModal to true');
@@ -436,91 +388,93 @@ class MultipleDocumentsCreateForm extends Component
             Log::info('Setting showDuplicateModal to false (no duplicates)');
         }
     }
-    
+
     // NEW: Check ALL files for duplicates at once (batch operation)
     private function checkAllFilesForDuplicates(): void
     {
         Log::info('Starting batch duplicate check for all files', [
             'total_files' => count($this->documentInfos),
         ]);
-        
+
         $this->allDuplicates = [];
         $this->filesWithDuplicates = [];
-        
+
         foreach ($this->documentInfos as $index => $meta) {
             Log::info("Checking file index {$index}", [
-                'has_title' => !empty($meta['title']),
-                'has_created_at' => !empty($meta['created_at']),
-                'has_department_id' => !empty($meta['department_id']),
+                'has_title' => ! empty($meta['title']),
+                'has_created_at' => ! empty($meta['created_at']),
+                'has_department_id' => ! empty($meta['department_id']),
                 'title' => $meta['title'] ?? 'MISSING',
                 'department_id' => $meta['department_id'] ?? 'MISSING',
             ]);
-            
+
             // Skip if required fields are missing
             if (empty($meta['title']) || empty($meta['created_at']) || empty($meta['department_id'])) {
                 Log::warning("Skipping file index {$index} - missing required fields");
+
                 continue;
             }
-            
+
             // Extract just the date portion for comparison
             $searchDate = \Carbon\Carbon::parse($meta['created_at'])->format('Y-m-d');
-            
+
             Log::info("Searching for duplicates for file {$index}", [
                 'title' => $meta['title'],
                 'department_id' => $meta['department_id'],
                 'search_date' => $searchDate,
             ]);
-            
+
             // Check for duplicates
             $duplicates = Document::whereRaw('LOWER(title) = ?', [strtolower($meta['title'])])
                 ->where('department_id', $meta['department_id'])
                 ->whereDate('created_at', $searchDate)
                 ->limit(10)
                 ->get(['id', 'title'])
-                ->map(fn($d) => [
+                ->map(fn ($d) => [
                     'id' => $d->id,
                     'title' => $d->title,
-                    'url' => route('documents.show', ['document' => $d->id])
+                    'url' => route('documents.show', ['document' => $d->id]),
                 ])
                 ->toArray();
-            
+
             Log::info("Duplicate search result for file {$index}", [
                 'duplicates_found' => count($duplicates),
             ]);
-            
-            if (!empty($duplicates)) {
+
+            if (! empty($duplicates)) {
                 $this->allDuplicates[$index] = $duplicates;
                 $this->filesWithDuplicates[] = $index;
                 Log::info("Added file {$index} to filesWithDuplicates array");
             }
         }
-        
+
         Log::info('Batch duplicate check complete', [
             'total_files' => count($this->documentInfos),
             'files_with_duplicates' => count($this->filesWithDuplicates),
             'filesWithDuplicates_array' => $this->filesWithDuplicates,
         ]);
-        
+
         // Show modal if any duplicates found
-        if (!empty($this->filesWithDuplicates)) {
+        if (! empty($this->filesWithDuplicates)) {
             $this->showDuplicateModal = true;
         }
     }
-    
+
     // Apply shared metadata from first file to all other files
     private function applySharedMetadataToAll(): void
     {
         $firstMeta = $this->documentInfos[0] ?? null;
-        
-        if (!$firstMeta) {
+
+        if (! $firstMeta) {
             Log::warning('Cannot apply shared metadata - first file has no metadata');
+
             return;
         }
-        
+
         Log::info('Applying shared metadata to all files', [
             'total_files' => count($this->documentInfos),
         ]);
-        
+
         // These fields will be copied from the first document to all others.
         // The title is intentionally excluded so each file keeps its own name.
         $sharedKeys = [
@@ -540,7 +494,7 @@ class MultipleDocumentsCreateForm extends Component
             'sub_department_id',
             'service_id',
         ];
-        
+
         // Apply to all files except the first one
         for ($i = 1; $i < count($this->documentInfos); $i++) {
             foreach ($sharedKeys as $key) {
@@ -548,13 +502,13 @@ class MultipleDocumentsCreateForm extends Component
                     $this->documentInfos[$i][$key] = $firstMeta[$key];
                 }
             }
-            
+
             // Ensure title exists (use filename if missing)
             if (empty($this->documentInfos[$i]['title']) && isset($this->documents[$i])) {
                 $this->documentInfos[$i]['title'] = pathinfo($this->documents[$i]->getClientOriginalName(), PATHINFO_FILENAME);
             }
         }
-        
+
         Log::info('Shared metadata applied successfully');
     }
 
@@ -588,6 +542,7 @@ class MultipleDocumentsCreateForm extends Component
         foreach ($this->documentInfos as $index => $meta) {
             if ($index === $this->currentDocumentIndex) {
                 $this->documentInfos[$index] = $this->currentInfo;
+
                 continue;
             }
 
@@ -636,7 +591,7 @@ class MultipleDocumentsCreateForm extends Component
             // Log the number of files being processed
             Log::info('Processing file upload', [
                 'file_count' => count($files),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             if (! empty($files)) {
@@ -649,45 +604,44 @@ class MultipleDocumentsCreateForm extends Component
             Log::error('Error processing uploaded files', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
-            
+
             $this->addError('upload', 'Failed to process uploaded files. Please try again or contact support if the problem persists.');
         }
     }
-
 
     private function mergeNewFiles($files): void
     {
         // PERFORMANCE OPTIMIZATION: Pre-define filters for faster validation
         static $systemFiles = ['.DS_Store', 'Thumbs.db', 'desktop.ini', '._.DS_Store'];
-        
+
         // Filter out invalid files before adding them
         $validFiles = [];
         foreach ($files as $file) {
             // Skip if not a valid uploaded file object
-            if (!is_object($file) || !method_exists($file, 'getClientOriginalName')) {
+            if (! is_object($file) || ! method_exists($file, 'getClientOriginalName')) {
                 continue;
             }
 
             $filename = $file->getClientOriginalName();
-            
+
             // Early return optimizations: combine checks to reduce processing
             if (
-                empty($filename) || 
-                trim($filename) === '' || 
-                str_starts_with($filename, '.') || 
+                empty($filename) ||
+                trim($filename) === '' ||
+                str_starts_with($filename, '.') ||
                 in_array($filename, $systemFiles, true)
             ) {
                 continue;
             }
-            
+
             // Skip if file has no extension (likely a folder or invalid file)
             $extension = pathinfo($filename, PATHINFO_EXTENSION);
             if (empty($extension)) {
                 continue;
             }
-            
+
             // Validate that file size is greater than 0 (single check)
             if (method_exists($file, 'getSize') && $file->getSize() <= 0) {
                 continue;
@@ -698,11 +652,12 @@ class MultipleDocumentsCreateForm extends Component
             if (method_exists($file, 'getSize') && $file->getSize() > ($maxSizeKb * 1024)) {
                 $this->addError('documents', __('File ":name" exceeds the maximum size of :max MB.', [
                     'name' => $filename,
-                    'max' => floor($maxSizeKb / 1024)
+                    'max' => floor($maxSizeKb / 1024),
                 ]));
+
                 continue;
             }
-            
+
             $validFiles[] = $file;
         }
 
@@ -714,17 +669,17 @@ class MultipleDocumentsCreateForm extends Component
         $oldDocumentInfos = $this->documentInfos;
 
         foreach ($this->documents as $index => $file) {
-            if (!isset($oldDocumentInfos[$index])) {
+            if (! isset($oldDocumentInfos[$index])) {
                 // Prefer relative path (for folders) as default title; fall back to filename
                 $relative = $this->relativePaths[$index] ?? $file->getClientOriginalName();
-                
+
                 // For folder uploads, extract just the filename from the relative path
                 // Remove folder names from the path to get clean file title
                 if (isset($this->relativePaths[$index])) {
                     // Get the filename from the path (last segment)
                     $relative = basename($relative);
                 }
-                
+
                 $baseName = pathinfo($relative, PATHINFO_FILENAME);
 
                 $oldDocumentInfos[$index] = [
@@ -783,18 +738,18 @@ class MultipleDocumentsCreateForm extends Component
     {
         $categoryId = $this->currentInfo['category_id'] ?? null;
         $createdAt = $this->currentInfo['created_at'] ?? null;
-        if (!$categoryId || !$createdAt) {
+        if (! $categoryId || ! $createdAt) {
             return;
         }
 
         $category = Category::find($categoryId);
-        if (!$category) {
+        if (! $category) {
             return;
         }
 
         $value = $category->expiry_value;
         $unit = $category->expiry_unit; // days|months|years
-        if (!$value || !$unit) {
+        if (! $value || ! $unit) {
             return;
         }
 
@@ -829,13 +784,9 @@ class MultipleDocumentsCreateForm extends Component
         // Org hierarchy is not user-editable; values come from account context only.
     }
 
-    public function updatedCurrentInfoSubDepartmentId(): void
-    {
-    }
+    public function updatedCurrentInfoSubDepartmentId(): void {}
 
-    public function updatedCurrentInfoServiceId(): void
-    {
-    }
+    public function updatedCurrentInfoServiceId(): void {}
 
     public function updatedCurrentInfoDigitalOnly(): void
     {
@@ -975,7 +926,6 @@ class MultipleDocumentsCreateForm extends Component
     {
         $this->validate();
 
-
         // When moving to step 2 for the first time, load the first document's info
         if ($this->step == 1) {
             $this->loadCurrentInfo();
@@ -994,6 +944,7 @@ class MultipleDocumentsCreateForm extends Component
         // Guard: user must be assigned to at least one department (via pivot).
         if (! $this->userHasAnyDepartment()) {
             $this->addError('department', 'You must be assigned to at least one department to upload documents. Please contact your administrator.');
+
             return;
         }
 
@@ -1061,7 +1012,9 @@ class MultipleDocumentsCreateForm extends Component
 
     public function previewFile($index)
     {
-        if (!isset($this->documents[$index])) return;
+        if (! isset($this->documents[$index])) {
+            return;
+        }
 
         $file = $this->documents[$index];
 
@@ -1081,7 +1034,7 @@ class MultipleDocumentsCreateForm extends Component
         $this->currentPreviewType = null;
         $this->dispatch('upload-pdf-preview-clear');
 
-        if (!isset($this->documents[$this->currentDocumentIndex])) {
+        if (! isset($this->documents[$this->currentDocumentIndex])) {
             return;
         }
 
@@ -1095,7 +1048,7 @@ class MultipleDocumentsCreateForm extends Component
             $token = Crypt::encryptString($absolutePath);
             $this->currentPreviewUrl = route('preview.temp', [
                 'token' => $token,
-                'name' => $file->getClientOriginalName()
+                'name' => $file->getClientOriginalName(),
             ]);
         } catch (\Throwable $e) {
             $this->currentPreviewUrl = null;
@@ -1117,14 +1070,13 @@ class MultipleDocumentsCreateForm extends Component
         }
     }
 
-
     // User actions on duplicate modal
     public function uploadAnyway(): void
     {
         $this->duplicateDecisions[$this->currentDocumentIndex] = 'upload';
         $this->showDuplicateModal = false;
         $this->currentDuplicates = [];
-        
+
         // After decision, continue navigation
         $this->continueAfterDuplicateDecision();
     }
@@ -1134,7 +1086,7 @@ class MultipleDocumentsCreateForm extends Component
         $this->duplicateDecisions[$this->currentDocumentIndex] = 'skip';
         $this->showDuplicateModal = false;
         $this->currentDuplicates = [];
-        
+
         // After decision, continue navigation
         $this->continueAfterDuplicateDecision();
     }
@@ -1145,52 +1097,52 @@ class MultipleDocumentsCreateForm extends Component
         // They can change title, creation date, etc. to avoid the duplicate
         $this->showDuplicateModal = false;
         $this->currentDuplicates = [];
-        
+
         // Clear any previous decision for this file so fresh duplicate check applies
         unset($this->duplicateDecisions[$this->currentDocumentIndex]);
     }
-    
+
     // NEW: Batch action methods
     public function uploadAllAnyway(): void
     {
         Log::info('Upload all anyway - marking all duplicate files for upload');
-        
+
         // Mark all files with duplicates as 'upload'
         foreach ($this->filesWithDuplicates as $index) {
             $this->duplicateDecisions[$index] = 'upload';
         }
-        
+
         // Close modal and proceed with submission
         $this->showDuplicateModal = false;
         $this->allDuplicates = [];
         $this->filesWithDuplicates = [];
-        
+
         // Proceed with submission
         $this->performSubmit();
     }
-    
+
     public function skipAllWithDuplicates(): void
     {
         Log::info('Skip all with duplicates - marking all duplicate files for skipping');
-        
+
         // Mark all files with duplicates as 'skip'
         foreach ($this->filesWithDuplicates as $index) {
             $this->duplicateDecisions[$index] = 'skip';
         }
-        
+
         // Close modal and proceed with submission
         $this->showDuplicateModal = false;
         $this->allDuplicates = [];
         $this->filesWithDuplicates = [];
-        
+
         // Proceed with submission
         $this->performSubmit();
     }
-    
+
     public function reviewAndModify(): void
     {
         Log::info('Review and modify - user wants to manually review files');
-        
+
         // Simply close the modal without making any decisions
         // User can navigate through files and modify metadata manually
         $this->showDuplicateModal = false;
@@ -1231,6 +1183,7 @@ class MultipleDocumentsCreateForm extends Component
         // Guard: user must be assigned to at least one department (via pivot).
         if (! $this->userHasAnyDepartment()) {
             $this->addError('department', 'You must be assigned to at least one department to upload documents. Please contact your administrator.');
+
             return;
         }
 
@@ -1247,7 +1200,7 @@ class MultipleDocumentsCreateForm extends Component
         // NEW: Use batch duplicate check instead of single-file check
         // Check ALL files for duplicates before submitting
         $this->checkAllFilesForDuplicates();
-        
+
         // If modal is shown (duplicates found), stop here; user must decide
         if ($this->showDuplicateModal) {
             return;
@@ -1311,13 +1264,13 @@ class MultipleDocumentsCreateForm extends Component
 
         if (is_null($targetFolderId) && $this->newFolderName) {
             $folder = Folder::create([
-                'uid'          => uuid_create(),
-                'name'         => $this->newFolderName,
-                'parent_id'    => null,
-                'department_id'=> $deptId,
-                'service_id'   => $serviceId,
-                'created_by'   => auth()->id(),
-                'status'       => 'pending',
+                'uid' => uuid_create(),
+                'name' => $this->newFolderName,
+                'parent_id' => null,
+                'department_id' => $deptId,
+                'service_id' => $serviceId,
+                'created_by' => auth()->id(),
+                'status' => 'pending',
             ]);
 
             $targetFolderId = $folder->id;
@@ -1329,7 +1282,7 @@ class MultipleDocumentsCreateForm extends Component
         foreach ($this->documents as $index => $file) {
             // If we have a relative path (from folder upload), build nested folders
             $documentFolderId = $targetFolderId;
-            if (!empty($this->relativePaths[$index])) {
+            if (! empty($this->relativePaths[$index])) {
                 $relativePath = $this->relativePaths[$index]; // e.g., "Top/Sub1/Sub2/file.pdf"
                 $parts = explode('/', $relativePath);
                 array_pop($parts); // remove filename
@@ -1341,21 +1294,22 @@ class MultipleDocumentsCreateForm extends Component
                         continue;
                     }
 
-                    $cacheKey = ($parentId ?? 0) . '|' . $folderName;
+                    $cacheKey = ($parentId ?? 0).'|'.$folderName;
                     if (isset($folderCache[$cacheKey])) {
                         $parentId = $folderCache[$cacheKey];
+
                         continue;
                     }
 
                     $folder = Folder::firstOrCreate([
-                        'name'       => $folderName,
-                        'parent_id'  => $parentId,
+                        'name' => $folderName,
+                        'parent_id' => $parentId,
                         'created_by' => auth()->id(),
                     ], [
-                        'uid'          => uuid_create(),
-                        'department_id'=> $deptId ?? ($firstMeta['department_id'] ?? null),
-                        'service_id'   => $serviceId ?? ($firstMeta['service_id'] ?? null),
-                        'status'       => 'pending',
+                        'uid' => uuid_create(),
+                        'department_id' => $deptId ?? ($firstMeta['department_id'] ?? null),
+                        'service_id' => $serviceId ?? ($firstMeta['service_id'] ?? null),
+                        'status' => 'pending',
                     ]);
 
                     $parentId = $folder->id;
@@ -1370,6 +1324,7 @@ class MultipleDocumentsCreateForm extends Component
             // Skip if user chose to skip this file
             if (($this->duplicateDecisions[$index] ?? null) === 'skip') {
                 $skippedCount++;
+
                 continue;
             }
 
@@ -1381,13 +1336,13 @@ class MultipleDocumentsCreateForm extends Component
 
             // Prepare tags: combine selected tag IDs with any newly typed tags
             $selectedTagIds = array_filter($metadata['tags'] ?? []);
-            $newTagsCsv = (string)($metadata['new_tags'] ?? '');
+            $newTagsCsv = (string) ($metadata['new_tags'] ?? '');
             $newTagNames = array_values(array_filter(array_map(function ($t) {
                 return trim(strtolower($t));
             }, explode(',', $newTagsCsv))));
 
             $createdTagIds = [];
-            if (!empty($newTagNames)) {
+            if (! empty($newTagNames)) {
                 $uniqueNames = array_values(array_unique($newTagNames));
                 foreach ($uniqueNames as $tagName) {
                     if ($tagName === '') {
@@ -1400,7 +1355,7 @@ class MultipleDocumentsCreateForm extends Component
             $allTagIds = array_values(array_unique(array_merge($selectedTagIds, $createdTagIds)));
 
             $extension = $file->getClientOriginalExtension();
-            $filename = $metadata['title'] . '_' . now()->format('His') . '.' . $extension;
+            $filename = $metadata['title'].'_'.now()->format('His').'.'.$extension;
             // Upload file to private storage
             $filePath = Storage::disk('local')->putFileAs('', $file, $filename);
             $uid = uuid_create();
@@ -1429,10 +1384,10 @@ class MultipleDocumentsCreateForm extends Component
                         // Enforce author/email from authenticated user regardless of UI
                         'author' => (auth()->user()?->full_name ?: (auth()->user()?->name ?? $metadata['author'])),
                         'email' => (auth()->user()?->email ?? $metadata['email']),
-                    ]
+                    ],
                 ]);
 
-                if (!empty($allTagIds)) {
+                if (! empty($allTagIds)) {
                     $document->tags()->attach($allTagIds);
                 }
 
@@ -1441,11 +1396,11 @@ class MultipleDocumentsCreateForm extends Component
                 // Create document version without touching the search index (search backend may be down)
                 $docVersion = DocumentVersion::withoutSyncingToSearch(function () use ($document, $versionNumber, $filePath, $extension) {
                     return DocumentVersion::create([
-                        'document_id'   => $document->id,
-                        'uploaded_by'   => auth()->id(),
-                        'version_number'=> $versionNumber,
-                        'file_path'     => $filePath,
-                        'file_type'     => getFileCategory($extension),
+                        'document_id' => $document->id,
+                        'uploaded_by' => auth()->id(),
+                        'version_number' => $versionNumber,
+                        'file_path' => $filePath,
+                        'file_type' => getFileCategory($extension),
                     ]);
                 });
 
@@ -1477,7 +1432,7 @@ class MultipleDocumentsCreateForm extends Component
         // Build result message / redirect
         if ($successCount === 0) {
             // Nothing was uploaded successfully
-            if ($skippedCount > 0 && !$hadError) {
+            if ($skippedCount > 0 && ! $hadError) {
                 return redirect()->route('documents.create')->with('error', "All $skippedCount file(s) were skipped. No documents uploaded.");
             }
 
@@ -1487,7 +1442,7 @@ class MultipleDocumentsCreateForm extends Component
 
         $message = trans_choice('pages.upload.documents_uploaded_successfully', $successCount, ['count' => $successCount]);
         if ($skippedCount > 0) {
-            $message .= ' ' . trans_choice('pages.upload.files_skipped', $skippedCount, ['count' => $skippedCount]);
+            $message .= ' '.trans_choice('pages.upload.files_skipped', $skippedCount, ['count' => $skippedCount]);
         }
 
         return redirect()->route('documents.success')->with('success', $message);
@@ -1533,12 +1488,12 @@ class MultipleDocumentsCreateForm extends Component
         $isDivisionChief = $user && $user->can('view subdepartment scoped documents');
 
         if ($isMasterOrSuper) {
-            $userDepartments    = \App\Models\Department::withoutGlobalScopes()->orderBy('name')->get();
+            $userDepartments = \App\Models\Department::withoutGlobalScopes()->orderBy('name')->get();
             $userSubDepartments = \App\Models\SubDepartment::with('department')->orderBy('name')->get();
-            $userServices       = \App\Models\Service::with('subDepartment.department')->orderBy('name')->get();
+            $userServices = \App\Models\Service::with('subDepartment.department')->orderBy('name')->get();
         } else {
             // Departments from pivot, bypassing Department global scope
-            $userDepartments    = $userDepartmentsRaw;                 // from department_user
+            $userDepartments = $userDepartmentsRaw;                 // from department_user
 
             // Base sub-departments on role:
             if ($isDepartmentAdmin) {
@@ -1567,27 +1522,27 @@ class MultipleDocumentsCreateForm extends Component
 
         // Detailed debug logging to verify what the component sees
         Log::info('Upload org options', [
-            'user_id'             => $user->id ?? null,
-            'raw_departments'     => $user->departments?->pluck('id')->all(),
+            'user_id' => $user->id ?? null,
+            'raw_departments' => $user->departments?->pluck('id')->all(),
             'raw_sub_departments' => $user->subDepartments?->pluck('id')->all(),
-            'raw_services'        => $user->services?->pluck('id')->all(),
-            'department_ids'      => $userDepartments->pluck('id')->all(),
-            'sub_department_ids'  => $userSubDepartments->pluck('id')->all(),
-            'service_ids'         => $userServices->pluck('id')->all(),
+            'raw_services' => $user->services?->pluck('id')->all(),
+            'department_ids' => $userDepartments->pluck('id')->all(),
+            'sub_department_ids' => $userSubDepartments->pluck('id')->all(),
+            'service_ids' => $userServices->pluck('id')->all(),
         ]);
-        
+
         // NOTE: Rooms, rows, shelves, and boxes are now loaded via computed properties
         // (getRoomsProperty, getRowsProperty, etc.) which automatically filter by user's service access
         // Do not load $rooms here as it will override the filtered computed property
-        
+
         return view('livewire.multiple-documents-create-form', [
-            'categories'                 => $categories,
-            'subcategories'              => $subcategories,
-            'userDepartments'            => $userDepartments,
-            'userSubDepartments'         => $userSubDepartments,
-            'userServices'               => $userServices,
-            'tags'                       => Tag::all(),
-            'canProceedUpload'           => $this->userHasAnyDepartment(),
+            'categories' => $categories,
+            'subcategories' => $subcategories,
+            'userDepartments' => $userDepartments,
+            'userSubDepartments' => $userSubDepartments,
+            'userServices' => $userServices,
+            'tags' => Tag::all(),
+            'canProceedUpload' => $this->userHasAnyDepartment(),
         ]);
     }
 }

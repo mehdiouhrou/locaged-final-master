@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 return [
@@ -175,6 +176,10 @@ return [
         'shelf_help' => 'أدخل اسم الرف',
         'box_placeholder' => 'مثال: صندوق 1',
         'box_help' => 'أدخل اسم الصندوق',
+        'service_optional_checkbox' => 'صندوق بدون ربط بخدمة (موقع مشترك)',
+        'service_optional_help' => 'حدد هذا لترك الصندوق غير مخصص لخدمة. وإلا اختر خدمة أدناه.',
+        'select_service_optional' => '— اختر خدمة (اختياري) —',
+        'service_shared_badge' => 'مشتركة',
     ],
     'structures_page' => [
         'title' => 'الهياكل',
@@ -508,7 +513,7 @@ return [
         'edit' => 'تعديل',
         'delete' => 'حذف',
     ],
-'dashboard' => [
+    'dashboard' => [
         'overview' => 'نظرة عامة',
         'donut' => [
             'departments_title' => 'الوثائق حسب الهيكل',
@@ -588,7 +593,7 @@ return [
         'are_you_sure' => 'هل أنت متأكد؟',
         'cannot_undo' => 'لا يمكن التراجع عن هذا الإجراء.',
     ],
-    
+
     'upload' => [
         'upload_file' => 'رفع ملف',
         'drag_drop_here' => 'اسحب وأفلت الملف هنا',
@@ -622,7 +627,7 @@ return [
         'creation_date' => 'تاريخ الإنشاء',
         'expire_date' => 'تاريخ الانتهاء',
         'expiry_hint' => 'محسوبة من الفئة (:value :unit) بناءً على اليوم',
-'select_subcategory_hint' => 'اختر فئة لحساب تاريخ الانتهاء تلقائيًا.',
+        'select_subcategory_hint' => 'اختر فئة لحساب تاريخ الانتهاء تلقائيًا.',
         'select_service_first' => 'اختر خدمة لفتح الفئات.',
         'select_category_first' => 'اختر فئة لفتح الفئات الفرعية.',
         'tags' => 'الوسوم',
@@ -759,7 +764,7 @@ return [
             'remove' => 'إزالة من المفضلة',
             'label' => 'المفضلة',
         ],
-'status' => [
+        'status' => [
             'approved' => 'تمت الموافقة',
             'pending' => 'قيد الانتظار',
             'declined' => 'مرفوض',
@@ -821,8 +826,7 @@ return [
             'cancel' => 'إلغاء',
         ],
     ],
-    
-    
+
     'status' => [
         'title' => 'الموافقات',
         'file_name' => 'اسم الوثيقة',
@@ -837,5 +841,3 @@ return [
         'input_problems' => 'كانت هناك بعض المشاكل مع المدخلات الخاصة بك:',
     ],
 ];
-
-

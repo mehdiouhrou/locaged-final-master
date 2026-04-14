@@ -218,11 +218,19 @@
                             <form method="post" action="{{ route('physical-locations.add-box') }}">
                                 @csrf
                                 
-                                {{-- Service Selection - Required First --}}
+                                {{-- Service (optional): checkbox disables select --}}
+                                <div class="mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input js-box-no-service" type="checkbox" id="add_box_no_service"
+                                               data-target-select="add_box_service_id">
+                                        <label class="form-check-label" for="add_box_no_service">{{ __('pages.physical.service_optional_checkbox') }}</label>
+                                    </div>
+                                    <small class="text-muted d-block">{{ __('pages.physical.service_optional_help') }}</small>
+                                </div>
                                 <div class="mb-3">
-                                    <label for="add_box_service_id" class="form-label">{{ ui_t('pages.physical.fields.service') }} <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="add_box_service_id" name="service_id" required>
-                                        <option value="">{{ ui_t('pages.physical.selects.select_service') }}</option>
+                                    <label for="add_box_service_id" class="form-label">{{ ui_t('pages.physical.fields.service') }}</label>
+                                    <select class="form-select" id="add_box_service_id" name="service_id">
+                                        <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                         @php
                                             $user = auth()->user();
                                             $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
@@ -291,9 +299,14 @@
                             <form method="post" action="{{ route('physical-locations.bulk-add-boxes') }}">
                                 @csrf
                                 <div class="mb-2">
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input js-box-no-service" type="checkbox" id="bulk_box_no_service"
+                                               data-target-select="bulk_box_service_id">
+                                        <label class="form-check-label small" for="bulk_box_no_service">{{ __('pages.physical.service_optional_checkbox') }}</label>
+                                    </div>
                                     <label class="form-label">{{ __('Service') }}</label>
-                                    <select class="form-select form-select-sm" name="service_id" required>
-                                        <option value="">{{ __('Sélectionner un service') }}</option>
+                                    <select class="form-select form-select-sm" id="bulk_box_service_id" name="service_id">
+                                        <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                         @php
                                             $user = auth()->user();
                                             $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
@@ -386,7 +399,7 @@
                                     <input class="form-check-input" type="checkbox" id="csvHasHeader" name="has_header" value="1" checked>
                                     <label class="form-check-label" for="csvHasHeader">{{ __('Le fichier contient une ligne d’entête') }}</label>
                                 </div>
-                                <small class="text-muted d-block mb-2">{{ __('Colonnes attendues: room,row,shelf,box_name,service_name_or_id,description') }}</small>
+                                <small class="text-muted d-block mb-2">{{ __('Colonnes: room,row,shelf,box_name — service et description optionnels (ou service par défaut ci-dessus).') }}</small>
                                 <button type="submit" class="btn btn-sm btn-secondary">{{ __('Générer le preview') }}</button>
                             </form>
 
@@ -532,6 +545,9 @@
                                                                     data-filter-text="{{ strtolower($box->name.' '.$box->description.' '.$box->__toString().' '.$boxDocuments->pluck('title')->implode(' ')) }}">
                                                                     <div class="me-2">
                                                                         <strong>📦 {{ $box->name }}</strong>
+                                                                        @if(!$box->service_id)
+                                                                            <span class="badge bg-secondary ms-1">{{ __('pages.physical.service_shared_badge') }}</span>
+                                                                        @endif
                                                                         <span class="badge rounded-pill {{ $boxStatusClass }} ms-2">{{ $boxStatusLabel }}</span>
                                                                         @if($box->description)
                                                                             <small class="text-muted d-block">{{ $box->description }}</small>
@@ -675,10 +691,20 @@
                                                        name="name" value="{{ $box->name }}" required>
                                             </div>
 
-                                            {{-- Service Selection - After Box Name --}}
+                                            {{-- Service (optional) --}}
+                                            <div class="mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input js-box-no-service" type="checkbox"
+                                                           id="edit_no_service_{{ $box->id }}"
+                                                           data-target-select="edit_service_id_{{ $box->id }}"
+                                                        {{ $box->service_id ? '' : 'checked' }}>
+                                                    <label class="form-check-label" for="edit_no_service_{{ $box->id }}">{{ __('pages.physical.service_optional_checkbox') }}</label>
+                                                </div>
+                                            </div>
                                             <div class="mb-3">
-                                                <label for="edit_service_id_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.service') }} <span class="text-danger">*</span></label>
-                                                <select class="form-select" id="edit_service_id_{{ $box->id }}" name="service_id" required>
+                                                <label for="edit_service_id_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.service') }}</label>
+                                                <select class="form-select" id="edit_service_id_{{ $box->id }}" name="service_id">
+                                                    <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                                     @php
                                                         $user = auth()->user();
                                                         $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
@@ -691,7 +717,7 @@
                                                         }
                                                     @endphp
                                                     @foreach($editServices as $service)
-                                                        <option value="{{ $service->id }}" {{ $box->service_id == $service->id ? 'selected' : '' }}>
+                                                        <option value="{{ $service->id }}" {{ (int) $box->service_id === (int) $service->id ? 'selected' : '' }}>
                                                             {{ $service->name }}
                                                         </option>
                                                     @endforeach
@@ -759,6 +785,22 @@
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            function syncBoxServiceOptional(checkbox) {
+                if (!checkbox || !checkbox.classList.contains('js-box-no-service')) return;
+                var sel = document.getElementById(checkbox.dataset.targetSelect);
+                if (!sel) return;
+                if (checkbox.checked) {
+                    sel.value = '';
+                    sel.disabled = true;
+                } else {
+                    sel.disabled = false;
+                }
+            }
+            document.querySelectorAll('.js-box-no-service').forEach(function (cb) {
+                cb.addEventListener('change', function () { syncBoxServiceOptional(cb); });
+                syncBoxServiceOptional(cb);
             });
 
             document.querySelectorAll('.edit-box-room-name').forEach(function (roomInput) {

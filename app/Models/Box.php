@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Service;
 
 class Box extends Model
 {
@@ -63,10 +62,10 @@ class Box extends Model
     {
         // Load relationships if not already loaded
         $this->loadMissing('shelf.row.room');
-        
-        return $this->shelf->row->room->name . ' → ' . 
-               $this->shelf->row->name . ' → ' . 
-               $this->shelf->name . ' → ' . 
+
+        return $this->shelf->row->room->name.' → '.
+               $this->shelf->row->name.' → '.
+               $this->shelf->name.' → '.
                $this->name;
     }
 
@@ -77,7 +76,7 @@ class Box extends Model
     {
         // Load relationships if not already loaded
         $this->loadMissing('shelf.row.room');
-        
+
         return [
             'room' => $this->shelf->row->room->name,
             'row' => $this->shelf->row->name,
@@ -91,7 +90,7 @@ class Box extends Model
      */
     public function scopeForUser($query, $user)
     {
-        if (!$user) {
+        if (! $user) {
             return $query->whereRaw('1 = 0');
         }
 
@@ -107,18 +106,54 @@ class Box extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        // Filter by accessible service IDs
-        return $query->whereIn('service_id', $accessibleServiceIds);
+        // Boxes assigned to an accessible service, or shared boxes (no service)
+        return $query->where(function ($q) use ($accessibleServiceIds) {
+            $q->whereIn('service_id', $accessibleServiceIds)
+                ->orWhereNull('service_id');
+        });
+    }
+
+    /**
+     * Restrict a boxes query to what the user may use (and optional service filter for uploads).
+     */
+    public static function applyPhysicalAccessFilter($query, $user, mixed $selectedServiceId = null): void
+    {
+        $selectedServiceId = $selectedServiceId !== null && $selectedServiceId !== ''
+            ? (int) $selectedServiceId
+            : null;
+
+        if ($selectedServiceId) {
+            $query->where('service_id', $selectedServiceId);
+
+            return;
+        }
+
+        $accessibleServiceIds = static::getAccessibleServiceIds($user);
+
+        if ($accessibleServiceIds === 'all') {
+            return;
+        }
+
+        if ($accessibleServiceIds->isEmpty()) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->where(function ($q) use ($accessibleServiceIds) {
+            $q->whereIn('service_id', $accessibleServiceIds)
+                ->orWhereNull('service_id');
+        });
     }
 
     /**
      * Get service IDs accessible to a user based on their role and assignments
-     * 
+     *
      * @return \Illuminate\Support\Collection|string Returns 'all' for admins, or Collection of service IDs
      */
     public static function getAccessibleServiceIds($user)
     {
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 
@@ -157,11 +192,11 @@ class Box extends Model
 
             if ($user->can('view subdepartment scoped documents')) {
                 $subDeptIds = collect();
-                
+
                 if ($user->sub_department_id) {
                     $subDeptIds->push($user->sub_department_id);
                 }
-                
+
                 if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
                     $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
                 }

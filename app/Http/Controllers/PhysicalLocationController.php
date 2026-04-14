@@ -2,19 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PhysicalLocationFilesExport;
+use App\Exports\PhysicalLocationsExport;
+use App\Models\Box;
+use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
 use App\Models\Room;
 use App\Models\Row;
 use App\Models\Shelf;
-use App\Models\Box;
-use App\Models\DocumentMovement;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\StreamedResponse;
-use App\Exports\PhysicalLocationsExport;
-use App\Exports\PhysicalLocationFilesExport;
+use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PhysicalLocationController extends Controller
@@ -25,7 +23,7 @@ class PhysicalLocationController extends Controller
 
         $user = auth()->user();
         $accessibleServiceIds = Box::getAccessibleServiceIds($user);
-        
+
         // Build the hierarchical query with proper filtering
         if ($accessibleServiceIds === 'all') {
             // Admin/Super Admin: Load everything
@@ -34,19 +32,21 @@ class PhysicalLocationController extends Controller
                     $query->with(['documents' => function ($docQuery) {
                         $docQuery->select('id', 'box_id', 'title');
                     }]);
-                }
+                },
             ]);
         } else {
             // Restricted users: Show partial structures they're building
             // Load ALL rows and shelves for accessible rooms, but filter boxes
             $roomsQuery = Room::with([
-                'rows.shelves.boxes' => function($boxQuery) use ($accessibleServiceIds) {
-                    // Only filter boxes by accessible services
-                    $boxQuery->whereIn('service_id', $accessibleServiceIds);
+                'rows.shelves.boxes' => function ($boxQuery) use ($accessibleServiceIds) {
+                    $boxQuery->where(function ($q) use ($accessibleServiceIds) {
+                        $q->whereIn('service_id', $accessibleServiceIds)
+                            ->orWhereNull('service_id');
+                    });
                     $boxQuery->with(['documents' => function ($docQuery) {
                         $docQuery->select('id', 'box_id', 'title');
                     }]);
-                }
+                },
             ]);
 
             // Filter rooms: show ALL rooms (as per new requirement)
@@ -97,7 +97,6 @@ class PhysicalLocationController extends Controller
         return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview'));
     }
 
-
     public function store(Request $request)
     {
         Gate::authorize('create', PhysicalLocation::class);
@@ -112,7 +111,7 @@ class PhysicalLocationController extends Controller
 
         try {
             DB::beginTransaction();
-            
+
             $user = auth()->user();
             $deptId = $this->getUserDepartmentId($user);
 
@@ -127,7 +126,7 @@ class PhysicalLocationController extends Controller
             $row = Row::firstOrCreate(
                 [
                     'room_id' => $room->id,
-                    'name' => $validated['row_name']
+                    'name' => $validated['row_name'],
                 ],
                 ['description' => null]
             );
@@ -136,7 +135,7 @@ class PhysicalLocationController extends Controller
             $shelf = Shelf::firstOrCreate(
                 [
                     'row_id' => $row->id,
-                    'name' => $validated['shelf_name']
+                    'name' => $validated['shelf_name'],
                 ],
                 ['description' => null]
             );
@@ -150,13 +149,13 @@ class PhysicalLocationController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Location path created successfully: <strong>' . $box->__toString() . '</strong>');
+            return back()->with('success', 'Location path created successfully: <strong>'.$box->__toString().'</strong>');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to create location: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to create location: '.$e->getMessage()]);
         }
     }
-
 
     /**
      * Add a new Room
@@ -176,7 +175,7 @@ class PhysicalLocationController extends Controller
 
         $room = Room::create($validated);
 
-        return back()->with('success', 'Room "<strong>' . $room->name . '</strong>" created successfully.');
+        return back()->with('success', 'Room "<strong>'.$room->name.'</strong>" created successfully.');
     }
 
     /**
@@ -184,8 +183,10 @@ class PhysicalLocationController extends Controller
      */
     private function getUserDepartmentId($user)
     {
-        if (!$user) return null;
-        
+        if (! $user) {
+            return null;
+        }
+
         // If super admin, return null (global rooms)
         if ($user->can('view any role') || $user->can('view organization wide reports')) {
             return null;
@@ -193,19 +194,23 @@ class PhysicalLocationController extends Controller
 
         // 1. Direct Department Assignment (e.g. Pole Admin)
         $dept = $user->departments()->first();
-        if ($dept) return $dept->id;
+        if ($dept) {
+            return $dept->id;
+        }
 
         // 2. Service Assignment (Service -> SubDept -> Dept)
         if ($user->service_id) {
             $service = \App\Models\Service::with('subDepartment.department')->find($user->service_id);
+
             return $service?->subDepartment?->department_id;
         } elseif ($user->service) {
-             return $user->service->subDepartment?->department_id;
+            return $user->service->subDepartment?->department_id;
         }
 
         // 3. SubDepartment Assignment (SubDept -> Dept)
         if ($user->sub_department_id) {
             $sub = \App\Models\SubDepartment::find($user->sub_department_id);
+
             return $sub?->department_id;
         } elseif ($user->subDepartment) {
             return $user->subDepartment->department_id;
@@ -243,7 +248,8 @@ class PhysicalLocationController extends Controller
         ]);
 
         $room = Room::find($validated['room_id']);
-        return back()->with('success', 'Row "<strong>' . $row->name . '</strong>" added to room "<strong>' . $room->name . '</strong>" successfully.');
+
+        return back()->with('success', 'Row "<strong>'.$row->name.'</strong>" added to room "<strong>'.$room->name.'</strong>" successfully.');
     }
 
     /**
@@ -275,7 +281,8 @@ class PhysicalLocationController extends Controller
         ]);
 
         $row = Row::with('room')->find($validated['row_id']);
-        return back()->with('success', 'Shelf "<strong>' . $shelf->name . '</strong>" added to row "<strong>' . $row->name . '</strong>" in room "<strong>' . $row->room->name . '</strong>" successfully.');
+
+        return back()->with('success', 'Shelf "<strong>'.$shelf->name.'</strong>" added to row "<strong>'.$row->name.'</strong>" in room "<strong>'.$row->room->name.'</strong>" successfully.');
     }
 
     /**
@@ -286,7 +293,7 @@ class PhysicalLocationController extends Controller
         Gate::authorize('create', PhysicalLocation::class);
 
         $validated = $request->validate([
-            'service_id' => 'required|exists:services,id',
+            'service_id' => 'nullable|exists:services,id',
             'shelf_id' => 'required|exists:shelves,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -303,13 +310,14 @@ class PhysicalLocationController extends Controller
 
         $box = Box::create([
             'shelf_id' => $validated['shelf_id'],
-            'service_id' => $validated['service_id'],
+            'service_id' => $validated['service_id'] ?? null,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
         ]);
 
         $box->load('shelf.row.room');
-        return back()->with('success', 'Box "<strong>' . $box->name . '</strong>" added successfully. Path: <strong>' . $box->__toString() . '</strong>');
+
+        return back()->with('success', 'Box "<strong>'.$box->name.'</strong>" added successfully. Path: <strong>'.$box->__toString().'</strong>');
     }
 
     public function bulkAddBoxes(Request $request)
@@ -317,7 +325,7 @@ class PhysicalLocationController extends Controller
         Gate::authorize('create', PhysicalLocation::class);
 
         $validated = $request->validate([
-            'service_id' => 'required|exists:services,id',
+            'service_id' => 'nullable|exists:services,id',
             'shelf_id' => 'required|exists:shelves,id',
             'prefix' => 'nullable|string|max:120',
             'start_number' => 'required|integer|min:0',
@@ -349,7 +357,7 @@ class PhysicalLocationController extends Controller
         $toCreate = [];
         for ($i = $start; $i <= $end; $i++) {
             $number = str_pad((string) $i, $padding, '0', STR_PAD_LEFT);
-            $name = trim($prefix . ($separator !== '' ? $separator : '') . $number);
+            $name = trim($prefix.($separator !== '' ? $separator : '').$number);
             $lookup = mb_strtolower($name);
             if (isset($existingLookup[$lookup])) {
                 continue;
@@ -357,7 +365,7 @@ class PhysicalLocationController extends Controller
             $existingLookup[$lookup] = true;
             $toCreate[] = [
                 'shelf_id' => (int) $validated['shelf_id'],
-                'service_id' => (int) $validated['service_id'],
+                'service_id' => isset($validated['service_id']) ? (int) $validated['service_id'] : null,
                 'name' => $name,
                 'description' => $description,
                 'created_at' => now(),
@@ -418,6 +426,7 @@ class PhysicalLocationController extends Controller
             $lineNumber = $lineIndex + 1;
             if ($roomName === '' || $rowName === '' || $shelfName === '' || $boxName === '') {
                 $errors[] = __('Ligne :line: room,row,shelf,box_name sont obligatoires.', ['line' => $lineNumber]);
+
                 continue;
             }
 
@@ -432,8 +441,9 @@ class PhysicalLocationController extends Controller
                 }
             }
 
-            if (! $serviceId || ! \App\Models\Service::query()->whereKey($serviceId)->exists()) {
-                $errors[] = __('Ligne :line: service introuvable (ou manquant).', ['line' => $lineNumber]);
+            if ($serviceId !== null && ! \App\Models\Service::query()->whereKey($serviceId)->exists()) {
+                $errors[] = __('Ligne :line: service introuvable.', ['line' => $lineNumber]);
+
                 continue;
             }
 
@@ -515,7 +525,9 @@ class PhysicalLocationController extends Controller
 
                 Box::create([
                     'shelf_id' => $shelf->id,
-                    'service_id' => (int) $rowData['service_id'],
+                    'service_id' => isset($rowData['service_id']) && $rowData['service_id'] !== '' && $rowData['service_id'] !== null
+                        ? (int) $rowData['service_id']
+                        : null,
                     'name' => $boxName,
                     'description' => $rowData['description'] ?? null,
                 ]);
@@ -528,6 +540,7 @@ class PhysicalLocationController extends Controller
             return back()->with('success', __('Import terminé: :count boîtes créées.', ['count' => $created]));
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return back()->withErrors(['error' => __('Import annulé (rollback): :message', ['message' => $e->getMessage()])]);
         }
     }
@@ -541,7 +554,7 @@ class PhysicalLocationController extends Controller
         Gate::authorize('create', PhysicalLocation::class);
 
         $validated = $request->validate([
-            'service_id' => 'required|exists:services,id',
+            'service_id' => 'nullable|exists:services,id',
             'room_name' => 'required|string|max:255',
             'row_name' => 'required|string|max:255',
             'shelf_name' => 'required|string|max:255',
@@ -559,17 +572,17 @@ class PhysicalLocationController extends Controller
 
             // Find or create the new path structure
             $room = Room::firstOrCreate(['name' => $validated['room_name']], [
-                'department_id' => $this->getUserDepartmentId(auth()->user())
+                'department_id' => $this->getUserDepartmentId(auth()->user()),
             ]);
-            
+
             $row = Row::firstOrCreate([
                 'room_id' => $room->id,
-                'name' => $validated['row_name']
+                'name' => $validated['row_name'],
             ]);
-            
+
             $shelf = Shelf::firstOrCreate([
                 'row_id' => $row->id,
-                'name' => $validated['shelf_name']
+                'name' => $validated['shelf_name'],
             ]);
 
             // Check if a box with this name already exists in the target shelf (excluding current box)
@@ -580,13 +593,14 @@ class PhysicalLocationController extends Controller
 
             if ($existingBox) {
                 DB::rollBack();
+
                 return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
             }
 
             // Move the box to the new shelf and update details
             $box->update([
                 'shelf_id' => $shelf->id,
-                'service_id' => $validated['service_id'],
+                'service_id' => $validated['service_id'] ?? null,
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
             ]);
@@ -595,18 +609,18 @@ class PhysicalLocationController extends Controller
             if ($oldShelf->id !== $shelf->id) {
                 // Refresh to get current state
                 $oldShelf->refresh();
-                
+
                 // If old shelf is now empty, delete it
                 if ($oldShelf->boxes()->count() === 0) {
                     $shelfId = $oldShelf->id;
                     $oldShelf->delete();
-                    
+
                     // Check if old row is now empty
                     $oldRow->refresh();
                     if ($oldRow->shelves()->count() === 0) {
                         $rowId = $oldRow->id;
                         $oldRow->delete();
-                        
+
                         // Check if old room is now empty
                         $oldRoom->refresh();
                         if ($oldRoom->rows()->count() === 0) {
@@ -617,15 +631,16 @@ class PhysicalLocationController extends Controller
             }
 
             DB::commit();
+
             return back()->with('success', 'Box updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             // Check if it's a duplicate entry error (in case we missed something)
             if (str_contains($e->getMessage(), '1062') || str_contains($e->getMessage(), 'Duplicate entry')) {
                 return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
             }
-            
+
             return back()->withErrors(['error' => ui_t('errors.physical_location.box_update_failed')]);
         }
     }
@@ -667,31 +682,34 @@ class PhysicalLocationController extends Controller
             // Manually delete items to ensure consistency
             foreach ($room->rows as $row) {
                 foreach ($row->shelves as $shelf) {
-                     $shelf->boxes()->delete();
-                     $shelf->delete();
+                    $shelf->boxes()->delete();
+                    $shelf->delete();
                 }
                 $row->delete();
             }
             $room->delete();
 
             DB::commit();
+
             return back()->with('success', ui_t('messages.physical_location.room_deleted') ?? 'Room and all its contents deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to delete room: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to delete room: '.$e->getMessage()]);
         }
     }
-
 
     public function export()
     {
         Gate::authorize('viewAny', PhysicalLocation::class);
-        return Excel::download(new PhysicalLocationsExport(), 'physical-locations-report-' . now()->format('Ymd_His') . '.xlsx');
+
+        return Excel::download(new PhysicalLocationsExport, 'physical-locations-report-'.now()->format('Ymd_His').'.xlsx');
     }
 
     public function exportFiles(PhysicalLocation $physicalLocation)
     {
         Gate::authorize('viewAny', PhysicalLocation::class);
-        return Excel::download(new PhysicalLocationFilesExport($physicalLocation), 'location-' . $physicalLocation->id . '-files-' . now()->format('Ymd_His') . '.xlsx');
+
+        return Excel::download(new PhysicalLocationFilesExport($physicalLocation), 'location-'.$physicalLocation->id.'-files-'.now()->format('Ymd_His').'.xlsx');
     }
 }

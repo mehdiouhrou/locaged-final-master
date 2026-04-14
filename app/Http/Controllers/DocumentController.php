@@ -578,10 +578,12 @@ class DocumentController extends Controller
         // Only show boxes that belong to the document's service, and their parent locations
         $serviceId = $document->service_id;
 
-        // Get all boxes for this service
+        // Boxes for this service plus shared boxes (no service assignment)
         $serviceBoxes = $serviceId
             ? \App\Models\Box::with('shelf.row.room')
-                ->where('service_id', $serviceId)
+                ->where(function ($q) use ($serviceId) {
+                    $q->where('service_id', $serviceId)->orWhereNull('service_id');
+                })
                 ->orderBy('name')
                 ->get()
             : \App\Models\Box::with('shelf.row.room')->orderBy('name')->get();

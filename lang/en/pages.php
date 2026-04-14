@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 return [
@@ -71,7 +72,7 @@ return [
         ],
         'empty' => 'No documents found matching your criteria.',
     ],
-'activity' => [
+    'activity' => [
         'cards' => [
             'total_logs' => 'Total Logs',
             'todays_logs' => "Today's Logs",
@@ -186,8 +187,12 @@ return [
         'shelf_help' => 'Enter the shelf name',
         'box_placeholder' => 'e.g., Box 1',
         'box_help' => 'Enter the box name',
+        'service_optional_checkbox' => 'Box not linked to any service (shared location)',
+        'service_optional_help' => 'Check this to leave the box unassigned. Otherwise pick a service below.',
+        'select_service_optional' => '— Select a service (optional) —',
+        'service_shared_badge' => 'Shared',
     ],
-'structures_page' => [
+    'structures_page' => [
         'title' => 'Poles',
         'manage' => 'Manage Poles',
         'add' => 'Add Pole',
@@ -521,7 +526,7 @@ return [
         'edit' => 'Edit',
         'delete' => 'Delete',
     ],
-'dashboard' => [
+    'dashboard' => [
         'welcome' => 'Welcome',
         'overview' => 'Overview',
         'donut' => [
@@ -603,7 +608,7 @@ return [
         'are_you_sure' => 'Are you sure?',
         'cannot_undo' => 'This action cannot be undone.',
     ],
- 'upload' => [
+    'upload' => [
         'upload_file' => 'Upload File',
         'drag_drop_here' => 'Drag and drop the file here',
         'drag_drop' => 'Drag and drop the file here',
@@ -629,7 +634,7 @@ return [
         'enter_tags_comma' => 'Enter tags separated by commas',
         'select_room_first' => '— Select Room —',
         'select_row_first' => '— Select Row —',
-        'select_shelf_first' =>  '— Select Shelf —',
+        'select_shelf_first' => '— Select Shelf —',
         'select_box_first' => '— Select Box —',
         'show_metadata' => 'Show metadata',
         'save' => 'Save',
@@ -654,13 +659,13 @@ return [
         'creation_date' => 'Creation Date',
         'expire_date' => 'Expire Date',
         'expiry_hint' => 'Calculated from category (:value :unit) based on today',
-'select_subcategory_hint' => 'Select a category to auto-calculate expiry.',
+        'select_subcategory_hint' => 'Select a category to auto-calculate expiry.',
         'select_service_first' => 'Select a service to unlock categories.',
         'select_category_first' => 'Select a category to unlock subcategories.',
         'tags' => 'Tags',
         'add_new_tags' => 'Add New Tags',
         'new_tags_placeholder' => 'e.g., finance, urgent',
-'new_tags_hint' => 'Type tags separated by commas, they will be created.',
+        'new_tags_hint' => 'Type tags separated by commas, they will be created.',
         'physical_location' => 'Physical file location',
         'room' => 'Room',
         'row' => 'Row',
@@ -797,7 +802,7 @@ return [
             'remove' => 'Unfavorite',
             'label' => 'Favorite',
         ],
-'status' => [
+        'status' => [
             'approved' => 'Approved',
             'pending' => 'Pending',
             'declined' => 'Declined',
@@ -921,5 +926,3 @@ return [
         ],
     ],
 ];
-
-
