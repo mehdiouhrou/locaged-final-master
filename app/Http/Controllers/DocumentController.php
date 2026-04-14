@@ -11,6 +11,7 @@ use App\Models\DocumentVersion;
 use App\Models\Service;
 use App\Models\Subcategory;
 use App\Models\SubDepartment;
+use App\Services\DestructionCertificateService;
 use App\Services\PdfConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -415,6 +416,15 @@ class DocumentController extends Controller
 
         // Log the action before deletion (pass version id explicitly if available)
         $document->logAction('permanently_deleted', $latestVersion?->id);
+
+        // PV d’archivage (registre des certificats), même hors workflow « demande de destruction »
+        if ($actor = auth()->user()) {
+            try {
+                app(DestructionCertificateService::class)->issueForPermanentDeletion($document, $actor);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         // Remove from search index and delete all document versions and their files
         foreach ($document->documentVersions as $version) {

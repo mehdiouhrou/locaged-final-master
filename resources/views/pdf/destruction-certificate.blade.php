@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <h1>Procès-verbal de destruction documentaire</h1>
+    <h1>{{ !empty($manifest['permanent_deletion']) ? 'Procès-verbal de suppression définitive' : 'Procès-verbal de destruction documentaire' }}</h1>
     <p><strong>Référence PV :</strong> {{ $certificate->public_id }}</p>
     <p><strong>Date d’émission :</strong> {{ now()->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</p>
 
@@ -22,8 +22,8 @@
         <tr><th>Empreinte fichier (hash)</th><td>{{ $document->file_hash ?? '—' }}</td></tr>
         <tr><th>Pôle / département</th><td>{{ $manifest['department'] ?? '—' }}</td></tr>
         <tr><th>Service / cellule</th><td>{{ $manifest['service'] ?? '—' }}</td></tr>
-        <tr><th>Date constat destruction</th><td>{{ \Illuminate\Support\Carbon::parse($manifest['destroyed_at'])->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td></tr>
-        <tr><th>Approbateur</th><td>{{ $manifest['approved_by'] ?? '—' }}</td></tr>
+        <tr><th>{{ !empty($manifest['permanent_deletion']) ? 'Date de la suppression' : 'Date constat destruction' }}</th><td>{{ \Illuminate\Support\Carbon::parse($manifest['destroyed_at'])->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</td></tr>
+        <tr><th>{{ !empty($manifest['permanent_deletion']) ? 'Effectué par' : 'Approbateur' }}</th><td>{{ $manifest['approved_by'] ?? '—' }}</td></tr>
     </table>
 
     <p class="muted">{{ $manifest['retention_note'] ?? '' }}</p>
