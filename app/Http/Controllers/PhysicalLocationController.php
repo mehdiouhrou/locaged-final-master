@@ -73,9 +73,7 @@ class PhysicalLocationController extends Controller
         if ($documentIds->isNotEmpty()) {
             $openLoans = DocumentMovement::query()
                 ->whereIn('document_id', $documentIds->all())
-                ->where('movement_type', 'retrieval')
-                ->whereNotNull('borrowed_by_user_id')
-                ->whereNull('returned_at')
+                ->openLoan()
                 ->orderByDesc('moved_at')
                 ->get()
                 ->unique('document_id')

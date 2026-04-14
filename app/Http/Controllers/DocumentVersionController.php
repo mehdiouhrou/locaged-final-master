@@ -371,12 +371,7 @@ class DocumentVersionController extends Controller
                 ->limit(8)
                 ->get();
 
-            $currentLoan = $physicalMovements
-                ->first(function ($movement) {
-                    return $movement->movement_type === 'retrieval'
-                        && ! empty($movement->borrowed_by_user_id)
-                        && $movement->returned_at === null;
-                });
+            $currentLoan = $physicalMovements->first(fn ($movement) => $movement->isOpenLoan());
 
             return view('document-versions.preview', [
                 'fileUrl'              => $fileUrl,

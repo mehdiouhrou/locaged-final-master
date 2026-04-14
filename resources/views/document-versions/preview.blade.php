@@ -214,7 +214,7 @@
                                     @foreach($physicalMovements->take(6) as $movement)
                                         <li class="list-group-item px-0 py-2 border-0 border-bottom">
                                             <div class="fw-semibold">
-                                                @if($movement->movement_type === 'retrieval' && $movement->borrowed_by_user_id)
+                                                @if($movement->movement_type === 'retrieval' && ($movement->borrowed_by_user_id || $movement->borrower_name))
                                                     {{ __('Emprunt') }}
                                                 @elseif($movement->movement_type === 'transfer')
                                                     {{ __('Transfert') }}

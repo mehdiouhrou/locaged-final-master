@@ -7,6 +7,7 @@ use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
 use App\Services\DocumentSearchService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -37,6 +38,8 @@ class DocumentsByCategoryTable extends Component
     public $documentId = null; // Filter by specific document ID
     public $boxId = ''; // Filter by box ID (physical location)
     public $showExpired = false; // Show expired documents (from dashboard All Documents card)
+    public $physicalOnly = false; // Only documents assigned to a box (dashboard physical storage cards)
+    public $onLoanOnly = false; // Only documents with an open retrieval / borrow movement
     public $pageTitle = null; // Heading to display (from dashboard cards)
     public $hideStatusFilter = false; // Hide status filter dropdown (from dashboard cards)
     public $lockStatusFilter = false; // Lock status filter dropdown (cannot be changed)
@@ -64,6 +67,8 @@ class DocumentsByCategoryTable extends Component
         'boxId' => ['except' => '', 'as' => 'box_id'],
         'documentId' => ['except' => null, 'as' => 'document_id'],
         'showExpired' => ['except' => false, 'as' => 'show_expired'],
+        'physicalOnly' => ['except' => false, 'as' => 'physical'],
+        'onLoanOnly' => ['except' => false, 'as' => 'on_loan'],
         'pageTitle' => ['except' => null, 'as' => 'page_title'],
         'hideStatusFilter' => ['except' => false, 'as' => 'hide_status_filter'],
         'lockStatusFilter' => ['except' => false, 'as' => 'lock_status'],
@@ -98,6 +103,8 @@ class DocumentsByCategoryTable extends Component
         $this->boxId = '';
         $this->favoritesOnly = false;
         $this->ocrFilter = '';
+        $this->physicalOnly = false;
+        $this->onLoanOnly = false;
         $this->perPage = 10; // Reset to default
 
         $this->resetPage();
@@ -180,12 +187,14 @@ class DocumentsByCategoryTable extends Component
             // 1. Marked as expired (is_expired = true), OR
             // 2. Have expire_at date in the past (even if not marked yet)
             // IMPORTANT: Use regular query (not withoutGlobalScopes) to maintain security
-            $documentsQuery->where(function($expQ) {
-                $expQ->where('is_expired', true)
-                     ->orWhere(function($dateQ) {
-                         $dateQ->whereNotNull('expire_at')
-                               ->whereDate('expire_at', '<=', now());
-                     });
+            $documentsQuery->where(function ($expQ) {
+                $expQ->where(function ($dateQ) {
+                    $dateQ->whereNotNull('expire_at')
+                        ->whereDate('expire_at', '<=', now());
+                });
+                if (Schema::hasColumn('documents', 'is_expired')) {
+                    $expQ->orWhere('is_expired', true);
+                }
             });
         } elseif ($showExpiredBool === true) {
             // Dashboard "All Documents" card: show ALL documents including expired
@@ -196,11 +205,13 @@ class DocumentsByCategoryTable extends Component
             }
         } else {
             // Default: Hide expired documents (showExpired is false or not set)
-            $documentsQuery->where(function ($q) {
-                $q->where('is_expired', false)
-                  ->orWhereNull('is_expired');
-            });
-            
+            if (Schema::hasColumn('documents', 'is_expired')) {
+                $documentsQuery->where(function ($q) {
+                    $q->where('is_expired', false)
+                      ->orWhereNull('is_expired');
+                });
+            }
+
             // Apply regular status filter if set
             if ($this->status && $this->status !== 'all' && $this->status !== 'expired' && $this->status !== '') {
                 $documentsQuery->where('status', $this->status);
@@ -225,6 +236,21 @@ class DocumentsByCategoryTable extends Component
         $documentsQuery->when($this->boxId, function ($q) {
             $q->where('box_id', $this->boxId);
         });
+
+        if (filter_var($this->physicalOnly, FILTER_VALIDATE_BOOLEAN)) {
+            $documentsQuery->whereNotNull('box_id');
+        }
+
+        if (
+            filter_var($this->onLoanOnly, FILTER_VALIDATE_BOOLEAN)
+            && Schema::hasColumn('document_movements', 'borrowed_by_user_id')
+            && Schema::hasColumn('document_movements', 'borrower_name')
+            && Schema::hasColumn('document_movements', 'returned_at')
+        ) {
+            $documentsQuery->whereHas('documentMovements', function ($m) {
+                $m->openLoan();
+            });
+        }
 
         // File type filter via latest version
         $documentsQuery->when($this->fileType, function ($q) {

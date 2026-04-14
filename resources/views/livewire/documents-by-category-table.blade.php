@@ -8,7 +8,10 @@
             || $dateTo 
             || $fileType 
             || ($ocrFilter ?? '') !== ''
-            || $favoritesOnly;
+            || $favoritesOnly
+            || $physicalOnly
+            || $onLoanOnly
+            || $showExpired;
     @endphp
     @unless($hasActiveFilters)
     <div class=" d-flex justify-content-between mb-5">

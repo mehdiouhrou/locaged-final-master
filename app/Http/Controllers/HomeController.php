@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class HomeController extends Controller
@@ -26,7 +27,7 @@ class HomeController extends Controller
 
         // Paginated list of visible documents (with creator for dashboard activity strip)
         $documents = (clone $visibleDocumentsQuery)
-            ->with(['createdBy:id,full_name,name,email'])
+            ->with(['createdBy:id,full_name,email'])
             ->latest()
             ->paginate(10);
         $totalDocuments = $documents->total();
@@ -90,88 +91,19 @@ class HomeController extends Controller
         if ($user && ($user->can('approve', Document::class) || $user->can('decline', Document::class))) {
             $pendingApprovalTasks = (clone $visibleDocumentsQuery)
                 ->where('status', DocumentStatus::Pending->value)
-                ->with(['createdBy:id,full_name,name,email', 'latestVersion:id,document_id,file_path'])
+                ->with(['createdBy:id,full_name,email', 'latestVersion:id,document_id,file_path'])
                 ->latest()
                 ->limit(8)
                 ->get();
         }
 
-        // Location cards (Rooms or Boxes) based on user role
-        $user = auth()->user();
-        $isMaster = $user && $user->can('view any role');
-        $isSuperAdmin = $user && $user->can('view organization wide reports') && ! $user->can('view any role');
-
-        if ($isMaster) {
-            // MASTER: Show rooms with document counts
-            $allRooms = \App\Models\Room::orderBy('name')->get();
-            $roomToCount = [];
-
-            foreach ($allRooms as $room) {
-                // Get boxes in this room that the user has access to
-                $boxIds = \App\Models\Box::forUser($user)
-                    ->whereHas('shelf.row.room', function ($q) use ($room) {
-                        $q->where('id', $room->id);
-                    })
-                    ->pluck('id');
-
-                // Only include this room if it has boxes
-                if ($boxIds->isNotEmpty()) {
-                    $count = (clone $visibleDocumentsQuery)
-                        ->whereIn('box_id', $boxIds)
-                        ->count();
-
-                    $roomToCount[$room->name] = $count;
-                }
-            }
-
-            $roomCards = collect($roomToCount)->map(function ($count, $room) {
-                return [
-                    'type' => 'room',
-                    'room' => $room,
-                    'count' => $count,
-                ];
-            })->values();
-        } elseif ($isSuperAdmin) {
-            // SUPER ADMIN: Show all boxes with document counts
-            $boxes = \App\Models\Box::with(['shelf.row.room'])
-                ->orderBy('name')
-                ->get();
-
-            $roomCards = $boxes->map(function ($box) use ($visibleDocumentsQuery) {
-                $count = (clone $visibleDocumentsQuery)->where('box_id', $box->id)->count();
-
-                return [
-                    'type' => 'box',
-                    'id' => $box->id,
-                    'name' => $box->name,
-                    'full_path' => $box->__toString(),
-                    'count' => $count,
-                ];
-            })->filter(fn ($b) => $b['count'] > 0)->values();
-        } else {
-            // OTHER USERS: Show service-filtered boxes
-            $boxes = \App\Models\Box::forUser($user)
-                ->with(['shelf.row.room'])
-                ->orderBy('name')
-                ->get();
-
-            $roomCards = $boxes->map(function ($box) use ($visibleDocumentsQuery) {
-                $count = (clone $visibleDocumentsQuery)->where('box_id', $box->id)->count();
-
-                return [
-                    'type' => 'box',
-                    'id' => $box->id,
-                    'name' => $box->name,
-                    'full_path' => $box->__toString(),
-                    'count' => $count,
-                ];
-            })->filter(fn ($b) => $b['count'] > 0)->values();
-        }
+        // Physical storage: documents with a box, broken down by status / loans (click-through to list)
+        $physicalStorageCards = $this->buildPhysicalStorageStatusCards($visibleDocumentsQuery);
 
         return view('home.index', compact(
             'totalDocuments', 'documents', 'categories',
             'weeklyData', 'monthlyData', 'yearlyData', 'statusSummary',
-            'documentTypeStats', 'roomCards', 'donutChartData', 'pendingApprovalTasks'
+            'documentTypeStats', 'physicalStorageCards', 'donutChartData', 'pendingApprovalTasks'
         ));
     }
 
@@ -942,6 +874,106 @@ class HomeController extends Controller
         ]);
     }
 
+    /**
+     * Dashboard cards: physically stored documents (box assigned), by status and open loans.
+     *
+     * @return Collection<int, array{key: string, label: string, count: int, url: string}>
+     */
+    private function buildPhysicalStorageStatusCards(Builder $visibleDocumentsQuery): Collection
+    {
+        $physical = (clone $visibleDocumentsQuery)->whereNotNull('box_id');
+
+        $base = [
+            'physical' => 1,
+            'show_expired' => 1,
+        ];
+
+        $borrowedCount = 0;
+        if (
+            Schema::hasColumn('document_movements', 'borrowed_by_user_id')
+            && Schema::hasColumn('document_movements', 'borrower_name')
+            && Schema::hasColumn('document_movements', 'returned_at')
+        ) {
+            $borrowedCount = (clone $physical)->whereHas('documentMovements', function ($m) {
+                $m->openLoan();
+            })->count();
+        }
+
+        $expiredPhysicalCount = (clone $physical)->where(function ($w) {
+            $w->where(function ($d) {
+                $d->whereNotNull('expire_at')
+                    ->whereDate('expire_at', '<=', now());
+            });
+            if (Schema::hasColumn('documents', 'is_expired')) {
+                $w->orWhere('is_expired', true);
+            }
+        })->count();
+
+        $definitions = [
+            [
+                'key' => 'total',
+                'label' => __('pages.dashboard.physical_storage.total'),
+                'count' => (clone $physical)->count(),
+                'params' => array_merge($base, ['page_title' => 'physical_all']),
+            ],
+            [
+                'key' => 'approved',
+                'label' => __('pages.dashboard.physical_storage.approved'),
+                'count' => (clone $physical)->where('status', DocumentStatus::Approved->value)->count(),
+                'params' => array_merge($base, [
+                    'status' => DocumentStatus::Approved->value,
+                    'hide_status_filter' => 1,
+                    'page_title' => 'physical_approved',
+                ]),
+            ],
+            [
+                'key' => 'pending',
+                'label' => __('pages.dashboard.physical_storage.pending'),
+                'count' => (clone $physical)->where('status', DocumentStatus::Pending->value)->count(),
+                'params' => array_merge($base, [
+                    'status' => DocumentStatus::Pending->value,
+                    'hide_status_filter' => 1,
+                    'page_title' => 'physical_pending',
+                ]),
+            ],
+            [
+                'key' => 'declined',
+                'label' => __('pages.dashboard.physical_storage.declined'),
+                'count' => (clone $physical)->where('status', DocumentStatus::Declined->value)->count(),
+                'params' => array_merge($base, [
+                    'status' => DocumentStatus::Declined->value,
+                    'hide_status_filter' => 1,
+                    'page_title' => 'physical_declined',
+                ]),
+            ],
+            [
+                'key' => 'borrowed',
+                'label' => __('pages.dashboard.physical_storage.borrowed'),
+                'count' => $borrowedCount,
+                'params' => array_merge($base, [
+                    'on_loan' => 1,
+                    'page_title' => 'physical_borrowed',
+                ]),
+            ],
+            [
+                'key' => 'expired',
+                'label' => __('pages.dashboard.physical_storage.expired'),
+                'count' => $expiredPhysicalCount,
+                'params' => array_merge($base, [
+                    'status' => 'expired',
+                    'page_title' => 'physical_expired',
+                ]),
+            ],
+        ];
+
+        return collect($definitions)->map(function (array $row) {
+            $row['url'] = route('documents.all', $row['params']);
+            unset($row['params']);
+
+            return $row;
+        });
+    }
+
     private function getStatusSummary()
     {
         $statusCounts = $this->getVisibleDocumentsQuery()
@@ -1093,13 +1125,18 @@ class HomeController extends Controller
      */
     private function sqlEnglishDayName(string $column): string
     {
-        return match (DB::connection()->getDriverName()) {
+        $driver = strtolower((string) DB::connection()->getDriverName());
+
+        return match ($driver) {
             'mysql', 'mariadb' => "DAYNAME({$column})",
             'sqlite' => "CASE CAST(strftime('%w', {$column}) AS INTEGER)
                 WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday'
                 WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' WHEN 6 THEN 'Saturday' END",
             'pgsql' => "(ARRAY['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'])[CAST(EXTRACT(DOW FROM {$column}) AS INTEGER) + 1]",
-            default => "DAYNAME({$column})",
+            // Fallback: SQLite-style (avoids DAYNAME on drivers that do not support it, e.g. local sqlite)
+            default => "CASE CAST(strftime('%w', {$column}) AS INTEGER)
+                WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday'
+                WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' WHEN 6 THEN 'Saturday' END",
         };
     }
 
@@ -1108,11 +1145,13 @@ class HomeController extends Controller
      */
     private function sqlYearMonth(string $column): string
     {
-        return match (DB::connection()->getDriverName()) {
+        $driver = strtolower((string) DB::connection()->getDriverName());
+
+        return match ($driver) {
             'mysql', 'mariadb' => "DATE_FORMAT({$column}, '%Y-%m')",
             'sqlite' => "strftime('%Y-%m', {$column})",
             'pgsql' => "to_char({$column}, 'YYYY-MM')",
-            default => "DATE_FORMAT({$column}, '%Y-%m')",
+            default => "strftime('%Y-%m', {$column})",
         };
     }
 
@@ -1121,11 +1160,13 @@ class HomeController extends Controller
      */
     private function sqlYear(string $column): string
     {
-        return match (DB::connection()->getDriverName()) {
+        $driver = strtolower((string) DB::connection()->getDriverName());
+
+        return match ($driver) {
             'mysql', 'mariadb' => "YEAR({$column})",
             'sqlite' => "CAST(strftime('%Y', {$column}) AS INTEGER)",
             'pgsql' => "CAST(EXTRACT(YEAR FROM {$column}) AS INTEGER)",
-            default => "YEAR({$column})",
+            default => "CAST(strftime('%Y', {$column}) AS INTEGER)",
         };
     }
 

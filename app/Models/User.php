@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\Branding;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -64,6 +65,15 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Display name for code that expects Laravel's conventional `name` attribute.
+     * The database column is `full_name`.
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->attributes['full_name'] ?? null);
     }
 
     protected $with = ['roles'];

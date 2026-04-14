@@ -60,9 +60,7 @@ class DocumentMovementController extends Controller
 
         $openLoan = DocumentMovement::query()
             ->where('document_id', $document->id)
-            ->where('movement_type', 'retrieval')
-            ->whereNotNull('borrowed_by_user_id')
-            ->whereNull('returned_at')
+            ->openLoan()
             ->latest('moved_at')
             ->first();
 
@@ -118,9 +116,7 @@ class DocumentMovementController extends Controller
 
         $openLoan = DocumentMovement::query()
             ->where('document_id', $document->id)
-            ->where('movement_type', 'retrieval')
-            ->whereNotNull('borrowed_by_user_id')
-            ->whereNull('returned_at')
+            ->openLoan()
             ->latest('moved_at')
             ->first();
 

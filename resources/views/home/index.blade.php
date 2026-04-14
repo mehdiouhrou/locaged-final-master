@@ -65,13 +65,13 @@
             </div>
         </div>
 
-        <!-- Types + salles -->
+        <!-- Types + stockage physique (statuts) -->
         <div class="row g-4 align-items-stretch mt-1">
             <div class="col-lg-6 col-md-12 d-flex">
                 <div class="w-100">@include('components.doc-types-donut')</div>
             </div>
             <div class="col-lg-6 col-md-12 d-flex">
-                <div class="w-100">@include('components.rooms-cards')</div>
+                <div class="w-100">@include('components.physical-storage-status-cards')</div>
             </div>
         </div>
 

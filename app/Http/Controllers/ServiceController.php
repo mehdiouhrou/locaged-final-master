@@ -47,7 +47,8 @@ class ServiceController extends Controller
                 }
                 $targetSubDepartmentId = $subDept->id;
             }
-        } elseif (! $hasGlobalOrgAccess) {
+        } else {
+            // Tous les autres rôles (y compris accès org. global) : autorisation + rattachement sous-structure.
             Gate::authorize('create', Service::class);
 
             if ($scopeType === 'direct') {

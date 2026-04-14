@@ -4,9 +4,11 @@
 
 namespace App\Jobs;
 
+use App\Models\DocumentVersion;
 use App\Models\OcrJob;
 use App\Services\OcrService;
 use Exception;
+use Throwable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -51,22 +53,27 @@ class ProcessOcrJob implements ShouldQueue
                 throw new Exception('Document version not found.');
             }
 
-            $path = Storage::disk('local')->path($docVersion->file_path);
-            Log::info("Processing file at path", ['path' => $path]);
-
-            if (! file_exists($path)) {
-                throw new Exception('Document file not found.');
-            }
+            $path = $this->absolutePathForVersionFile($docVersion);
+            Log::info('Processing file at path', ['path' => $path]);
 
             $ocrText = $ocrService->extractText($path);
 
             $docVersion->update(['ocr_text' => $ocrText]);
 
-            $docVersion->searchable();
+            try {
+                $docVersion->searchable();
+            } catch (Throwable $e) {
+                Log::warning('OCR finished but search index sync failed (document text was saved)', [
+                    'ocr_job_id' => $this->ocrJob->id,
+                    'document_version_id' => $docVersion->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             $this->ocrJob->update([
                 'status' => OcrJob::STATUS_COMPLETED,
                 'completed_at' => now(),
+                'error_message' => null,
             ]);
             Log::info("OCR Job completed successfully", ['ocr_job_id' => $this->ocrJob->id]);
 
@@ -93,6 +100,32 @@ class ProcessOcrJob implements ShouldQueue
             
             throw $e; // Re-throw to trigger retry mechanism
         }
+    }
+
+    /**
+     * Resolve the absolute filesystem path for a version file (uploads may live on local or public disk).
+     */
+    private function absolutePathForVersionFile(DocumentVersion $documentVersion): string
+    {
+        $relative = $documentVersion->file_path;
+        if ($relative === null || $relative === '') {
+            throw new Exception('Document version has no file_path.');
+        }
+
+        foreach (['local', 'public'] as $diskName) {
+            $disk = Storage::disk($diskName);
+            if ($disk->exists($relative)) {
+                return $disk->path($relative);
+            }
+        }
+
+        if (Storage::exists($relative)) {
+            return Storage::path($relative);
+        }
+
+        throw new Exception(
+            'Document file not found in storage (checked disks: local, public, default). Path: '.$relative
+        );
     }
 
 }

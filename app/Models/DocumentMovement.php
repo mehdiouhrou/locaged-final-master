@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -77,6 +78,41 @@ class DocumentMovement extends Model
     public function returnedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'returned_by_user_id');
+    }
+
+    /**
+     * Mouvements de type emprunt physique encore actifs (non retournés).
+     * Inclut les emprunts avec utilisateur interne ou avec seulement borrower_name (externe).
+     */
+    public function scopeOpenLoan(Builder $query): Builder
+    {
+        return $query->where('movement_type', 'retrieval')
+            ->whereNull('returned_at')
+            ->where(function (Builder $q) {
+                $q->whereNotNull('borrowed_by_user_id')
+                    ->orWhere(function (Builder $inner) {
+                        $inner->whereNotNull('borrower_name')
+                            ->where('borrower_name', '!=', '');
+                    });
+            });
+    }
+
+    /**
+     * True if this movement is an active physical loan (same rules as {@see scopeOpenLoan}).
+     */
+    public function isOpenLoan(): bool
+    {
+        if ($this->movement_type !== 'retrieval' || $this->returned_at !== null) {
+            return false;
+        }
+
+        if ($this->borrowed_by_user_id !== null) {
+            return true;
+        }
+
+        $name = trim((string) ($this->borrower_name ?? ''));
+
+        return $name !== '';
     }
 
     public function __toString()

@@ -10,9 +10,10 @@ use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\Service;
 use App\Services\DocumentSearchService;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithPagination;
 use ZipArchive;
@@ -235,7 +236,7 @@ class DocumentsTable extends Component
 
         // Hide expired documents by default (unless explicitly filtered for "expired")
         // Only show expired documents when user selects the "expired" status filter
-        if ($this->status !== 'expired') {
+        if ($this->status !== 'expired' && Schema::hasColumn('documents', 'is_expired')) {
             $documentsQuery->where(function ($q) {
                 $q->where('is_expired', false)
                   ->orWhereNull('is_expired');
@@ -287,12 +288,14 @@ class DocumentsTable extends Component
                     // Show documents that are either:
                     // 1. Marked as expired (is_expired = true)
                     // 2. OR have expire_at date in the past (even if not marked yet)
-                    $q->where(function($expQ) {
-                        $expQ->where('is_expired', true)
-                             ->orWhere(function($dateQ) {
-                                 $dateQ->whereNotNull('expire_at')
-                                       ->whereDate('expire_at', '<=', now());
-                             });
+                    $q->where(function ($expQ) {
+                        $expQ->where(function ($dateQ) {
+                            $dateQ->whereNotNull('expire_at')
+                                ->whereDate('expire_at', '<=', now());
+                        });
+                        if (Schema::hasColumn('documents', 'is_expired')) {
+                            $expQ->orWhere('is_expired', true);
+                        }
                     });
                 } else {
                     $q->where('status', $this->status);
