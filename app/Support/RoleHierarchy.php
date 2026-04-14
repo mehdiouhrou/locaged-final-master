@@ -16,13 +16,18 @@ class RoleHierarchy
         'master' => 999,                 // platform owner
         'super administrator' => 100,    // general direction
         'super_admin' => 100,            // legacy alias, if ever used
+        'direction' => 96,               // direction client (documents + audit, sans gestion)
+        'it admin' => 94,
         'admin' => 90,                   // legacy admin role
 
         // New canonical role names
+        'chef de pôle' => 82,
         'admin de pole' => 80,
         'admin de departments' => 75,
         'admin de cellule' => 70,
+        'approbateur' => 65,
         'user' => 60,                    // service-level user
+        'agent' => 58,
 
         // Backward-compatibility aliases for older role names
         'department administrator' => 80,

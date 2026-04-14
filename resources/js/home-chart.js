@@ -12,7 +12,6 @@ if (chartEl) {
     const ctx = chartEl.getContext('2d');
     const approvedLabel = chartEl.dataset.approvedLabel || 'Approved';
     const pendingLabel = chartEl.dataset.pendingLabel || 'Pending';
-    const declinedLabel = chartEl.dataset.declinedLabel || 'Declined';
     const expiredLabel = chartEl.dataset.expiredLabel || 'Expired';
 
 
@@ -42,7 +41,6 @@ if (chartEl) {
             datasets: [
                 { label: approvedLabel, data: getData(monthlyData, 'approved', 8), backgroundColor: '#cc2929', borderRadius: 6, barThickness: 12 },
                 { label: pendingLabel, data: getData(monthlyData, 'pending', 8), backgroundColor: '#f59e0b', borderRadius: 6, barThickness: 12 },
-                { label: declinedLabel, data: getData(monthlyData, 'declined', 8), backgroundColor: '#94a3b8', borderRadius: 6, barThickness: 12 },
                 { label: expiredLabel, data: getData(monthlyData, 'expired', 8), backgroundColor: '#64748b', borderRadius: 6, barThickness: 12 }
             ]
         },
@@ -147,8 +145,7 @@ if (chartEl) {
             chart.data.labels = labels;
             chart.data.datasets[0].data = getData(dataSource, 'approved', dataLength);
             chart.data.datasets[1].data = getData(dataSource, 'pending', dataLength);
-            chart.data.datasets[2].data = getData(dataSource, 'declined', dataLength);
-            chart.data.datasets[3].data = getData(dataSource, 'expired', dataLength);
+            chart.data.datasets[2].data = getData(dataSource, 'expired', dataLength);
 
             chart.update();
         });

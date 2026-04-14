@@ -58,12 +58,6 @@
                         <span class="sidebar-text">{{ ui_t('nav.all_documents') }}</span>
                     </a>
                 </li>
-                <li class="mt-2">
-                    <a href="{{ route('documents.kanban') }}" class="{{ request()->routeIs('documents.kanban') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/document-text.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ __('Kanban') }}</span>
-                    </a>
-                </li>
                 @endcan
                 {{-- Optional: versions page kept hidden for now
                 @can('viewAny', \App\Models\DocumentVersion::class)
@@ -94,6 +88,17 @@
                 <span class="sidebar-text">{{ __('Fil d’événements') }}</span>
             </a>
         </li>
+
+        @can('viewAny', \App\Models\PhysicalLocation::class)
+            @if(! $u->can('access management sidebar'))
+                <li class="mt-1">
+                    <a href="{{ route('physical-locations.index') }}" class="{{ request()->routeIs('physical-locations.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/Flags.svg') }}" class="me-3" />
+                        <span class="sidebar-text">{{ ui_t('nav.physical_location') }}</span>
+                    </a>
+                </li>
+            @endif
+        @endcan
 
         @php
             $myCategories = $sidebarMyCategories['items'] ?? [];

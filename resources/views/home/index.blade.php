@@ -17,9 +17,6 @@
                     <a href="{{ route('documents.all') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
                         <i class="fa-solid fa-folder-open me-1 opacity-75" aria-hidden="true"></i>{{ ui_t('nav.all_documents') }}
                     </a>
-                    <a href="{{ route('documents.kanban') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
-                        <i class="fa-solid fa-table-columns me-1 opacity-75" aria-hidden="true"></i>{{ __('Kanban') }}
-                    </a>
                 @endcan
                 @canany(['approve', 'decline'], \App\Models\Document::class)
                     <a href="{{ route('documents.status') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">

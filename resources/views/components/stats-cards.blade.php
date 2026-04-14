@@ -58,19 +58,19 @@
     </a>
 
 
-    <a href="{{ route('documents.all', ['status' => \App\Enums\DocumentStatus::Declined->value, 'page_title' => 'declined_documents', 'show_expired' => 1, 'hide_status_filter' => 1]) }}" class="text-decoration-none text-reset">
+    <a href="{{ route('documents.all', ['status' => 'expired', 'page_title' => 'expired_documents', 'show_expired' => 1, 'hide_status_filter' => 1, 'lock_status' => 1]) }}" class="text-decoration-none text-reset">
     <div class="stat-card yellow">
         <div class="stat-icon">
-            <i class="fa-solid fa-user-group"></i>
+            <i class="fa-solid fa-calendar-xmark"></i>
         </div>
         <div class="stat-content">
             <div class="d-flex justify-content-between">
-                <h3>{{ $statusSummary['declined'] }}</h3>
+                <h3>{{ $statusSummary['expired'] ?? 0 }}</h3>
                 {{--  <span class="stat-change"
                   >+11.01% <i class="fa-solid fa-arrow-trend-up"></i
                       ></span>--}}
             </div>
-            <p>{{ ui_t('pages.stats.declined') }}</p>
+            <p>{{ ui_t('pages.stats.expired') }}</p>
         </div>
     </div>
     </a>

@@ -21,7 +21,6 @@
                     data-yearly='@json($yearlyData)'
                     data-approved-label="{{ ui_t('pages.chart.approved') }}"
                     data-pending-label="{{ ui_t('pages.chart.pending') }}"
-                    data-declined-label="{{ ui_t('pages.chart.rejected') }}"
                     data-expired-label="{{ ui_t('pages.chart.expired') }}"
                     @php
                         $dayNames = [
@@ -80,19 +79,7 @@
                             </div>
                             <span class="fw-semibold">{{ $statusSummary['pending'] }}</span>
                         </li>
-                        <li
-                            class="d-flex justify-content-between align-items-center"
-                        >
-                            <div class="d-flex align-items-center gap-2">
-                                <span
-                                    class="rounded-circle d-inline-block"
-                                    style="width: 10px; height: 10px; background-color: #94a3b8"
-                                ></span>
-                                <span>{{ ui_t('pages.chart.rejected') }}</span>
-                            </div>
-                            <span class="fw-semibold">{{ $statusSummary['declined'] }}</span>
-                        </li>
-                        <li class="d-flex justify-content-between align-items-center mt-2">
+                        <li class="d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="rounded-circle d-inline-block" style="width: 10px; height: 10px; background-color: #64748b"></span>
                                 <span>{{ ui_t('pages.chart.expired') }}</span>

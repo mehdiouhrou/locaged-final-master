@@ -364,14 +364,19 @@ class DocumentVersionController extends Controller
             $rooms = Room::with(['rows.shelves.boxes'])->get();
             $tags = Tag::all(); // Tags are generally accessible
 
+            $movementRelations = ['movedBy:id,full_name', 'borrowedBy:id,full_name', 'returnedBy:id,full_name', 'movedFromBox', 'movedToBox'];
+
             $physicalMovements = DocumentMovement::query()
-                ->with(['movedBy:id,full_name', 'borrowedBy:id,full_name', 'returnedBy:id,full_name', 'movedFromBox', 'movedToBox'])
+                ->with($movementRelations)
                 ->where('document_id', $document->id)
                 ->latest('moved_at')
+                ->latest('id')
                 ->limit(8)
                 ->get();
 
-            $currentLoan = $physicalMovements->first(fn ($movement) => $movement->isOpenLoan());
+            // Ne pas déduire l'emprunt actif depuis les 8 derniers mouvements seuls : un emprunt
+            // ouvert peut être au-delà de cette fenêtre et le bandeau restait « Disponible ».
+            $currentLoan = $document->currentOpenLoan();
 
             return view('document-versions.preview', [
                 'fileUrl'              => $fileUrl,

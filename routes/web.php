@@ -70,7 +70,6 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Approvals page: access controlled by policy (approve/decline Document)
     Route::get('/documents/status', [DocumentController::class, 'showStatus'])->name('documents.status');
-    Route::view('/documents/kanban', 'documents.kanban')->name('documents.kanban');
     Route::redirect('/activity-feed', '/notifications')->name('activity.feed');
 
     // Profile route: allow any authenticated user to view their own profile

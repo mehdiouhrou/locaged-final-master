@@ -12,22 +12,30 @@ class AddExpiredChartLabelTranslationSeeder extends Seeder
      */
     public function run(): void
     {
-        $translation = [
-            'key' => 'pages.chart.expired',
-            'en_text' => 'Expired',
-            'fr_text' => 'Expiré',
-            'ar_text' => 'منتهي الصلاحية',
-        ];
-
-        UiTranslation::updateOrCreate(
-            ['key' => $translation['key']],
+        foreach ([
             [
-                'en_text' => $translation['en_text'],
-                'fr_text' => $translation['fr_text'],
-                'ar_text' => $translation['ar_text'],
-            ]
-        );
+                'key' => 'pages.chart.expired',
+                'en_text' => 'Expired',
+                'fr_text' => 'Expirés',
+                'ar_text' => 'منتهية',
+            ],
+            [
+                'key' => 'pages.stats.expired',
+                'en_text' => 'Expired',
+                'fr_text' => 'Expirés',
+                'ar_text' => 'منتهية',
+            ],
+        ] as $translation) {
+            UiTranslation::updateOrCreate(
+                ['key' => $translation['key']],
+                [
+                    'en_text' => $translation['en_text'],
+                    'fr_text' => $translation['fr_text'],
+                    'ar_text' => $translation['ar_text'],
+                ]
+            );
+        }
 
-        $this->command->info('Expired chart label translation added successfully.');
+        $this->command->info('Expired chart and stats KPI translations updated.');
     }
 }

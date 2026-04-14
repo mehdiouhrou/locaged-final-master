@@ -16,7 +16,6 @@
             'total' => "\u{1F4E6}",
             'approved' => "\u{2705}",
             'pending' => "\u{23F3}",
-            'declined' => "\u{274C}",
             'borrowed' => "\u{1F4E4}",
             'expired' => "\u{23F0}",
             default => "\u{1F4C4}",

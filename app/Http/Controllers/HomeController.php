@@ -937,16 +937,6 @@ class HomeController extends Controller
                 ]),
             ],
             [
-                'key' => 'declined',
-                'label' => __('pages.dashboard.physical_storage.declined'),
-                'count' => (clone $physical)->where('status', DocumentStatus::Declined->value)->count(),
-                'params' => array_merge($base, [
-                    'status' => DocumentStatus::Declined->value,
-                    'hide_status_filter' => 1,
-                    'page_title' => 'physical_declined',
-                ]),
-            ],
-            [
                 'key' => 'borrowed',
                 'label' => __('pages.dashboard.physical_storage.borrowed'),
                 'count' => $borrowedCount,
@@ -981,16 +971,21 @@ class HomeController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        // Count expired documents (expire_at has passed)
         $expiredCount = $this->getVisibleDocumentsQuery()
-            ->whereNotNull('expire_at')
-            ->where('expire_at', '<=', now())
+            ->where(function ($w) {
+                $w->where(function ($d) {
+                    $d->whereNotNull('expire_at')
+                        ->whereDate('expire_at', '<=', now());
+                });
+                if (Schema::hasColumn('documents', 'is_expired')) {
+                    $w->orWhere('is_expired', true);
+                }
+            })
             ->count();
 
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
             DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
-            DocumentStatus::Declined->value => $statusCounts['declined'] ?? 0,
             'expired' => $expiredCount,
         ];
     }

@@ -456,6 +456,23 @@ class Document extends Model
             ->orderByDesc('id');
     }
 
+    /**
+     * Dernier emprunt physique non retourné, indépendamment du nombre de mouvements en historique.
+     */
+    public function currentOpenLoan(): ?DocumentMovement
+    {
+        return $this->documentMovements()
+            ->openLoan()
+            ->with([
+                'movedBy:id,full_name',
+                'borrowedBy:id,full_name',
+                'returnedBy:id,full_name',
+                'movedFromBox',
+                'movedToBox',
+            ])
+            ->first();
+    }
+
     public function statusHistories(): HasMany
     {
         return $this->hasMany(DocumentStatusHistory::class, 'document_id')->orderBy('changed_at');
