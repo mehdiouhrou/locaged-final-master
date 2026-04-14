@@ -42,17 +42,13 @@ return new class extends Migration
             }
         }
 
+        // D’abord la FK (sinon MySQL garde l’index unique pour la contrainte → erreur 1553).
         Schema::table('categories', function (Blueprint $table) {
-            try {
-                $table->dropUnique('categories_service_id_name_unique');
-            } catch (\Throwable $e) {
-                // Index absent ou nom différent
-            }
-            try {
-                $table->dropForeign(['service_id']);
-            } catch (\Throwable $e) {
-                // SQLite / nom de contrainte
-            }
+            $table->dropForeign(['service_id']);
+        });
+
+        Schema::table('categories', function (Blueprint $table) {
+            $table->dropUnique('categories_service_id_name_unique');
         });
 
         Schema::table('categories', function (Blueprint $table) {
