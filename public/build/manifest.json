@@ -1,8 +1,4 @@
 {
-  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
-    "file": "assets/pdf.worker.min-yatZIOMy.mjs",
-    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
-  },
   "public/assets/bg.jpg": {
     "file": "assets/bg-Dpnbe1W2.jpg",
     "src": "public/assets/bg.jpg"
@@ -14,13 +10,10 @@
     "isEntry": true
   },
   "resources/js/upload-pdf-preview.js": {
-    "file": "assets/upload-pdf-preview-tw7Ym-Y7.js",
+    "file": "assets/upload-pdf-preview-BYAtmAiB.js",
     "name": "upload-pdf-preview",
     "src": "resources/js/upload-pdf-preview.js",
-    "isEntry": true,
-    "assets": [
-      "assets/pdf.worker.min-yatZIOMy.mjs"
-    ]
+    "isEntry": true
   },
   "resources/sass/app.scss": {
     "file": "assets/app-DSUDUElQ.css",

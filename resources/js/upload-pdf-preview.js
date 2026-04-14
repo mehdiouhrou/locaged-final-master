@@ -1,26 +1,16 @@
 /**
  * PDF.js preview for document upload step 2 (auth cookie + same-origin URL).
+ *
+ * Le worker est chargé via Vite (?worker) : le chunk est en .js avec un MIME JS correct.
+ * Charger pdf.worker.min.mjs en statique sous Nginx donne souvent application/octet-stream,
+ * ce qui provoque : « 'application/octet-stream' is not a valid JavaScript MIME type ».
  */
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
 
-/**
- * Forcer le worker sur l’origine de la page (évite www / non-www ou APP_URL ≠ URL réelle).
- */
-function sameOriginWorkerSrc(url) {
-    if (typeof window === 'undefined' || !url) {
-        return url;
-    }
-    try {
-        const parsed = new URL(url, window.location.href);
-
-        return `${window.location.origin}${parsed.pathname}${parsed.search}`;
-    } catch {
-        return url;
-    }
+if (typeof Worker !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker();
 }
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = sameOriginWorkerSrc(pdfjsWorker);
 
 const MAX_PAGES = 40;
 
