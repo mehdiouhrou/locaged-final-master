@@ -45,6 +45,9 @@ class DatabaseSeeder extends Seeder
             \Database\Seeders\AddUploadSubmittingTranslationSeeder::class,
             \Database\Seeders\AddUserPasswordCheckboxTranslationsSeeder::class,
             \Database\Seeders\AddLoginSecureSpaceTranslationSeeder::class,
+            \Database\Seeders\SpcRabatStructureSeeder::class,
+            \Database\Seeders\SpcRabatCategoriesSeeder::class,
+            \Database\Seeders\SpcRabatPhysicalLocationsSeeder::class,
         ]);
     }
 }
