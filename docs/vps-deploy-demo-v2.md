@@ -201,6 +201,19 @@ stopwaitsecs=3600
 
 `sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start locaged-v2-horizon`
 
+### Pile « complète » (OCR, antivirus, recherche Typesense, queues Horizon)
+
+Après une install minimale (`SCOUT_DRIVER=null`, pas de Tesseract, etc.), vous pouvez activer **Tesseract**, **ClamAV**, **Typesense** (Docker sur `127.0.0.1:8108`), **Redis** pour cache/sessions/queues, **Horizon** (Supervisor), le **scheduler** (`/etc/cron.d/locaged-scheduler`), les **règles workflow** par défaut et l’**indexation Scout** en une fois :
+
+```bash
+cd /var/www/locaged-v2
+git pull origin demo-v2
+export APP_ROOT=/var/www/locaged-v2
+sudo bash scripts/vps-enable-full-stack.sh
+```
+
+Le script génère une **clé Typesense** aléatoire si `.env` n’en contient pas (ou contient encore `xyz`). Vérifiez ensuite `supervisorctl status locaged-horizon` et `curl -s http://127.0.0.1:8108/health`. Si vous imposez le workflow (`GED_ENFORCE_WORKFLOW_RULES=true`), assurez-vous que chaque département a des règles cohérentes pour éviter des transitions bloquées.
+
 ## 9. Déploiements suivants
 
 Sur le serveur :
