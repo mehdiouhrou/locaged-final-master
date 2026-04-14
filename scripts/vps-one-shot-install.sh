@@ -26,7 +26,8 @@ REPO_URL="${REPO_URL:-https://github.com/mehdiouhrou/locaged-final-master.git}"
 DB_NAME="${DB_NAME:-locaged_v2}"
 DB_USER="${DB_USER:-locaged_v2}"
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 24)}"
-PHP_VER="${PHP_VER:-8.2}"
+# Le composer.lock actuel exige PHP ≥ 8.4 (ex. symfony/options-resolver v8, zipstream-php 3.2).
+PHP_VER="${PHP_VER:-8.4}"
 
 log() { echo -e "\033[0;32m[locaged-v2]\033[0m $*"; }
 

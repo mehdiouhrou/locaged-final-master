@@ -26,7 +26,7 @@ Durée typique : **5 à 15 minutes** selon le VPS.
 
 | Composant | Rôle |
 |-----------|------|
-| PHP 8.2+ FPM + extensions (mysql, redis, curl, gd, imagick, mbstring, xml, zip, bcmath, intl) | Application |
+| PHP **8.4+** FPM + extensions (mysql, redis, curl, gd, imagick, mbstring, xml, zip, bcmath, intl) — le `composer.lock` actuel ne s’installe pas en PHP 8.2 | Application |
 | Nginx | HTTP |
 | MySQL 8 / MariaDB | Base |
 | Redis | Cache, sessions, queues, **Horizon** |
