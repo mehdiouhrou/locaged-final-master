@@ -4,7 +4,23 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+/**
+ * Forcer le worker sur l’origine de la page (évite www / non-www ou APP_URL ≠ URL réelle).
+ */
+function sameOriginWorkerSrc(url) {
+    if (typeof window === 'undefined' || !url) {
+        return url;
+    }
+    try {
+        const parsed = new URL(url, window.location.href);
+
+        return `${window.location.origin}${parsed.pathname}${parsed.search}`;
+    } catch {
+        return url;
+    }
+}
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = sameOriginWorkerSrc(pdfjsWorker);
 
 const MAX_PAGES = 40;
 

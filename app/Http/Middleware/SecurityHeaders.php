@@ -40,7 +40,8 @@ class SecurityHeaders
         // Permissions Policy (formerly Feature-Policy)
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        // Ne pas envoyer Cross-Origin-Resource-Policy : avec COOP, le navigateur peut refuser
+        // le worker PDF.js (.mjs) pour l’aperçu à l’upload (« Cross-origin script load / CORS »).
 
         // Content Security Policy - adapt to HTTP or HTTPS
         // Dynamically set protocol based on request
@@ -53,6 +54,7 @@ class SecurityHeaders
             "font-src 'self' {$protocol} data:",
             "img-src 'self' data: blob: {$protocol}",
             "connect-src 'self' wss: ws: {$protocol}",
+            "worker-src 'self' blob:",
             "frame-ancestors 'self'",
             "form-action 'self'",
             "base-uri 'self'",
