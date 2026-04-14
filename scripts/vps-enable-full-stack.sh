@@ -71,11 +71,23 @@ docker run -d --name typesense --restart unless-stopped \
   "${TYPESENSE_IMAGE}" \
   --data-dir /data --api-key="${TS_KEY}" --enable-cors
 
-sleep 3
-if ! curl -sf "http://127.0.0.1:8108/health" >/dev/null; then
-  log "ATTENTION : Typesense ne répond pas sur :8108 — vérifiez docker logs typesense"
-else
+log "Attente Typesense (/health, jusqu’à ~90 s au premier démarrage)…"
+TS_OK=0
+for _ in $(seq 1 45); do
+  if curl -sf "http://127.0.0.1:8108/health" >/dev/null; then
+    TS_OK=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$TS_OK" -eq 1 ]]; then
   log "Typesense OK (localhost:8108)"
+else
+  warn "Typesense ne répond pas encore sur :8108 après attente — état du conteneur :"
+  docker ps -a --filter name=typesense --no-trunc || true
+  warn "Dernières lignes des logs :"
+  docker logs typesense 2>&1 | tail -n 40 || true
+  warn "Relancer plus tard : curl -s http://127.0.0.1:8108/health puis   php artisan app:import-to-typesense --include-empty-ocr"
 fi
 
 log "Mise à jour .env (Redis, Scout, ClamAV, workflow)…"
