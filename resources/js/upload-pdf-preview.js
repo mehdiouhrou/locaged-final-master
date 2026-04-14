@@ -1,15 +1,23 @@
 /**
- * PDF.js preview for document upload step 2 (auth cookie + same-origin URL).
+ * PDF.js preview pour l’étape 2 d’upload.
  *
- * Le worker est chargé via Vite (?worker) : le chunk est en .js avec un MIME JS correct.
- * Charger pdf.worker.min.mjs en statique sous Nginx donne souvent application/octet-stream,
- * ce qui provoque : « 'application/octet-stream' is not a valid JavaScript MIME type ».
+ * Worker chargé via blob: + contenu ?raw : pas de requête HTTP vers un .mjs
+ * (souvent servi en application/octet-stream par Nginx → worker invalide / écran blanc).
  */
 import * as pdfjsLib from 'pdfjs-dist';
-import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
+import pdfWorkerSource from 'pdfjs-dist/build/pdf.worker.min.mjs?raw';
 
-if (typeof Worker !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker();
+if (typeof window !== 'undefined') {
+    const workerBlob = new Blob([pdfWorkerSource], { type: 'application/javascript' });
+    const workerBlobUrl = URL.createObjectURL(workerBlob);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerBlobUrl;
+    window.addEventListener('beforeunload', () => {
+        try {
+            URL.revokeObjectURL(workerBlobUrl);
+        } catch {
+            //
+        }
+    });
 }
 
 const MAX_PAGES = 40;
@@ -95,16 +103,45 @@ async function renderPdfFromUrl(url) {
     }
 }
 
-document.addEventListener('livewire:init', () => {
-    Livewire.on('upload-pdf-preview-url', (payload) => {
-        const url = payload?.url ?? payload?.[0]?.url;
+function extractPreviewUrl(payload) {
+    if (typeof payload === 'string') {
+        return payload;
+    }
+    if (payload && typeof payload.url === 'string') {
+        return payload.url;
+    }
+    if (payload && payload.detail && typeof payload.detail.url === 'string') {
+        return payload.detail.url;
+    }
+    if (Array.isArray(payload) && payload[0]) {
+        return extractPreviewUrl(payload[0]);
+    }
+
+    return null;
+}
+
+let livewirePdfListenersBound = false;
+
+function registerLivewirePdfPreviewListeners() {
+    if (livewirePdfListenersBound || typeof window.Livewire === 'undefined') {
+        return;
+    }
+    livewirePdfListenersBound = true;
+
+    window.Livewire.on('upload-pdf-preview-url', (payload) => {
+        const url = extractPreviewUrl(payload);
         if (typeof url === 'string' && url.length > 0) {
-            void renderPdfFromUrl(url);
+            requestAnimationFrame(() => {
+                void renderPdfFromUrl(url);
+            });
         }
     });
 
-    Livewire.on('upload-pdf-preview-clear', () => {
+    window.Livewire.on('upload-pdf-preview-clear', () => {
         activeLoadToken++;
         clearViewer();
     });
-});
+}
+
+document.addEventListener('livewire:init', registerLivewirePdfPreviewListeners);
+registerLivewirePdfPreviewListeners();
