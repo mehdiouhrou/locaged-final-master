@@ -502,8 +502,9 @@ class HomeController extends Controller
                     ->orWhereNotNull('subcategories.category_id');
             })
             ->selectRaw('COALESCE(documents.category_id, subcategories.category_id) as resolved_category_id, COUNT(*) as documents_count')
-            ->groupBy('resolved_category_id')
-            ->pluck('documents_count', 'resolved_category_id');
+            ->groupByRaw('COALESCE(documents.category_id, subcategories.category_id)')
+            ->pluck('documents_count', 'resolved_category_id')
+            ->filter(fn ($count, $categoryId) => $categoryId !== null && $categoryId !== '');
 
         if ($visibleCategoryCounts->isEmpty()) {
             return [

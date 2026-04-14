@@ -3,7 +3,8 @@
 @section('content')
     @php
         $dashDate = \Carbon\Carbon::now()->locale(str_replace('_', '-', app()->getLocale()))->isoFormat('dddd D MMMM YYYY');
-        $dashDept = auth()->user()->departments->first();
+        $dashUser = auth()->user();
+        $dashDept = $dashUser?->departments?->first();
         $dashSubtitle = $dashDept ? $dashDate . ' • ' . $dashDept->name : $dashDate;
     @endphp
     <div class="mt-3 position-relative mb-5 px-3 px-md-0 lgv2-dashboard-home">

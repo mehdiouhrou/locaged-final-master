@@ -60,13 +60,22 @@ class Box extends Model
      */
     public function __toString(): string
     {
-        // Load relationships if not already loaded
-        $this->loadMissing('shelf.row.room');
+        try {
+            $this->loadMissing('shelf.row.room');
+            $shelf = $this->shelf;
+            $row = $shelf?->row;
+            $room = $row?->room;
+            if (! $shelf || ! $row || ! $room) {
+                return (string) $this->name;
+            }
 
-        return $this->shelf->row->room->name.' → '.
-               $this->shelf->row->name.' → '.
-               $this->shelf->name.' → '.
-               $this->name;
+            return $room->name.' → '.
+                   $row->name.' → '.
+                   $shelf->name.' → '.
+                   $this->name;
+        } catch (\Throwable) {
+            return (string) $this->name;
+        }
     }
 
     /**
@@ -74,13 +83,15 @@ class Box extends Model
      */
     public function getFullPath(): array
     {
-        // Load relationships if not already loaded
         $this->loadMissing('shelf.row.room');
+        $shelf = $this->shelf;
+        $row = $shelf?->row;
+        $room = $row?->room;
 
         return [
-            'room' => $this->shelf->row->room->name,
-            'row' => $this->shelf->row->name,
-            'shelf' => $this->shelf->name,
+            'room' => $room?->name ?? '',
+            'row' => $row?->name ?? '',
+            'shelf' => $shelf?->name ?? '',
             'box' => $this->name,
         ];
     }
