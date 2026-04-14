@@ -109,7 +109,7 @@ class DocumentVersionCreateForm extends Component
         }
 
         session()->flash('success', 'Document version created successfully.');
-        return redirect()->route('document-versions.by-document', $this->document->id);
+        return redirect()->route('documents.show', $this->document->id);
     }
 
     public function render()

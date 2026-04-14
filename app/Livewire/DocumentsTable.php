@@ -60,6 +60,9 @@ class DocumentsTable extends Component
     // Used when service users access pending documents from dashboard
     public bool $lockStatusFilter = false;
 
+    /** Motif optionnel pour refus groupé */
+    public string $bulkDeclineReason = '';
+
     protected $queryString = [
         'search' => ['except' => ''],
         'status' => ['except' => ''],
@@ -220,8 +223,8 @@ class DocumentsTable extends Component
 
     public function render()
     {
-        // Base documents query (database only; we no longer use Elasticsearch
-        // here because the ES cluster may be down and users expect search to
+        // Base documents query (database only; we do not depend on external search
+        // here because the search cluster may be down and users expect search to
         // always work based on the database state.)
         // Optimized: removed heavy 'auditLogs.user' eager loading for performance
         // auditLogs are loaded lazily in the view only when needed
@@ -427,9 +430,9 @@ class DocumentsTable extends Component
             $hierarchyDepartments = cache()->remember($cacheKey, 600, function() use ($user) {
                 $user->loadMissing(['subDepartments', 'services']);
 
-                $isMasterOrSuper = $user->hasRole('master') || $user->hasRole('Super Administrator');
-                $isDepartmentAdmin = $user->hasAnyRole(['Department Administrator', 'Admin de pole']);
-                $isDivisionChief = $user->hasAnyRole(['Division Chief', 'Admin de departments']);
+                $isMasterOrSuper = $user->can('view any role') || $user->can('view organization wide reports');
+                $isDepartmentAdmin = $user->can('filter audit logs by assigned departments');
+                $isDivisionChief = $user->can('view subdepartment scoped documents');
 
                 if ($isMasterOrSuper) {
                     return Department::withoutGlobalScopes()
@@ -620,6 +623,7 @@ class DocumentsTable extends Component
         } else {
             $user->favoriteDocuments()->attach($documentId);
         }
+        $this->dispatch('document-updated');
         $this->resetPage();
     }
 
@@ -652,6 +656,7 @@ class DocumentsTable extends Component
 
         $this->checkedDocuments = [];
         $this->selectAll = false;
+        $this->dispatch('document-updated');
         $this->resetPage();
 
         if ($approvedCount > 0) {
@@ -670,6 +675,10 @@ class DocumentsTable extends Component
 
         Gate::authorize('decline', Document::class);
 
+        $this->validate([
+            'bulkDeclineReason' => ['nullable', 'string', 'max:5000'],
+        ]);
+
         $docs = Document::whereIn('id', $this->checkedDocuments)->get();
         $declinedCount = 0;
 
@@ -679,13 +688,23 @@ class DocumentsTable extends Component
             }
 
             $doc->status = DocumentStatus::Declined->value;
+            $meta = is_array($doc->metadata) ? $doc->metadata : (array) ($doc->metadata ?? []);
+            $declineReason = trim($this->bulkDeclineReason);
+            if ($declineReason !== '') {
+                $meta['decline_reason'] = $declineReason;
+            } else {
+                unset($meta['decline_reason']);
+            }
+            $doc->metadata = $meta;
             $doc->save();
-            $doc->logAction('declined');
+            $doc->logAction('declined', null, ['decline_reason' => $declineReason !== '' ? $declineReason : null]);
             $declinedCount++;
         }
 
         $this->checkedDocuments = [];
         $this->selectAll = false;
+        $this->bulkDeclineReason = '';
+        $this->dispatch('document-updated');
         $this->resetPage();
 
         if ($declinedCount > 0) {

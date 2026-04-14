@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'driver' => env('SCOUT_DRIVER', 'algolia'),
+    'driver' => env('SCOUT_DRIVER', 'typesense'),
 
     /*
     |--------------------------------------------------------------------------
@@ -181,28 +181,29 @@ return [
         ],
         // 'max_total_results' => env('TYPESENSE_MAX_TOTAL_RESULTS', 1000),
         'model-settings' => [
-            // User::class => [
-            //     'collection-schema' => [
-            //         'fields' => [
-            //             [
-            //                 'name' => 'id',
-            //                 'type' => 'string',
-            //             ],
-            //             [
-            //                 'name' => 'name',
-            //                 'type' => 'string',
-            //             ],
-            //             [
-            //                 'name' => 'created_at',
-            //                 'type' => 'int64',
-            //             ],
-            //         ],
-            //         'default_sorting_field' => 'created_at',
-            //     ],
-            //     'search-parameters' => [
-            //         'query_by' => 'name'
-            //     ],
-            // ],
+            \App\Models\DocumentVersion::class => [
+                'collection-schema' => [
+                    'name' => 'documents',
+                    'fields' => [
+                        ['name' => 'id', 'type' => 'string'],
+                        ['name' => 'document_id', 'type' => 'int64'],
+                        ['name' => 'title', 'type' => 'string'],
+                        ['name' => 'content', 'type' => 'string', 'optional' => true],
+                        ['name' => 'category_name', 'type' => 'string', 'optional' => true],
+                        ['name' => 'status', 'type' => 'string'],
+                        ['name' => 'created_by_name', 'type' => 'string', 'optional' => true],
+                        ['name' => 'document_date', 'type' => 'int64', 'optional' => true],
+                        ['name' => 'tags', 'type' => 'string[]', 'optional' => true],
+                        ['name' => 'service_name', 'type' => 'string', 'optional' => true],
+                        ['name' => 'uploaded_at', 'type' => 'int64', 'optional' => true],
+                    ],
+                    'default_sorting_field' => 'uploaded_at',
+                ],
+                'search-parameters' => [
+                    'query_by' => 'title,content',
+                    'query_by_weights' => '5,1',
+                ],
+            ],
         ],
     ],
 

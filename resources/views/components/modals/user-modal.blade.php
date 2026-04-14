@@ -15,6 +15,17 @@
             <input type="hidden" id="userId" name="id" value="{{ old('id') }}">
 
             <div class="mb-3">
+                <div class="d-flex align-items-center gap-2 small">
+                    <span class="badge rounded-pill text-bg-dark" id="wizardStepBadge">1/3</span>
+                    <span id="wizardStepTitle" class="fw-semibold">{{ __('Informations de base') }}</span>
+                </div>
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar" id="wizardProgress" role="progressbar" style="width: 33%;"></div>
+                </div>
+            </div>
+
+            <div id="wizardStep1">
+            <div class="mb-3">
                 <label class="form-label">{{ ui_t('pages.users_page.user_modal.email') }}</label>
                 <input type="text"
                        class="form-control @error('email') is-invalid @enderror"
@@ -87,7 +98,9 @@
                        name="password_confirmation"
                        placeholder="{{ ui_t('pages.users_page.user_modal.password_confirmation') }}" >
             </div>
+            </div>
 
+            <div id="wizardStep2" class="d-none">
             <label for="roleSelect" class="mb-2">{{ ui_t('pages.users_page.user_modal.role') }}</label>
             <select id="roleSelect" name="role" class="form-select mb-4 @error('role') is-invalid @enderror">
                 @foreach($roles as $role)
@@ -103,9 +116,13 @@
             @error('role')
             <div class="invalid-feedback">{{ $message }}</div>
             @enderror
+            <div class="alert alert-info py-2 px-3 small mb-0" id="roleContextHint"></div>
+            </div>
 
+            <div id="wizardStep3" class="d-none">
             <div id="departmentContainer" class="mb-3">
                 <label for="departmentSelect" class="mb-2">{{ ui_t('pages.users_page.user_modal.structures') }}</label>
+                <input type="text" id="departmentSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un pôle...') }}">
                 <select id="departmentSelect" name="departments[]" class="form-select mb-2 @error('departments') is-invalid @enderror" multiple size="5">
                     @foreach($departments as $department)
                         <option value="{{ $department->id }}" {{ (is_array(old('departments')) && in_array($department->id, old('departments'))) ? 'selected' : '' }}>
@@ -122,6 +139,7 @@
             {{-- Sub-Department selector (multi-select, filtered by selected structures) --}}
             <div id="subDepartmentContainer" class="mb-3 d-none">
                 <label for="subDepartmentSelect" class="form-label">{{ ui_t('pages.users_page.sub_departments_label') }}</label>
+                <input type="text" id="subDepartmentSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un département...') }}">
                 <select id="subDepartmentSelect" name="sub_departments[]" class="form-select" multiple size="5">
                     @foreach($departments as $department)
                         @foreach($department->subDepartments as $subDepartment)
@@ -143,6 +161,7 @@
             {{-- Service selector (shown for Service User / User when applicable) --}}
             <div id="serviceContainer" class="mb-3 d-none">
                 <label for="serviceSelect" class="form-label">{{ ui_t('pages.users_page.services_label') }}</label>
+                <input type="text" id="serviceSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un service...') }}">
                 <select id="serviceSelect" name="services[]" class="form-select" multiple size="5">
                     @foreach($departments as $department)
                         @foreach($department->subDepartments as $subDepartment)
@@ -163,9 +182,14 @@
                 <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
             </div>
+            </div>
 
-            <div class="d-flex justify-content-end">
-                <button type="submit" class="btn btn-update px-4">{{ ui_t('pages.users_page.user_modal.save') }}</button>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary px-4 d-none" id="wizardPrevBtn">{{ __('Précédent') }}</button>
+                <div class="ms-auto d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary px-4" id="wizardNextBtn">{{ __('Suivant') }}</button>
+                    <button type="submit" class="btn btn-update px-4 d-none" id="wizardSubmitBtn">{{ ui_t('pages.users_page.user_modal.save') }}</button>
+                </div>
             </div>
         </form>
 
@@ -192,6 +216,31 @@
     const passwordConfirmFieldsContainer = document.getElementById("passwordConfirmFieldsContainer");
     const passwordInput = document.getElementById("passwordInput");
     const passwordConfirmInput = document.getElementById("passwordConfirmationInput");
+    const roleContextHint = document.getElementById("roleContextHint");
+
+    // Wizard elements
+    const stepContainers = [
+        document.getElementById("wizardStep1"),
+        document.getElementById("wizardStep2"),
+        document.getElementById("wizardStep3"),
+    ];
+    const wizardStepBadge = document.getElementById("wizardStepBadge");
+    const wizardStepTitle = document.getElementById("wizardStepTitle");
+    const wizardProgress = document.getElementById("wizardProgress");
+    const wizardPrevBtn = document.getElementById("wizardPrevBtn");
+    const wizardNextBtn = document.getElementById("wizardNextBtn");
+    const wizardSubmitBtn = document.getElementById("wizardSubmitBtn");
+    const wizardTitles = [
+        "{{ __('Informations de base') }}",
+        "{{ __('Rôle utilisateur') }}",
+        "{{ __('Périmètre organisationnel') }}",
+    ];
+    let currentWizardStep = 0;
+
+    // Searchable selects
+    const departmentSearchInput = document.getElementById("departmentSearchInput");
+    const subDepartmentSearchInput = document.getElementById("subDepartmentSearchInput");
+    const serviceSearchInput = document.getElementById("serviceSearchInput");
 
     // Toggle password fields visibility based on checkbox and mode (create/edit)
     function togglePasswordFields() {
@@ -227,6 +276,36 @@
         }
     }
 
+    function setWizardStep(stepIndex) {
+        currentWizardStep = Math.max(0, Math.min(stepIndex, stepContainers.length - 1));
+        stepContainers.forEach((el, idx) => {
+            if (!el) return;
+            el.classList.toggle("d-none", idx !== currentWizardStep);
+        });
+
+        const total = stepContainers.length;
+        if (wizardStepBadge) wizardStepBadge.textContent = `${currentWizardStep + 1}/${total}`;
+        if (wizardStepTitle) wizardStepTitle.textContent = wizardTitles[currentWizardStep] || "";
+        if (wizardProgress) wizardProgress.style.width = `${((currentWizardStep + 1) / total) * 100}%`;
+
+        if (wizardPrevBtn) wizardPrevBtn.classList.toggle("d-none", currentWizardStep === 0);
+        if (wizardNextBtn) wizardNextBtn.classList.toggle("d-none", currentWizardStep === total - 1);
+        if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle("d-none", currentWizardStep !== total - 1);
+    }
+
+    function validateCurrentStep() {
+        if (currentWizardStep === 0) {
+            if (!document.getElementById("emailInput")?.value.trim()) return false;
+            if (!document.getElementById("fullName")?.value.trim()) return false;
+            if (formMethodInput.value === "POST" && setPasswordNowCheckbox.checked) {
+                if (!passwordInput.value.trim() || !passwordConfirmInput.value.trim()) return false;
+            }
+        }
+        if (currentWizardStep === 1) {
+            if (!roleSelect?.value) return false;
+        }
+        return true;
+    }
 
     function getSelectedRoleName() {
         if (!roleSelect) return '';
@@ -273,6 +352,20 @@
             config.showService = true;
         }
 
+        if (roleContextHint) {
+            let hint = "{{ __('Accès personnalisé: vérifiez le périmètre selon ce rôle.') }}";
+            if (roleName === 'master' || roleName === 'super administrator') {
+                hint = "{{ __('Rôle global: pas de rattachement structure requis.') }}";
+            } else if (roleName === 'admin de pole' || roleName === 'department administrator') {
+                hint = "{{ __('Ce rôle doit être rattaché à un ou plusieurs pôles.') }}";
+            } else if (roleName === 'admin de departments' || roleName === 'division chief') {
+                hint = "{{ __('Ce rôle doit être rattaché à des pôles et départements.') }}";
+            } else if (roleName === 'admin de cellule' || roleName === 'service manager' || roleName === 'user' || roleName === 'service user') {
+                hint = "{{ __('Ce rôle nécessite un rattachement service (avec pôle + département).') }}";
+            }
+            roleContextHint.textContent = hint;
+        }
+
         if (departmentContainer) {
             departmentContainer.classList.toggle('d-none', !config.showDepartment);
         }
@@ -304,6 +397,24 @@
             }
     }
 
+    function applySelectOptionVisibility(option) {
+        const orgVisible = option.dataset.orgVisible !== '0';
+        const searchVisible = option.dataset.searchVisible !== '0';
+        option.hidden = !(orgVisible && searchVisible);
+        if (option.hidden) {
+            option.selected = false;
+        }
+    }
+
+    function filterSelectByText(select, searchInput) {
+        if (!select || !searchInput) return;
+        const query = (searchInput.value || '').trim().toLowerCase();
+        Array.from(select.options).forEach(option => {
+            option.dataset.searchVisible = query === '' || option.text.toLowerCase().includes(query) ? '1' : '0';
+            applySelectOptionVisibility(option);
+        });
+    }
+
     function filterSubDepartmentsByDepartments() {
         if (!departmentSelect || !subDepartmentSelect) return;
         const selectedDepartmentIds = Array.from(departmentSelect.selectedOptions)
@@ -312,12 +423,11 @@
 
         Array.from(subDepartmentSelect.options).forEach(option => {
             const deptId = option.dataset.departmentId;
-            option.hidden = selectedDepartmentIds.length > 0 && (!deptId || !selectedDepartmentIds.includes(deptId));
-            if (option.hidden) {
-                option.selected = false;
-            }
+            option.dataset.orgVisible = (selectedDepartmentIds.length > 0 && (!deptId || !selectedDepartmentIds.includes(deptId))) ? '0' : '1';
+            applySelectOptionVisibility(option);
         });
 
+        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
         filterServicesBySubDepartment();
     }
 
@@ -330,11 +440,11 @@
         Array.from(serviceSelect.options).forEach(option => {
             const optionSubDeptId = option.dataset.subDepartmentId;
             const match = selectedSubDeptIds.length === 0 || selectedSubDeptIds.includes(optionSubDeptId);
-            option.hidden = !match;
-            if (option.hidden) {
-                option.selected = false;
-            }
+            option.dataset.orgVisible = match ? '1' : '0';
+            applySelectOptionVisibility(option);
         });
+
+        filterSelectByText(serviceSelect, serviceSearchInput);
     }
 
     function resetForm() {
@@ -362,10 +472,25 @@
         filterSubDepartmentsByDepartments();
         filterServicesBySubDepartment();
         togglePasswordFields(); // Update password fields visibility
+        filterSelectByText(departmentSelect, departmentSearchInput);
+        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
+        filterSelectByText(serviceSelect, serviceSearchInput);
+        setWizardStep(0);
     }
 
     // Event listener for password checkbox
     setPasswordNowCheckbox?.addEventListener('change', togglePasswordFields);
+    wizardPrevBtn?.addEventListener('click', () => setWizardStep(currentWizardStep - 1));
+    wizardNextBtn?.addEventListener('click', () => {
+        if (!validateCurrentStep()) {
+            return;
+        }
+        setWizardStep(currentWizardStep + 1);
+    });
+
+    departmentSearchInput?.addEventListener('input', () => filterSelectByText(departmentSelect, departmentSearchInput));
+    subDepartmentSearchInput?.addEventListener('input', () => filterSelectByText(subDepartmentSelect, subDepartmentSearchInput));
+    serviceSearchInput?.addEventListener('input', () => filterSelectByText(serviceSelect, serviceSearchInput));
 
     document.getElementById("nextBtn")?.addEventListener("click", () => {
         resetForm();
@@ -463,6 +588,10 @@
             document.getElementById("passwordConfirmationInput").value = "";
 
             togglePasswordFields(); // Update password fields visibility for edit mode
+            setWizardStep(0);
+            filterSelectByText(departmentSelect, departmentSearchInput);
+            filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
+            filterSelectByText(serviceSelect, serviceSearchInput);
 
             modal.classList.remove("d-none");
         });
@@ -476,6 +605,10 @@
         applyRoleOrgVisibility();
         filterSubDepartmentsByDepartments();
         filterServicesBySubDepartment();
+        filterSelectByText(departmentSelect, departmentSearchInput);
+        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
+        filterSelectByText(serviceSelect, serviceSearchInput);
+        setWizardStep(0);
         modal.classList.remove("d-none");
     });
     @endif

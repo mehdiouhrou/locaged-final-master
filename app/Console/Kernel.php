@@ -17,6 +17,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\ConvertDocumentsToPdf::class,
         \App\Console\Commands\ForceExpireDocument::class,
         \App\Console\Commands\CheckExpiredDocuments::class,
+        \App\Console\Commands\ExtractAuditEvidence::class,
+        \App\Console\Commands\VerifyAuditIntegrity::class,
     ];
 
     /**
@@ -24,6 +26,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        $schedule->command('audit:purge-old-logs')->dailyAt('02:30');
+        $schedule->command('audit:verify-integrity')->dailyAt('02:40');
+
         require base_path('routes/console.php');
     }
 

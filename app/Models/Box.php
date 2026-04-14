@@ -122,15 +122,14 @@ class Box extends Model
             return collect();
         }
 
-        // Master and Super Administrator can see all services
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super_admin')) {
+        if ($user->can('view any role') || $user->can('view organization wide reports')) {
             return 'all';
         }
 
         $serviceIds = collect();
 
-        // Admin de Pole (Pole Admin) - sees all services within their department(s)
-        if ($user->hasRole('Admin de pole') || $user->hasRole('Pole Admin')) {
+        // Pôle : tous les services des sous-départements de leurs départements
+        if ($user->can('view any department')) {
             $departmentIds = $user->departments->pluck('id');
             if ($departmentIds->isNotEmpty()) {
                 $subDeptIds = \App\Models\SubDepartment::whereIn('department_id', $departmentIds)->pluck('id');
@@ -142,17 +141,8 @@ class Box extends Model
             }
         }
 
-        // Service-level roles: Admin de cellule, Service Manager, Service User, user
-        // Division Chief, Admin de departments
-        // These users only see their directly assigned services
-        $isServiceLevelUser = $user->hasAnyRole([
-            'Admin de cellule',
-            'Service Manager',
-            'Service User',
-            'user',
-            'Division Chief',
-            'Admin de departments',
-        ]);
+        $isServiceLevelUser = $user->can('view service document')
+            || $user->can('view subdepartment scoped documents');
 
         if ($isServiceLevelUser) {
             // Direct service assignment via service_id column
@@ -165,8 +155,7 @@ class Box extends Model
                 $serviceIds = $serviceIds->merge($user->services->pluck('id'));
             }
 
-            // For Division Chief: also include services from their assigned sub-departments
-            if ($user->hasAnyRole(['Division Chief', 'Admin de departments'])) {
+            if ($user->can('view subdepartment scoped documents')) {
                 $subDeptIds = collect();
                 
                 if ($user->sub_department_id) {

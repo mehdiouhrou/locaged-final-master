@@ -25,8 +25,8 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        // Prevent clickjacking
-        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+        // Prevent clickjacking.
+        $response->headers->set('X-Frame-Options', 'DENY');
 
         // Prevent MIME type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
@@ -39,6 +39,8 @@ class SecurityHeaders
 
         // Permissions Policy (formerly Feature-Policy)
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
 
         // Content Security Policy - adapt to HTTP or HTTPS
         // Dynamically set protocol based on request

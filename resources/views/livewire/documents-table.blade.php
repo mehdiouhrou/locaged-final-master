@@ -77,6 +77,15 @@
             </div>
 
             @if($this->showOnlyPendingApprovals)
+                @can('decline', \App\Models\Document::class)
+                    <div class="w-100 mb-2">
+                        <label class="form-label small mb-1">{{ __('Motif de refus groupé (optionnel)') }}</label>
+                        <textarea class="form-control form-control-sm" rows="2" wire:model="bulkDeclineReason" placeholder="{{ __('Laisser vide si non nécessaire') }}"></textarea>
+                        @error('bulkDeclineReason')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                @endcan
                 @if(count($checkedDocuments) > 0)
                     @can('approve', \App\Models\Document::class)
                         <button type="button" class="btn btn-success btn-sm ms-3" wire:click="bulkApprove">
@@ -866,7 +875,7 @@
 
             {{-- Documents --}}
             @foreach($documents as $doc)
-                <tr class="document-row" data-doc-id="{{ $doc->id }}">
+                <tr class="document-row @if(collect($checkedDocuments ?? [])->contains($doc->id) || collect($checkedDocuments ?? [])->contains((string) $doc->id)) lgv2-row-selected @endif" data-doc-id="{{ $doc->id }}">
                     <td>
                         <input type="checkbox"
                                wire:model.change="checkedDocuments"
@@ -874,19 +883,23 @@
                     </td>
                     <td>
                         <div class="file-item">
-                            <div class="file-icon">
+                            <div class="flex-shrink-0 d-flex align-items-start pt-1">
                                 @if($doc->latestVersion)
-                                    @php
-                                        $extension = strtolower(pathinfo($doc->latestVersion->file_path, PATHINFO_EXTENSION));
-                                        $iconClass = getFileIcon($extension);
-                                    @endphp
-                                    <i class="{{ $iconClass }}" style="font-size: 24px;"></i>
+                                    <x-file-type-badge :path="$doc->latestVersion->file_path" />
                                 @else
-                                    <i class="fas fa-file text-secondary" style="font-size: 24px;"></i>
+                                    <x-file-type-badge />
                                 @endif
                             </div>
-                            <div>
-                                <div class="file-name text-truncate" style="max-width: 260px;" title="{{ $doc->title }}">{{ $doc->title }}</div>
+                            <div class="min-w-0">
+                                <div class="file-name text-truncate" style="max-width: 260px;" title="{{ $doc->title }}">
+                                    @if($doc->latestVersion)
+                                        <a href="{{ route('document-versions.preview', ['id' => $doc->latestVersion->id]) }}" class="text-decoration-none text-reset">
+                                            {{ $doc->title }}
+                                        </a>
+                                    @else
+                                        {{ $doc->title }}
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -964,6 +977,7 @@
                                             data-button-text="{{ ui_t('actions.confirm') }}"
                                             data-title="{{ ui_t('pages.documents.reject_title') }}"
                                             data-body="{{ ui_t('pages.documents.reject_body') }}"
+                                            data-extra-fields='{{ json_encode([["type"=>"textarea","name"=>"decline_reason","label"=>__("Motif du refus (optionnel)"),"required"=>false,"rows"=>4,"maxlength"=>5000,"placeholder"=>__("Décrivez la raison du refus (facultatif)")]], JSON_UNESCAPED_UNICODE) }}'
                                             title="{{ ui_t('actions.reject') }}"
                                             aria-label="{{ ui_t('actions.reject') }}"
                                         >
@@ -1026,14 +1040,9 @@
                                 @can('view',$doc)
                                     @if($doc->latestVersion)
                                         @php
-                                            $baseUrl = route('document-versions.fullscreen', ['id' => $doc->latestVersion->id]);
+                                            $baseUrl = route('document-versions.preview', ['id' => $doc->latestVersion->id]);
                                             $navIds = implode(',', $documentsIds ?? []);
-                                            // Build return URL that preserves the current page state
-                                            $currentUrl = route('documents.all');
-                                            if ($this->getPage() > 1) {
-                                                $currentUrl .= '?page=' . $this->getPage();
-                                            }
-                                            $fullUrl = $baseUrl . '?nav_ids=' . urlencode($navIds) . '&return_url=' . urlencode($currentUrl);
+                                            $fullUrl = $baseUrl . '?nav_ids=' . urlencode($navIds);
                                         @endphp
                                         <a href="{{ $fullUrl }}"
                                            class="btn-table btn-table-preview" title="{{ ui_t('actions.preview') }}" aria-label="{{ ui_t('actions.preview') }}">
@@ -1078,7 +1087,7 @@
                                         @endcan
 
 
-                                        @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Super Administrator'))
+                                        @if(auth()->user()?->can('view any role') || auth()->user()?->can('view organization wide reports') || auth()->user()?->can('view any department'))
                                             <li class="pointer">
                                                 <a class="dropdown-item trigger-action"
                                                    data-id="{{ $doc->id }}"
@@ -1110,7 +1119,7 @@
                                         @endif
 
 
-                                            @can('view',$doc)
+                                            @can('download',$doc)
                                         <li class="pointer">
                                             <a class="dropdown-item" href="#" 
                                                onclick="event.preventDefault(); showDocumentMetadata({{ $doc->id }})">
@@ -1137,10 +1146,10 @@
                 <td colspan="8">
                         @php
                             $currentUser = auth()->user();
-                            $isSuperAdmin = $currentUser->hasRole(['Super Administrator', 'super_admin']) && !$currentUser->hasRole('master');
-                            $isAdminDePole = $currentUser->hasRole('Admin de pole') || $currentUser->hasRole('Department Administrator');
-                            $isAdminDeDepartments = $currentUser->hasRole('Admin de departments') || $currentUser->hasRole('Division Chief');
-                            $isAdminDeCellule = $currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('Service Manager');
+                            $isSuperAdmin = $currentUser->can('view organization wide reports') && ! $currentUser->can('view any role');
+                            $isAdminDePole = $currentUser->can('filter audit logs by assigned departments');
+                            $isAdminDeDepartments = $currentUser->can('view subdepartment scoped documents');
+                            $isAdminDeCellule = $currentUser->can('filter audit logs by assigned services');
                             
                             // Define roles that should be hidden for each user type
                             $hiddenRolesForSuperAdmin = ['master'];
@@ -1278,7 +1287,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ ui_t('actions.close') ?? 'Close' }}</button>
-                        @if(auth()->user()?->hasAnyRole(['master', 'Super Administrator', 'Admin de pole', 'Department Administrator', 'Admin de departments', 'Division Chief', 'Admin de cellule', 'Service Manager', 'admin']))
+                        @if(auth()->user()?->can('access management sidebar'))
                             <button type="button" class="btn btn-primary" id="metadataSaveBtn" disabled>{{ __('Save') }}</button>
                         @endif
                     </div>
@@ -1326,7 +1335,7 @@
     
     // Flag to indicate if the current user is a service user (read-only metadata)
     // If user does NOT have any admin role, they are considered a service user (read-only)
-    window.IS_SERVICE_USER = {{ !auth()->user()?->hasAnyRole(['master', 'Super Administrator', 'Admin de pole', 'Department Administrator', 'Admin de departments', 'Division Chief', 'Admin de cellule', 'Service Manager', 'admin']) ? 'true' : 'false' }};
+    window.IS_SERVICE_USER = {{ auth()->user()?->can('access management sidebar') ? 'false' : 'true' }};
 
     // Toast notification function - GLOBAL
     window.showToast = function(message, type = 'success') {
@@ -1564,32 +1573,12 @@
             <option value="${s.id}" data-sub-department-id="${s.sub_department_id}" ${String(s.id) == String(metadata.service_id ?? '') ? 'selected' : ''}>${s.name}</option>
         `).join('');
 
-        // Show all categories from user-accessible services
-        // Ensure the current document's category is always included even if service doesn't match
-        const currentServiceId = metadata.service_id;
-        const currentCategoryId = metadata.category_id;
-        
-        // Filter categories by the current service, but always include the document's current category
-        let filteredCategories = categories;
-        if (currentServiceId) {
-            filteredCategories = categories.filter(c => String(c.service_id) === String(currentServiceId));
-            
-            // If the current category is not in the filtered list, add it
-            if (currentCategoryId) {
-                const currentCategoryInList = filteredCategories.some(c => String(c.id) === String(currentCategoryId));
-                if (!currentCategoryInList) {
-                    const currentCategory = categories.find(c => String(c.id) === String(currentCategoryId));
-                    if (currentCategory) {
-                        filteredCategories = [currentCategory, ...filteredCategories];
-                    }
-                }
-            }
-        }
-        
-        // Build category options with placeholder
+        // Categories are not tied to org rows anymore; list is already scoped server-side.
+        const filteredCategories = categories;
+
         let categoryOptions = '<option value="">-- Select a category --</option>';
         categoryOptions += filteredCategories.map(c => `
-            <option value="${c.id}" data-service-id="${c.service_id}" ${String(c.id) == String(metadata.category_id ?? '') ? 'selected' : ''}>${c.name}</option>
+            <option value="${c.id}" ${String(c.id) == String(metadata.category_id ?? '') ? 'selected' : ''}>${c.name}</option>
         `).join('');
 
         return `
@@ -1750,45 +1739,10 @@
         });
         checkDirty();
         
-        // Auto-update hierarchy when category changes
+        // Category no longer drives department/service; only refresh dirty state.
         const categorySelect = form.querySelector('[name="category_id"]');
-        if (categorySelect && currentMetadata.categories) {
+        if (categorySelect) {
             categorySelect.addEventListener('change', function() {
-                const selectedCategoryId = this.value;
-                const selectedCategory = currentMetadata.categories.find(c => String(c.id) === String(selectedCategoryId));
-                
-                if (selectedCategory && selectedCategory.service_id) {
-                    const relatedService = currentMetadata.services.find(s => String(s.id) === String(selectedCategory.service_id));
-                    if (relatedService) {
-                        // Update service (locked field)
-                        const serviceSelect = form.querySelector('[name="service_id"]');
-                        if (serviceSelect) {
-                            serviceSelect.value = relatedService.id;
-                        }
-                        
-                        // Update sub-department (locked field)
-                        if (relatedService.sub_department_id) {
-                            const relatedSubDept = currentMetadata.sub_departments.find(sd => String(sd.id) === String(relatedService.sub_department_id));
-                            if (relatedSubDept) {
-                                const subDeptSelect = form.querySelector('[name="sub_department_id"]');
-                                if (subDeptSelect) {
-                                    subDeptSelect.value = relatedSubDept.id;
-                                }
-                                
-                                // Update department (locked field)
-                                if (relatedSubDept.department_id) {
-                                    const relatedDept = currentMetadata.departments.find(d => String(d.id) === String(relatedSubDept.department_id));
-                                    if (relatedDept) {
-                                        const deptSelect = form.querySelector('[name="department_id"]');
-                                        if (deptSelect) {
-                                            deptSelect.value = relatedDept.id;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
                 checkDirty();
             });
         }
@@ -1938,6 +1892,9 @@
             'approved': 'success',
             'pending': 'warning',
             'declined': 'danger',
+            'refused': 'danger',
+            'expired': 'secondary',
+            'destroyed': 'dark',
             'archived': 'secondary'
         };
         return colors[status] || 'secondary';

@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Category;
 
 class Service extends Model
 {
@@ -24,16 +24,26 @@ class Service extends Model
         return $this->hasMany(User::class);
     }
 
+    public function usersViaPivot(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'service_user')
+            ->withTimestamps();
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
     }
 
-    /**
-     * Categories that belong to this service.
-     */
-    public function categories(): HasMany
+    public function categories(): BelongsToMany
     {
-        return $this->hasMany(Category::class);
+        return $this->belongsToMany(Category::class, 'category_service')
+            ->withTimestamps();
+    }
+
+    public function profiles(): BelongsToMany
+    {
+        return $this->belongsToMany(Profile::class, 'profile_service')
+            ->withTimestamps();
     }
 }

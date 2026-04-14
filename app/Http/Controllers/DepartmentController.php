@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\OrgStructureImport;
 use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller
 {
@@ -15,18 +17,21 @@ class DepartmentController extends Controller
 
         $user = auth()->user();
 
-        // Check if user is Admin de pole
-        $isAdminDePole = $user?->hasRole('Admin de pole');
-        
-        // Admin de pole CAN create sub-structures (sub-depts, services) but NOT new poles
+        $hasGlobalOrgAccess = $user?->can('view any role') || $user?->can('view organization wide reports');
+        $isAdminDePoleScoped = $user?->can('view any department') && ! $hasGlobalOrgAccess;
+
+        // Most admins can create structures; pole creation strictly follows policy.
         $canCreateStructures = true;
-        $canCreatePole = !$isAdminDePole; // Only higher admins can create new poles
+        $canCreatePole = (bool) ($user?->can('create', Department::class));
 
         // Eager-load sub-departments and services for tree view
-        $departmentsQuery = Department::with('subDepartments.services');
+        $departmentsQuery = Department::with([
+            'subDepartments.services.users',
+            'subDepartments.services.usersViaPivot',
+        ]);
 
         // Filter to only assigned departments for Admin de pole
-        if ($isAdminDePole && $user->departments && $user->departments->isNotEmpty()) {
+        if ($isAdminDePoleScoped && $user->departments && $user->departments->isNotEmpty()) {
             $departmentsQuery->whereIn('id', $user->departments->pluck('id'));
         }
 
@@ -34,18 +39,35 @@ class DepartmentController extends Controller
 
         // For Admin de pole: only show their assigned departments in dropdowns
         // For other admins: show all departments
-        if ($isAdminDePole && $user->departments && $user->departments->isNotEmpty()) {
-            $allDepartments = Department::with('subDepartments.services')
+        if ($isAdminDePoleScoped && $user->departments && $user->departments->isNotEmpty()) {
+            $allDepartments = Department::with([
+                'subDepartments.services',
+            ])
                 ->whereIn('id', $user->departments->pluck('id'))
                 ->orderBy('name')
                 ->get();
         } else {
-            $allDepartments = Department::with('subDepartments.services')->orderBy('name')->get();
+            $allDepartments = Department::with([
+                'subDepartments.services',
+            ])->orderBy('name')->get();
         }
 
         return view('departments.index', compact('departments', 'allDepartments', 'canCreateStructures', 'canCreatePole'));
     }
 
+    public function importOrgChart(Request $request)
+    {
+        Gate::authorize('viewAny', Department::class);
+
+        $request->validate([
+            'org_chart' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ]);
+
+        Excel::import(new OrgStructureImport, $request->file('org_chart'));
+
+        return redirect()->route('departments.index')
+            ->with('success', __('Organigramme importé : pôles, sous-structures et services ont été créés ou réassociés selon le fichier (colonnes A / B / C).'));
+    }
 
     // Store a new department
     public function store(Request $request)

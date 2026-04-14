@@ -4,11 +4,10 @@ namespace App\Models;
 
 use App\Enums\DocumentStatus;
 use App\Jobs\ProcessOcrJob;
+use App\Services\AuditService;
 use App\Services\NotificationService;
+use App\Services\ProfileCategoryAccessService;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Service;
-use App\Models\SubDepartment;
-use App\Models\Department;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,7 +17,6 @@ use Illuminate\Validation\ValidationException;
 
 class Document extends Model
 {
-
     use SoftDeletes;
 
     protected $fillable = [
@@ -29,6 +27,7 @@ class Document extends Model
         'service_id',
         'title',
         'metadata',
+        'file_hash',
         'status',
         'physical_location_id',
         'box_id',
@@ -37,8 +36,8 @@ class Document extends Model
         'created_at',
         'created_by',
     ];
-    protected $dates = ['deleted_at'];
 
+    protected $dates = ['deleted_at'];
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -46,7 +45,7 @@ class Document extends Model
         'expire_at' => 'date',
         'is_expired' => 'boolean',
         'metadata' => 'array',
-       // 'status' => DocumentStatus::class
+        // 'status' => DocumentStatus::class
     ];
 
     protected static function boot()
@@ -55,7 +54,6 @@ class Document extends Model
 
         // Note: department_id is now set explicitly in controllers/forms
         // No automatic assignment to maintain multi-department compatibility
-
 
         // Runs on updating event (before an existing record is updated)
         static::updating(function ($document) {
@@ -74,24 +72,39 @@ class Document extends Model
                     ? $currentStatus->value
                     : $currentStatus;
 
-                // WorkflowRule enforcement disabled: relying solely on permissions
-                // $ruleExists = WorkFlowRule::where('from_status',$statusFrom)
-                //     ->where('to_status',$statusTo)
-                //     ->where('department_id',auth()->user()->department_id)
-                //     ->exists();
-                // if (! $ruleExists) {
-                //     throw ValidationException::withMessages([
-                //         'status' => "Tried changing from \"$statusFrom\" to \"$statusTo\". No workflow rule found !"
-                //     ]);
-                // }
+                if (config('ged.enforce_workflow_rules')) {
+                    $deptHasRules = WorkFlowRule::withoutGlobalScopes()
+                        ->where('department_id', $document->department_id)
+                        ->exists();
 
+                    if ($deptHasRules) {
+                        $categoryId = $document->category_id;
+                        $ruleMatch = WorkFlowRule::withoutGlobalScopes()
+                            ->where('department_id', $document->department_id)
+                            ->where(function ($q) use ($categoryId) {
+                                $q->whereNull('category_id');
+                                if ($categoryId !== null) {
+                                    $q->orWhere('category_id', $categoryId);
+                                }
+                            })
+                            ->where('from_status', $statusFrom)
+                            ->where('to_status', $statusTo)
+                            ->exists();
+
+                        if (! $ruleMatch) {
+                            throw ValidationException::withMessages([
+                                'status' => 'Aucune règle de workflow n’autorise cette transition de statut pour ce département ou cette catégorie.',
+                            ]);
+                        }
+                    }
+                }
 
                 DocumentStatusHistory::create([
                     'document_id' => $document->id,
                     'changed_by' => auth()->id(),
                     'from_status' => $statusFrom,
                     'to_status' => $statusTo,
-                    'changed_at' => now()
+                    'changed_at' => now(),
                 ]);
             }
         });
@@ -107,7 +120,7 @@ class Document extends Model
                         'error' => $e->getMessage(),
                     ]);
                 }
-                
+
                 // Delete associated OCR jobs
                 try {
                     \App\Models\OcrJob::where('document_version_id', $version->id)->delete();
@@ -135,8 +148,8 @@ class Document extends Model
     protected static function booted()
     {
         static::addGlobalScope('department_service', function ($query) {
-            
-            if (!auth()->check()) {
+
+            if (! auth()->check()) {
                 return;
             }
             $user = auth()->user();
@@ -151,16 +164,128 @@ class Document extends Model
                     $q->whereIn('status', ['pending', 'accepted']);
                 });
 
+            // Pending visibility (spec) : hors accès total, un document « pending » n'apparaît
+            // que pour son auteur ou pour les comptes pouvant approuver / refuser.
+            if (! $user->can('view any document')) {
+                $pending = DocumentStatus::Pending->value;
+                $query->where(function ($w) use ($user, $pending) {
+                    $w->where('documents.status', '!=', $pending)
+                        ->orWhere('documents.created_by', $user->id);
+                    if ($user->can('approve document') || $user->can('decline document')) {
+                        $w->orWhere('documents.status', $pending);
+                    }
+                });
+            }
+
             // Bypass department/service scoping for roles that can view any document,
             // but still respect the destruction/expiry / destruction-queue filters.
             if ($user->can('view any document')) {
                 return;
             }
 
+            // V2 CDC — visibilité documents alignée sur les profils d’accès aux catégories.
+            // Les rôles hiérarchiques gardent leurs périmètres élargis.
+            if (config('ged.category_access_driver', 'profile') === 'profile') {
+                if ($user->can('view department document')) {
+                    $departmentIds = collect();
+                    if (method_exists($user, 'departments')) {
+                        $departmentIds = $departmentIds->merge($user->departments->pluck('id'));
+                    }
+
+                    $subDeptIds = collect();
+                    if (method_exists($user, 'subDepartments')) {
+                        $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
+                    }
+                    if ($user->sub_department_id) {
+                        $subDeptIds->push($user->sub_department_id);
+                    }
+                    $subDeptIds = $subDeptIds->unique()->filter();
+                    if ($subDeptIds->isNotEmpty()) {
+                        $departmentIds = $departmentIds->merge(
+                            SubDepartment::whereIn('id', $subDeptIds)->pluck('department_id')
+                        );
+                    }
+                    $departmentIds = $departmentIds->unique()->filter()->values();
+
+                    if ($departmentIds->isEmpty()) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->whereIn('documents.department_id', $departmentIds->all());
+                    }
+
+                    return;
+                }
+
+                if ($user->can('view subdepartment scoped documents')) {
+                    $userSubDeptIds = collect();
+                    if (method_exists($user, 'subDepartments')) {
+                        $userSubDeptIds = $userSubDeptIds->merge($user->subDepartments->pluck('id'));
+                    }
+                    $userSubDeptIds = $userSubDeptIds->unique()->filter();
+
+                    if ($userSubDeptIds->isEmpty()) {
+                        $query->whereRaw('1 = 0');
+
+                        return;
+                    }
+
+                    $assignedSubDepts = SubDepartment::with('services:id,sub_department_id')
+                        ->whereIn('id', $userSubDeptIds)
+                        ->get(['id', 'department_id']);
+
+                    $query->where(function ($mainQuery) use ($assignedSubDepts) {
+                        foreach ($assignedSubDepts as $subDept) {
+                            $validServiceIds = $subDept->services->pluck('id');
+                            if ($validServiceIds->isEmpty()) {
+                                continue;
+                            }
+
+                            $mainQuery->orWhere(function ($q) use ($subDept, $validServiceIds) {
+                                $q->where('department_id', $subDept->department_id)
+                                    ->whereIn('service_id', $validServiceIds);
+                            });
+                        }
+                    });
+
+                    return;
+                }
+
+                $categoryIds = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
+                if ($categoryIds === null) {
+                    return;
+                }
+                $ids = $categoryIds->all();
+                $pending = DocumentStatus::Pending->value;
+
+                if (empty($ids) && ! $user->can('view own document')) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $query->where(function ($q) use ($ids, $user, $pending) {
+                    if (! empty($ids)) {
+                        $q->whereIn('documents.category_id', $ids)
+                            ->orWhereHas('subcategory', function ($sq) use ($ids) {
+                                $sq->whereIn('subcategories.category_id', $ids);
+                            });
+                    }
+
+                    if ($user->can('view own document')) {
+                        $q->orWhere(function ($own) use ($user, $pending) {
+                            $own->where('documents.created_by', $user->id)
+                                ->where('documents.status', $pending);
+                        });
+                    }
+                });
+
+                return;
+            }
+
             // =========================================================
-            //  STRICT DIVISION CHIEF POLICY
+            //  STRICT DIVISION CHIEF POLICY (legacy driver)
             // =========================================================
-            if ($user->hasAnyRole(['Division Chief', 'Admin de departments'])) {
+            if ($user->can('view subdepartment scoped documents')) {
 
                 // 1. Get all Sub-Departments assigned to this user (pivot only)
                 $userSubDeptIds = collect();
@@ -168,12 +293,13 @@ class Document extends Model
                 if (method_exists($user, 'subDepartments')) {
                     $userSubDeptIds = $userSubDeptIds->merge($user->subDepartments->pluck('id'));
                 }
-                
+
                 $userSubDeptIds = $userSubDeptIds->unique()->filter();
 
                 // If no sub-departments, show nothing
                 if ($userSubDeptIds->isEmpty()) {
                     $query->whereRaw('1 = 0');
+
                     return;
                 }
 
@@ -181,31 +307,31 @@ class Document extends Model
                 // We DO NOT rely on the User's department list. We rely on the SubDepartment's database record.
                 $assignedSubDepts = SubDepartment::with('services:id,sub_department_id')
                     ->whereIn('id', $userSubDeptIds)
-                    ->get(['id', 'department_id']); 
+                    ->get(['id', 'department_id']);
 
                 // 3. Build the Strict Query
                 $query->where(function ($mainQuery) use ($assignedSubDepts) {
-                    
+
                     foreach ($assignedSubDepts as $subDept) {
-                        
+
                         // Get services for this specific sub-department
                         $validServiceIds = $subDept->services->pluck('id');
-                        
+
                         if ($validServiceIds->isEmpty()) {
                             continue;
                         }
 
                         // LOGIC FIX:
                         // We use '$subDept->department_id' (The real owner), NOT the user's department list.
-                        // This ensures that even if User 2 is assigned 'Dept 2', 
+                        // This ensures that even if User 2 is assigned 'Dept 2',
                         // if they are looking at SubDept 1 (which belongs to Dept 1),
-                        // the query forces 'department_id = 1'. 
+                        // the query forces 'department_id = 1'.
                         // Since the document is Dept 1, User 1 sees it.
                         // User 2 (who expects Dept 2 documents) will NOT match this condition.
-                        
+
                         $mainQuery->orWhere(function ($q) use ($subDept, $validServiceIds) {
                             $q->where('department_id', $subDept->department_id)
-                              ->whereIn('service_id', $validServiceIds);
+                                ->whereIn('service_id', $validServiceIds);
                         });
                     }
                 });
@@ -222,7 +348,7 @@ class Document extends Model
 
             // Resolve visible departments and services from pivots
             $visibleDepartmentIds = collect();
-            $visibleServiceIds    = collect();
+            $visibleServiceIds = collect();
 
             // Departments directly assigned via pivot
             if (method_exists($user, 'departments')) {
@@ -234,12 +360,12 @@ class Document extends Model
             if (method_exists($user, 'subDepartments')) {
                 $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
             }
-            
+
             // Also check for primary sub_department_id assignment
             if ($user->sub_department_id) {
                 $subDeptIds->push($user->sub_department_id);
             }
-            
+
             $subDeptIds = $subDeptIds->unique()->filter();
 
             if ($subDeptIds->isNotEmpty()) {
@@ -262,14 +388,14 @@ class Document extends Model
             if ($user->service_id) {
                 $visibleServiceIds->push($user->service_id);
             }
-            
+
             // 2. Check many-to-many pivot table (service_user)
             if (method_exists($user, 'services')) {
                 $visibleServiceIds = $visibleServiceIds->merge($user->services->pluck('id'));
             }
 
             $visibleDepartmentIds = $visibleDepartmentIds->unique()->filter();
-            $visibleServiceIds    = $visibleServiceIds->unique()->filter();
+            $visibleServiceIds = $visibleServiceIds->unique()->filter();
 
             // Service-level visibility (Service Manager / Service User)
             if ($user->can('view service document')) {
@@ -277,9 +403,9 @@ class Document extends Model
                     // Show documents from assigned services
                     // If user can also view own documents, include those too
                     if ($user->can('view own document')) {
-                        $query->where(function($q) use ($visibleServiceIds, $user) {
+                        $query->where(function ($q) use ($visibleServiceIds, $user) {
                             $q->whereIn('documents.service_id', $visibleServiceIds->all())
-                              ->orWhere('documents.created_by', $user->id);
+                                ->orWhere('documents.created_by', $user->id);
                         });
                     } else {
                         // Simple filter by service_id only
@@ -294,6 +420,7 @@ class Document extends Model
                         $query->whereRaw('1 = 0');
                     }
                 }
+
                 return;
             }
 
@@ -304,6 +431,7 @@ class Document extends Model
                 } else {
                     $query->whereRaw('1 = 0');
                 }
+
                 return;
             }
 
@@ -318,7 +446,19 @@ class Document extends Model
 
     public function documentVersions(): HasMany
     {
-        return $this->hasMany(DocumentVersion::class,'document_id');
+        return $this->hasMany(DocumentVersion::class, 'document_id');
+    }
+
+    public function documentMovements(): HasMany
+    {
+        return $this->hasMany(DocumentMovement::class, 'document_id')
+            ->orderByDesc('moved_at')
+            ->orderByDesc('id');
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(DocumentStatusHistory::class, 'document_id')->orderBy('changed_at');
     }
 
     public function latestVersion(): HasOne
@@ -328,13 +468,19 @@ class Document extends Model
 
     public function destructionsRequests(): HasMany
     {
-        return $this->hasMany(DocumentDestructionRequest::class,'document_id');
+        return $this->hasMany(DocumentDestructionRequest::class, 'document_id');
+    }
+
+    public function destructionCertificates(): HasMany
+    {
+        return $this->hasMany(DestructionCertificate::class);
     }
 
     public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(User::class,'created_by','id');
+        return $this->belongsTo(User::class, 'created_by', 'id');
     }
+
     public function subcategory()
     {
         return $this->belongsTo(Subcategory::class);
@@ -362,7 +508,7 @@ class Document extends Model
 
     public function physicalLocation()
     {
-        return $this->belongsTo(PhysicalLocation::class,'physical_location_id','id');
+        return $this->belongsTo(PhysicalLocation::class, 'physical_location_id', 'id');
     }
 
     public function folder(): BelongsTo
@@ -389,8 +535,10 @@ class Document extends Model
             ->orderBy('occurred_at', 'desc');
     }
 
-
-    public function logAction(string $action, ?int $versionId = null)
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public function logAction(string $action, ?int $versionId = null, array $metadata = [])
     {
         $resolvedVersionId = $versionId ?? $this->latestVersion?->id;
 
@@ -399,20 +547,12 @@ class Document extends Model
             return;
         }
 
-        AuditLog::create([
-            'user_id' => auth()->id(),
-            'user_name' => auth()->check() ? auth()->user()->full_name : null,
-            'document_id' => $this->id,
-            'version_id' => $resolvedVersionId,
-            'action' => $action,
-            'ip_address' => request()->ip(),
-            'occurred_at' => now(),
-        ]);
+        AuditService::log($action, $this, $resolvedVersionId, $metadata);
 
         // Only send notifications if the document creator exists
         // Load the relationship if not already loaded
         $creator = $this->createdBy;
-        
+
         if ($creator) {
             $notificationService = new NotificationService(
                 $this->title,
@@ -479,5 +619,4 @@ class Document extends Model
 
         ProcessOcrJob::dispatch($ocrJob);
     }
-
 }

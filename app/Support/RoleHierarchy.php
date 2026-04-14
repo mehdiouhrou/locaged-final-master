@@ -54,8 +54,8 @@ class RoleHierarchy
      */
     public static function allowedRoleNamesFor(User $currentUser): array
     {
-        // Master can view all roles
-        if ($currentUser->hasRole('master')) {
+        // Master (seul rôle avec view any role) : voir tous les rôles dans les filtres
+        if ($currentUser->can('view any role')) {
             return Role::pluck('name')->all();
         }
 
@@ -73,7 +73,7 @@ class RoleHierarchy
      */
     public static function allowedAssignableRoleNamesFor(User $currentUser): array
     {
-        if ($currentUser->hasRole('master')) {
+        if ($currentUser->can('view any role')) {
             return Role::pluck('name')->all();
         }
 
@@ -87,7 +87,7 @@ class RoleHierarchy
     public static function canAssignRole(User $currentUser, Role $targetRole): bool
     {
         // Master can assign any role, including master itself
-        if ($currentUser->hasRole('master')) {
+        if ($currentUser->can('view any role')) {
             return true;
         }
 

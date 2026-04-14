@@ -8,6 +8,7 @@ export default defineConfig({
             input: [
                 'resources/sass/app.scss',
                 'resources/js/app.js',
+                'resources/js/upload-pdf-preview.js',
             ],
             refresh: true,
             resolve: {

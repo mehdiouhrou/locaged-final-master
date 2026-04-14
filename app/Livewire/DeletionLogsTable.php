@@ -36,10 +36,7 @@ class DeletionLogsTable extends Component
 
     public function mount(): void
     {
-        $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
-            abort(403);
-        }
+        abort_unless(auth()->user()?->can('access document expiration management'), 403);
     }
 
     public function updated($field)
@@ -68,34 +65,27 @@ class DeletionLogsTable extends Component
     private function buildQuery()
     {
         $current = auth()->user();
-        
-        // Check if current user is Super Admin (not master)
-        $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
-            !$current->hasRole('master');
-        
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && ! $isMaster;
+
+        $deptDeletionScope = $current && (
+            $current->can('filter audit logs by assigned departments')
+            || $current->can('filter audit logs by assigned subdepartments')
         );
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
-        
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
         return AuditLog::with(['user.roles', 'document' => function ($q) {
                 $q->withoutGlobalScopes()->withTrashed()->with(['department', 'service.subDepartment']);
             }])
             ->where('action', 'permanently_deleted')
-            // Super Admin: hide logs from master users
-            ->when($isSuperAdmin, function($q) {
+            ->when($isSuperAdminNotMaster, function($q) {
                 $q->whereDoesntHave('user.roles', function($r) {
                     $r->whereRaw('LOWER(name) = ?', ['master']);
                 });
             })
-            // Department Administrator: only see logs from their department AND filter out higher roles
-            ->when($isDeptAdmin && !$isSuperAdmin, function($q) use ($current) {
+            ->when($deptDeletionScope && ! $hasOrgReport, function($q) use ($current) {
                 $deptIds = $current->departments?->pluck('id') ?? collect();
                 
                 $q->where(function($subQuery) use ($deptIds) {
@@ -109,8 +99,7 @@ class DeletionLogsTable extends Component
                     $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin']);
                 });
             })
-            // Service Manager: only see logs from their service AND filter out higher roles
-            ->when($isServiceManager && !$isDeptAdmin && !$isSuperAdmin, function($q) use ($current) {
+            ->when($isServiceAuditor && ! $deptDeletionScope && ! $hasOrgReport, function($q) use ($current) {
                 $serviceIds = collect();
                 if ($current->service_id) {
                     $serviceIds->push($current->service_id);
@@ -173,10 +162,7 @@ class DeletionLogsTable extends Component
 
     public function export()
     {
-        $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
-            abort(403);
-        }
+        abort_unless(auth()->user()?->can('access document expiration management'), 403);
 
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\DeletionLogsExport($this->buildQuery()->get()),
@@ -187,9 +173,7 @@ class DeletionLogsTable extends Component
     public function exportSinglePdf($logId)
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Department Administrator', 'Admin de cellule', 'Service Manager'])) {
-            abort(403);
-        }
+        abort_unless($user && $user->can('access document expiration management'), 403);
 
         // Set locale for translations in PDF
         app()->setLocale($user->locale ?? 'fr');
@@ -243,37 +227,29 @@ class DeletionLogsTable extends Component
     {
         $logs = $this->buildQuery()->paginate($this->perPage);
 
-        // Get statistics (respect department scoping and role hierarchy)
         $current = auth()->user();
-        
-        // Check if current user is Super Admin (not master)
-        $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
-            !$current->hasRole('master');
-            
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && ! $isMaster;
+
+        $deptDeletionScope = $current && (
+            $current->can('filter audit logs by assigned departments')
+            || $current->can('filter audit logs by assigned subdepartments')
         );
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
-        
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
         $statsBase = AuditLog::where('action', 'permanently_deleted');
-        
-        // Super Admin: hide logs from master users (same as main query)
-        if ($isSuperAdmin) {
+
+        if ($isSuperAdminNotMaster) {
             $statsBase->whereDoesntHave('user.roles', function($r) {
                 $r->whereRaw('LOWER(name) = ?', ['master']);
             });
         }
         
-        // Apply same filtering as main query for Department Admins
-        if ($isDeptAdmin && !$isSuperAdmin) {
+        if ($deptDeletionScope && ! $hasOrgReport) {
             $deptIds = $current->departments?->pluck('id') ?? collect();
-            
+
             $statsBase->where(function($subQuery) use ($deptIds) {
                 // Filter by document department
                 $subQuery->whereHas('document', function($q2) use ($deptIds) {
@@ -284,7 +260,7 @@ class DeletionLogsTable extends Component
             ->whereDoesntHave('user.roles', function($r) {
                 $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin']);
             });
-        } elseif ($isServiceManager && !$isDeptAdmin && !$isSuperAdmin) { 
+        } elseif ($isServiceAuditor && ! $deptDeletionScope && ! $hasOrgReport) {
              $serviceIds = collect();
             if ($current->service_id) {
                 $serviceIds->push($current->service_id);
@@ -315,21 +291,9 @@ class DeletionLogsTable extends Component
             ->whereDate('occurred_at', today())
             ->count();
 
-        // Get filter options (respect department scoping and role hierarchy)
-        $current = auth()->user();
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
-        );
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
-        
-        if ($isDeptAdmin) {
+        if ($deptDeletionScope && ! $hasOrgReport) {
             $deptIds = $current->departments?->pluck('id') ?? collect();
-            
+
             $users = User::whereHas('departments', function($q) use ($deptIds) {
                     $q->whereIn('departments.id', $deptIds);
                 })
@@ -337,7 +301,7 @@ class DeletionLogsTable extends Component
                 ->orderBy('full_name')
                 ->get();
             $departments = Department::whereIn('id', $deptIds)->orderBy('name')->get();
-        } elseif ($isServiceManager) {
+        } elseif ($isServiceAuditor) {
             // Service Manager: restricted dropdowns
              $serviceIds = collect();
             if ($current->service_id) {
@@ -363,11 +327,6 @@ class DeletionLogsTable extends Component
              $departments = Department::whereIn('id', $deptIdsFromServices)->orderBy('name')->get();
 
         } else {
-            // Super Admin: exclude master users from filter dropdown
-            $isSuperAdminNotMaster = $current && 
-                $current->hasRole(['Super Administrator', 'super_admin']) && 
-                !$current->hasRole('master');
-            
             if ($isSuperAdminNotMaster) {
                 $users = User::whereDoesntHave('roles', function($q) {
                         $q->whereRaw('LOWER(name) = ?', ['master']);

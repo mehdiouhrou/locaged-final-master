@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Policies\RolePolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 use Spatie\Permission\Models\Role;
@@ -44,20 +45,21 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(\App\Models\DocumentDestructionRequest::class, \App\Policies\DocumentDestructionRequestPolicy::class);
+        Gate::policy(\App\Models\DestructionCertificate::class, \App\Policies\DestructionCertificatePolicy::class);
+
+        View::composer('layouts.sidebar', \App\View\Composers\SidebarComposer::class);
 
         Gate::before(function (User $user, string $ability) {
-            
-            // Only master role gets special access to everything
-            if ($user->hasRole('master')) {
-                return true;
+            // Ne pas appeler $user->can() ici : cela ré-entrerait dans Gate::before et peut saturer la pile.
+            if ($ability === 'view any role') {
+                return null;
             }
-            
-            // super_admin is treated like normal users - no special access
-            // if ($user->hasRole('super_admin')) {
-            //     return true;
-            // }
-            
-            return null;
+
+            $hasMasterBypass = $user->getAllPermissions()->contains(
+                fn ($p) => $p->name === 'view any role'
+            );
+
+            return $hasMasterBypass ? true : null;
         });
 
     }

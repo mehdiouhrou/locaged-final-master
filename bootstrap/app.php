@@ -13,10 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\GeneratePermissions::class,
         \App\Console\Commands\ImportToElasticsearch::class,
         \App\Console\Commands\InitEnvironment::class,
+        \App\Console\Commands\PurgeAuditLogs::class,
         \App\Console\Commands\VerifyOcrDeletion::class,
     ])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
@@ -26,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'enforce-sensitive-mfa' => \App\Http\Middleware\EnsureSensitiveRoleMfa::class,
         ]);
         // AUDIT FIX #6: Security headers (CSP, HSTS, X-Frame-Options, etc.)
         $middleware->web(prepend: \App\Http\Middleware\SecurityHeaders::class);

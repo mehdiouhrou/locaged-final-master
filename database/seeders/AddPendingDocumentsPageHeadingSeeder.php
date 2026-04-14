@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Database\Seeders;
 
 use App\Models\UiTranslation;
@@ -11,9 +10,10 @@ class AddPendingDocumentsPageHeadingSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ensure UTF-8 encoding
-        DB::statement('SET NAMES utf8mb4');
-        
+        if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+            DB::statement('SET NAMES utf8mb4');
+        }
+
         $translations = [
             [
                 'key' => 'pages.headings.pending_documents',
@@ -35,7 +35,7 @@ class AddPendingDocumentsPageHeadingSeeder extends Seeder
                 );
                 $this->command->info("✓ Added: {$translation['key']}");
             } catch (\Exception $e) {
-                $this->command->error("✗ Failed to add: {$translation['key']} - " . $e->getMessage());
+                $this->command->error("✗ Failed to add: {$translation['key']} - ".$e->getMessage());
             }
         }
 

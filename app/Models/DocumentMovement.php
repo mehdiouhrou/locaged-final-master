@@ -17,11 +17,20 @@ class DocumentMovement extends Model
         'moved_from_box_id',
         'moved_to_box_id',
         'moved_by',
+        'borrowed_by_user_id',
+        'borrower_name',
+        'due_at',
+        'returned_at',
+        'returned_by_user_id',
+        'movement_note',
+        'return_note',
         'moved_at',
     ];
 
     protected $casts = [
-        'moved_at' => 'datetime'
+        'moved_at' => 'datetime',
+        'due_at' => 'datetime',
+        'returned_at' => 'datetime',
     ];
 
     public function document(): BelongsTo
@@ -58,6 +67,16 @@ class DocumentMovement extends Model
     public function movedBy(): BelongsTo
     {
         return $this->belongsTo(User::class,'moved_by');
+    }
+
+    public function borrowedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'borrowed_by_user_id');
+    }
+
+    public function returnedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'returned_by_user_id');
     }
 
     public function __toString()

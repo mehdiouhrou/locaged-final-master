@@ -67,7 +67,7 @@ class InitEnvironment extends Command
             } else {
                 $this->info('Admin user already exists.');
 
-                if (!$admin->hasRole('master')) {
+                if (! $admin->can('view any role')) {
                     $admin->assignRole($masterRole);
                     $this->info('Master role assigned to existing user.');
                 } else {

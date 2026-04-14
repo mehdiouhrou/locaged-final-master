@@ -10,9 +10,10 @@ class AddPhysicalLocationBoxErrorTranslationsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ensure UTF-8 encoding
-        DB::statement('SET NAMES utf8mb4');
-        
+        if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+            DB::statement('SET NAMES utf8mb4');
+        }
+
         $translations = [
             [
                 'key' => 'errors.physical_location.box_name_duplicate',
@@ -40,7 +41,7 @@ class AddPhysicalLocationBoxErrorTranslationsSeeder extends Seeder
                 );
                 $this->command->info("✓ Added: {$translation['key']}");
             } catch (\Exception $e) {
-                $this->command->error("✗ Failed to add: {$translation['key']} - " . $e->getMessage());
+                $this->command->error("✗ Failed to add: {$translation['key']} - ".$e->getMessage());
             }
         }
 

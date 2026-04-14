@@ -8,22 +8,27 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\Service;
 use App\Models\SubDepartment;
-use App\Models\Subcategory;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class HomeController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+
         // Base query for all dashboard statistics: only documents the current user can actually see
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
 
-        // Paginated list of visible documents
-        $documents = (clone $visibleDocumentsQuery)->paginate(10);
+        // Paginated list of visible documents (with creator for dashboard activity strip)
+        $documents = (clone $visibleDocumentsQuery)
+            ->with(['createdBy:id,full_name,name,email'])
+            ->latest()
+            ->paginate(10);
         $totalDocuments = $documents->total();
         $categories = $this->getCategories();
         $statusSummary = $this->getStatusSummary();
@@ -57,12 +62,12 @@ class HomeController extends Controller
                 $typeTotal = max(1, array_sum($extCounts));
                 $labels = array_keys($extCounts);
                 $values = array_values($extCounts);
-                $percents = array_map(fn($c) => round(($c / $typeTotal) * 100, 1), $extCounts);
+                $percents = array_map(fn ($c) => round(($c / $typeTotal) * 100, 1), $extCounts);
 
                 // Provide a color palette long enough for many types
                 $palette = [
-                    '#2563eb','#3b82f6','#60a5fa','#6366f1','#8b5cf6','#a855f7','#22c55e','#10b981','#14b8a6',
-                    '#06b6d4','#0ea5e9','#f59e0b','#ef4444','#84cc16','#e11d48','#f97316','#475569','#0ea5a5'
+                    '#2563eb', '#3b82f6', '#60a5fa', '#6366f1', '#8b5cf6', '#a855f7', '#22c55e', '#10b981', '#14b8a6',
+                    '#06b6d4', '#0ea5e9', '#f59e0b', '#ef4444', '#84cc16', '#e11d48', '#f97316', '#475569', '#0ea5a5',
                 ];
                 $colors = [];
                 for ($i = 0; $i < count($labels); $i++) {
@@ -78,31 +83,29 @@ class HomeController extends Controller
             }
         }
 
-        // Determine what to show in donut chart based on user's department access
-        $user = auth()->user();
-        
-        // For master/super admin, populate with all departments
-        $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
-        
-        if ($isMaster || $isSuperAdmin || $user->can('view any department')) {
-            $userDepartments = Department::all();
-        } else {
-            $userDepartments = $user->departments ?? collect();
+        // Dashboard donut chart is now category-based for all users.
+        $donutChartData = $this->getDonutChartDataByCategories();
+
+        $pendingApprovalTasks = collect();
+        if ($user && ($user->can('approve', Document::class) || $user->can('decline', Document::class))) {
+            $pendingApprovalTasks = (clone $visibleDocumentsQuery)
+                ->where('status', DocumentStatus::Pending->value)
+                ->with(['createdBy:id,full_name,name,email', 'latestVersion:id,document_id,file_path'])
+                ->latest()
+                ->limit(8)
+                ->get();
         }
-        
-        $donutChartData = $this->getDonutChartData($userDepartments);
 
         // Location cards (Rooms or Boxes) based on user role
         $user = auth()->user();
-        $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super_admin'));
-        
+        $isMaster = $user && $user->can('view any role');
+        $isSuperAdmin = $user && $user->can('view organization wide reports') && ! $user->can('view any role');
+
         if ($isMaster) {
             // MASTER: Show rooms with document counts
             $allRooms = \App\Models\Room::orderBy('name')->get();
             $roomToCount = [];
-            
+
             foreach ($allRooms as $room) {
                 // Get boxes in this room that the user has access to
                 $boxIds = \App\Models\Box::forUser($user)
@@ -133,9 +136,10 @@ class HomeController extends Controller
             $boxes = \App\Models\Box::with(['shelf.row.room'])
                 ->orderBy('name')
                 ->get();
-            
-            $roomCards = $boxes->map(function($box) use ($visibleDocumentsQuery) {
+
+            $roomCards = $boxes->map(function ($box) use ($visibleDocumentsQuery) {
                 $count = (clone $visibleDocumentsQuery)->where('box_id', $box->id)->count();
+
                 return [
                     'type' => 'box',
                     'id' => $box->id,
@@ -143,16 +147,17 @@ class HomeController extends Controller
                     'full_path' => $box->__toString(),
                     'count' => $count,
                 ];
-            })->filter(fn($b) => $b['count'] > 0)->values();
+            })->filter(fn ($b) => $b['count'] > 0)->values();
         } else {
             // OTHER USERS: Show service-filtered boxes
             $boxes = \App\Models\Box::forUser($user)
                 ->with(['shelf.row.room'])
                 ->orderBy('name')
                 ->get();
-            
-            $roomCards = $boxes->map(function($box) use ($visibleDocumentsQuery) {
+
+            $roomCards = $boxes->map(function ($box) use ($visibleDocumentsQuery) {
                 $count = (clone $visibleDocumentsQuery)->where('box_id', $box->id)->count();
+
                 return [
                     'type' => 'box',
                     'id' => $box->id,
@@ -160,20 +165,20 @@ class HomeController extends Controller
                     'full_path' => $box->__toString(),
                     'count' => $count,
                 ];
-            })->filter(fn($b) => $b['count'] > 0)->values();
+            })->filter(fn ($b) => $b['count'] > 0)->values();
         }
 
         return view('home.index', compact(
             'totalDocuments', 'documents', 'categories',
             'weeklyData', 'monthlyData', 'yearlyData', 'statusSummary',
-            'documentTypeStats', 'roomCards', 'donutChartData'
+            'documentTypeStats', 'roomCards', 'donutChartData', 'pendingApprovalTasks'
         ));
     }
 
     public function notifications()
     {
-        $notifications = auth()->user()->unreadNotifications()->paginate(10);
-        return view('home.notifications', compact('notifications'));
+        // Notifications and event feed are unified in a single page.
+        return view('activity.feed');
     }
 
     /**
@@ -185,16 +190,16 @@ class HomeController extends Controller
 
         // Overall disk stats for the volume hosting the application
         $totalDiskBytes = @disk_total_space($basePath) ?: null;
-        $freeDiskBytes  = $totalDiskBytes ? (@disk_free_space($basePath) ?: null) : null;
+        $freeDiskBytes = $totalDiskBytes ? (@disk_free_space($basePath) ?: null) : null;
 
         $usedDiskBytes = null;
-        $usedPercent   = null;
-        $freePercent   = null;
+        $usedPercent = null;
+        $freePercent = null;
 
         if ($totalDiskBytes !== null && $freeDiskBytes !== null && $totalDiskBytes > 0) {
             $usedDiskBytes = max(0, $totalDiskBytes - $freeDiskBytes);
-            $usedPercent   = round(($usedDiskBytes / $totalDiskBytes) * 100, 1);
-            $freePercent   = round(100 - $usedPercent, 1);
+            $usedPercent = round(($usedDiskBytes / $totalDiskBytes) * 100, 1);
+            $freePercent = round(100 - $usedPercent, 1);
         }
 
         // Space used by application documents (local storage disk)
@@ -222,29 +227,29 @@ class HomeController extends Controller
             $appPercentOfUsed = round(($appBytes / $usedDiskBytes) * 100, 2);
         }
 
-        $warningThreshold  = 80; // % of total disk used
+        $warningThreshold = 80; // % of total disk used
         $criticalThreshold = 90; // % of total disk used
 
         $disk = [
-            'total_bytes'   => $totalDiskBytes,
-            'used_bytes'    => $usedDiskBytes,
-            'free_bytes'    => $freeDiskBytes,
-            'used_percent'  => $usedPercent,
-            'free_percent'  => $freePercent,
-            'total_human'   => $totalDiskBytes !== null ? $this->formatBytes($totalDiskBytes) : null,
-            'used_human'    => $usedDiskBytes !== null ? $this->formatBytes($usedDiskBytes) : null,
-            'free_human'    => $freeDiskBytes !== null ? $this->formatBytes($freeDiskBytes) : null,
+            'total_bytes' => $totalDiskBytes,
+            'used_bytes' => $usedDiskBytes,
+            'free_bytes' => $freeDiskBytes,
+            'used_percent' => $usedPercent,
+            'free_percent' => $freePercent,
+            'total_human' => $totalDiskBytes !== null ? $this->formatBytes($totalDiskBytes) : null,
+            'used_human' => $usedDiskBytes !== null ? $this->formatBytes($usedDiskBytes) : null,
+            'free_human' => $freeDiskBytes !== null ? $this->formatBytes($freeDiskBytes) : null,
         ];
 
         $appStorage = [
-            'bytes'             => $appBytes,
-            'human'             => $this->formatBytes($appBytes),
-            'percent_of_disk'   => $appPercentOfDisk,
-            'percent_of_used'   => $appPercentOfUsed,
+            'bytes' => $appBytes,
+            'human' => $this->formatBytes($appBytes),
+            'percent_of_disk' => $appPercentOfDisk,
+            'percent_of_used' => $appPercentOfUsed,
         ];
 
         $thresholds = [
-            'warning'  => $warningThreshold,
+            'warning' => $warningThreshold,
             'critical' => $criticalThreshold,
         ];
 
@@ -254,7 +259,8 @@ class HomeController extends Controller
     public function toggleRtl(Request $request)
     {
         session(['rtl' => $request->boolean('rtl')]);
-        return back()->with('success','Content Direction changed successfully');
+
+        return back()->with('success', 'Content Direction changed successfully');
     }
 
     private function getCategories()
@@ -262,7 +268,7 @@ class HomeController extends Controller
         // Category cards are already permission-aware via policies on underlying pages.
         // We keep them unfiltered here so pagination and counts work as before.
         return Category::withCount([
-            'documents as pending_count' => fn($q) => $q->where('status', 'pending'),
+            'documents as pending_count' => fn ($q) => $q->where('status', 'pending'),
             'documents as total_count',
         ])->paginate(4);
     }
@@ -285,8 +291,7 @@ class HomeController extends Controller
             return $query;
         }
 
-        // Special strict rule for Division Chief (must match department + service pair)
-        if ($user->hasAnyRole(['Division Chief', 'Admin de departments'])) {
+        if ($user->can('view subdepartment scoped documents')) {
             $userDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
                 ? $user->departments->pluck('id')->filter()
                 : collect();
@@ -378,15 +383,11 @@ class HomeController extends Controller
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
         $accessibleServiceIds = $this->getAccessibleServiceIds();
 
-        $isMaster = $user && $user->hasRole('master');
-        $isSuperAdmin = $user && ($user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isMaster = $user && $user->can('view any role');
+        $isSuperAdmin = $user && $user->can('view organization wide reports');
 
-        // Service-level roles:
-        // - "Admin de cellule" is the canonical service manager role
-        // - "user" is the service-level user role
-        // Keep backward-compatibility with any legacy "Service Manager" / "Service User" roles.
-        $isServiceManager = $user && ($user->hasRole('Admin de cellule') || $user->hasRole('Service Manager'));
-        $isServiceUser = $user && ($user->hasRole('user') || $user->hasRole('Service User'));
+        $isServiceManager = $user && $user->can('view service user');
+        $isServiceUser = $user && $user->can('view service document') && ! $user->can('access management sidebar');
 
         $isGlobalAdmin = $isMaster || $isSuperAdmin;
         $isServiceScoped = $isServiceManager || $isServiceUser;
@@ -490,15 +491,60 @@ class HomeController extends Controller
         ];
     }
 
+    private function getDonutChartDataByCategories(): array
+    {
+        $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
+
+        $visibleCategoryCounts = (clone $visibleDocumentsQuery)
+            ->leftJoin('subcategories', 'documents.subcategory_id', '=', 'subcategories.id')
+            ->where(function ($q) {
+                $q->whereNotNull('documents.category_id')
+                    ->orWhereNotNull('subcategories.category_id');
+            })
+            ->selectRaw('COALESCE(documents.category_id, subcategories.category_id) as resolved_category_id, COUNT(*) as documents_count')
+            ->groupBy('resolved_category_id')
+            ->pluck('documents_count', 'resolved_category_id');
+
+        if ($visibleCategoryCounts->isEmpty()) {
+            return [
+                'type' => 'categories',
+                'data' => [],
+                'title' => ui_t('pages.dashboard.donut.categories_title'),
+                'subtitle' => __('Aucune catégorie disponible'),
+            ];
+        }
+
+        $categories = Category::withoutGlobalScopes()
+            ->whereIn('id', $visibleCategoryCounts->keys())
+            ->orderBy('name')
+            ->get()
+            ->map(function ($category) use ($visibleCategoryCounts) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'count' => (int) ($visibleCategoryCounts[$category->id] ?? 0),
+                ];
+            })
+            ->filter(fn ($cat) => $cat['count'] > 0)
+            ->values();
+
+        return [
+            'type' => 'categories',
+            'data' => $categories,
+            'title' => ui_t('pages.dashboard.donut.categories_title'),
+            'subtitle' => __('Cliquez sur une catégorie pour ouvrir les documents'),
+        ];
+    }
+
     public function getCategoriesByDepartment($departmentId)
     {
         $user = auth()->user();
         $userDepartments = $user->departments ?? collect();
-        
+
         // Check if user has view any permissions or access to this specific department
         $hasViewAnyPermission = $user->can('view any department') || $user->can('view any document');
         $hasAccessToDepartment = $userDepartments->pluck('id')->contains($departmentId);
-        
+
         if (! $hasViewAnyPermission && ! $hasAccessToDepartment) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -514,7 +560,7 @@ class HomeController extends Controller
             ->groupBy('subcategories.category_id')
             ->pluck('documents_count', 'category_id');
 
-        $categories = Category::where('department_id', $departmentId)
+        $categories = Category::query()
             ->whereIn('id', $visibleCategoryCounts->keys())
             ->get()
             ->map(function ($category) use ($visibleCategoryCounts) {
@@ -546,13 +592,12 @@ class HomeController extends Controller
             return collect();
         }
 
-        // Super admins can see all services
-        if ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin')) {
+        if ($user->can('view any role') || $user->can('view organization wide reports')) {
             return Service::pluck('id');
         }
 
         $serviceIds = collect();
-        
+
         // Check if this is a service-level user (has 'view service document' permission)
         $isServiceLevelUser = $user->can('view service document');
 
@@ -561,7 +606,7 @@ class HomeController extends Controller
         if ($user->service_id) {
             $serviceIds->push($user->service_id);
         }
-        
+
         // 2. Many-to-many service assignments via pivot
         if ($user->relationLoaded('services') || method_exists($user, 'services')) {
             $serviceIds = $serviceIds->merge($user->services->pluck('id'));
@@ -632,7 +677,7 @@ class HomeController extends Controller
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
         $department = Department::find($departmentId);
 
-        $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isGlobalAdmin = $user && ($user->can('view any role') || $user->can('view organization wide reports'));
 
         // ------------------------------------------------------------------
         // Global admins: ALWAYS drill down departments -> sub-departments
@@ -699,8 +744,8 @@ class HomeController extends Controller
         if ($subDepartments->isEmpty()) {
             // Get all services under this department (via all its sub-departments)
             $services = Service::whereHas('subDepartment', function ($q) use ($departmentId) {
-                    $q->where('department_id', $departmentId);
-                })
+                $q->where('department_id', $departmentId);
+            })
                 ->when($accessibleServiceIds->isNotEmpty(), function ($q) use ($accessibleServiceIds) {
                     $q->whereIn('id', $accessibleServiceIds);
                 })
@@ -862,8 +907,8 @@ class HomeController extends Controller
         }
         $categories = $categories->map(function ($category) use ($visibleCategoryCounts) {
             return [
-                'id'    => $category->id,
-                'name'  => $category->name,
+                'id' => $category->id,
+                'name' => $category->name,
                 'count' => $visibleCategoryCounts[$category->id] ?? 0,
             ];
         });
@@ -879,10 +924,10 @@ class HomeController extends Controller
             if ($uncategorizedLabel === 'pages.uncategorized') {
                 $uncategorizedLabel = 'Uncategorized';
             }
-            
+
             $categories->push([
-                'id'    => 'uncategorized',
-                'name'  => $uncategorizedLabel,
+                'id' => 'uncategorized',
+                'name' => $uncategorizedLabel,
                 'count' => $uncategorizedCount,
             ]);
         }
@@ -911,7 +956,7 @@ class HomeController extends Controller
 
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
-            DocumentStatus::Pending->value  => $statusCounts['pending'] ?? 0,
+            DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
             DocumentStatus::Declined->value => $statusCounts['declined'] ?? 0,
             'expired' => $expiredCount,
         ];
@@ -923,21 +968,21 @@ class HomeController extends Controller
         $statuses = ['pending', 'approved', 'declined', 'deleted'];
 
         $rawWeekly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('DAYNAME(created_at) as day, status, COUNT(*) as total')
+            ->selectRaw($this->sqlEnglishDayName('created_at').' as day, status, COUNT(*) as total')
             ->whereBetween('created_at', [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()])
             ->groupBy('day', 'status')
             ->get();
 
         // Get expired documents
         $expiredWeekly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('DAYNAME(created_at) as day, COUNT(*) as total')
+            ->selectRaw($this->sqlEnglishDayName('created_at').' as day, COUNT(*) as total')
             ->whereNotNull('expire_at')
             ->where('expire_at', '<=', now())
             ->whereBetween('created_at', [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()])
             ->groupBy('day')
             ->get();
 
-        $daysOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        $daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $weekly = [];
         foreach ($daysOrder as $day) {
             $weekly[$day] = array_fill_keys($statuses, 0);
@@ -960,14 +1005,14 @@ class HomeController extends Controller
         $statuses = ['pending', 'approved', 'declined', 'deleted'];
 
         $rawMonthly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, status, COUNT(*) as total')
+            ->selectRaw($this->sqlYearMonth('created_at').' as month, status, COUNT(*) as total')
             ->whereBetween('created_at', [$now->copy()->subMonths(11)->startOfMonth(), $now->copy()->endOfMonth()])
             ->groupBy('month', 'status')
             ->get();
 
         // Get expired documents
         $expiredMonthly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as total')
+            ->selectRaw($this->sqlYearMonth('created_at').' as month, COUNT(*) as total')
             ->whereNotNull('expire_at')
             ->where('expire_at', '<=', now())
             ->whereBetween('created_at', [$now->copy()->subMonths(11)->startOfMonth(), $now->copy()->endOfMonth()])
@@ -986,7 +1031,7 @@ class HomeController extends Controller
         foreach ($rawMonthly as $row) {
             $monthly[$row->month][$row->status] = $row->total;
         }
-        
+
         // Add expired counts
         foreach ($expiredMonthly as $row) {
             if (isset($monthly[$row->month])) {
@@ -1003,14 +1048,14 @@ class HomeController extends Controller
         $statuses = ['pending', 'approved', 'declined', 'deleted'];
 
         $rawYearly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('YEAR(created_at) as year, status, COUNT(*) as total')
+            ->selectRaw($this->sqlYear('created_at').' as year, status, COUNT(*) as total')
             ->whereBetween('created_at', [$now->copy()->subYears(4)->startOfYear(), $now->copy()->endOfYear()])
             ->groupBy('year', 'status')
             ->get();
 
         // Get expired documents
         $expiredYearly = $this->getVisibleDocumentsQuery()
-            ->selectRaw('YEAR(created_at) as year, COUNT(*) as total')
+            ->selectRaw($this->sqlYear('created_at').' as year, COUNT(*) as total')
             ->whereNotNull('expire_at')
             ->where('expire_at', '<=', now())
             ->whereBetween('created_at', [$now->copy()->subYears(4)->startOfYear(), $now->copy()->endOfYear()])
@@ -1025,17 +1070,62 @@ class HomeController extends Controller
         }
 
         foreach ($rawYearly as $row) {
-            $yearly[$row->year][$row->status] = $row->total;
+            $y = (string) $row->year;
+            if (isset($yearly[$y])) {
+                $yearly[$y][$row->status] = $row->total;
+            }
         }
-        
+
         // Add expired counts
         foreach ($expiredYearly as $row) {
-            if (isset($yearly[$row->year])) {
-                $yearly[$row->year]['expired'] = $row->total;
+            $y = (string) $row->year;
+            if (isset($yearly[$y])) {
+                $yearly[$y]['expired'] = $row->total;
             }
         }
 
         return array_values($yearly);
+    }
+
+    /**
+     * English weekday name for SQL GROUP BY (MySQL DAYNAME); SQLite / PG compatible.
+     */
+    private function sqlEnglishDayName(string $column): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "DAYNAME({$column})",
+            'sqlite' => "CASE CAST(strftime('%w', {$column}) AS INTEGER)
+                WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday'
+                WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' WHEN 6 THEN 'Saturday' END",
+            'pgsql' => "(ARRAY['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'])[CAST(EXTRACT(DOW FROM {$column}) AS INTEGER) + 1]",
+            default => "DAYNAME({$column})",
+        };
+    }
+
+    /**
+     * Year-month label YYYY-MM (MySQL DATE_FORMAT %Y-%m).
+     */
+    private function sqlYearMonth(string $column): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "DATE_FORMAT({$column}, '%Y-%m')",
+            'sqlite' => "strftime('%Y-%m', {$column})",
+            'pgsql' => "to_char({$column}, 'YYYY-MM')",
+            default => "DATE_FORMAT({$column}, '%Y-%m')",
+        };
+    }
+
+    /**
+     * Calendar year (MySQL YEAR).
+     */
+    private function sqlYear(string $column): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "YEAR({$column})",
+            'sqlite' => "CAST(strftime('%Y', {$column}) AS INTEGER)",
+            'pgsql' => "CAST(EXTRACT(YEAR FROM {$column}) AS INTEGER)",
+            default => "YEAR({$column})",
+        };
     }
 
     /**
@@ -1059,7 +1149,6 @@ class HomeController extends Controller
             $i++;
         }
 
-        return number_format($bytes, 2) . ' ' . $units[$i];
+        return number_format($bytes, 2).' '.$units[$i];
     }
-
 }

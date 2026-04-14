@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Service;
+use App\Models\SubDepartment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -14,34 +16,71 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        $isAdminDePole = $user?->hasRole('Admin de pole');
+        $hasGlobalOrgAccess = $user?->can('view any role') || $user?->can('view organization wide reports');
+        $isAdminDePoleScoped = $user?->can('view any department') && ! $hasGlobalOrgAccess;
 
-        // Admin de pole can create services in sub-departments within their assigned pole
-        if ($isAdminDePole) {
-            $data = $request->validate([
-                'name' => 'required|string|max:255',
-                'sub_department_id' => 'required|exists:sub_departments,id',
-            ]);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'scope_type' => 'nullable|in:sub,direct',
+            'sub_department_id' => 'nullable|exists:sub_departments,id',
+            'department_id' => 'nullable|exists:departments,id',
+        ]);
 
-            // Verify the sub-department belongs to a department assigned to this Admin de pole
+        $scopeType = $data['scope_type'] ?? 'sub';
+        $targetSubDepartmentId = null;
+
+        // Scoped "Admin de pôle" can only create services in assigned poles.
+        if ($isAdminDePoleScoped) {
             $assignedDeptIds = $user->departments->pluck('id')->toArray();
-            $subDept = \App\Models\SubDepartment::find($data['sub_department_id']);
-            
-            if (!$subDept || !in_array($subDept->department_id, $assignedDeptIds)) {
-                abort(403, 'You can only create services in your assigned pole.');
+
+            if ($scopeType === 'direct') {
+                $departmentId = (int) ($data['department_id'] ?? 0);
+                if (! in_array($departmentId, $assignedDeptIds, true)) {
+                    abort(403, 'You can only create direct services in your assigned pole.');
+                }
+
+                $targetSubDepartmentId = $this->resolveDirectSubDepartment($departmentId)->id;
+            } else {
+                $subDept = SubDepartment::find((int) ($data['sub_department_id'] ?? 0));
+                if (! $subDept || ! in_array($subDept->department_id, $assignedDeptIds, true)) {
+                    abort(403, 'You can only create services in your assigned pole.');
+                }
+                $targetSubDepartmentId = $subDept->id;
             }
-        } else {
+        } elseif (! $hasGlobalOrgAccess) {
             Gate::authorize('create', Service::class);
-            
-            $data = $request->validate([
-                'name' => 'required|string|max:255',
-                'sub_department_id' => 'required|exists:sub_departments,id',
-            ]);
+
+            if ($scopeType === 'direct') {
+                $departmentId = (int) ($data['department_id'] ?? 0);
+                if (! Department::query()->whereKey($departmentId)->exists()) {
+                    return back()->withErrors(['department_id' => __('Le pôle est requis pour un service direct.')]);
+                }
+                $targetSubDepartmentId = $this->resolveDirectSubDepartment($departmentId)->id;
+            } else {
+                $subDeptId = (int) ($data['sub_department_id'] ?? 0);
+                if (! SubDepartment::query()->whereKey($subDeptId)->exists()) {
+                    return back()->withErrors(['sub_department_id' => __('La sous-structure est requise.')]);
+                }
+                $targetSubDepartmentId = $subDeptId;
+            }
         }
 
-        Service::create($data);
+        Service::create([
+            'name' => $data['name'],
+            'sub_department_id' => $targetSubDepartmentId,
+        ]);
 
         return redirect()->route('departments.index')->with('success', 'Service created.');
+    }
+
+    private function resolveDirectSubDepartment(int $departmentId): SubDepartment
+    {
+        return SubDepartment::firstOrCreate(
+            [
+                'department_id' => $departmentId,
+                'name' => '__DIRECT__',
+            ]
+        );
     }
 
     /**

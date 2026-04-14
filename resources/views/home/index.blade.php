@@ -1,52 +1,87 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="mt-3 position-relative mb-5">
-        <!-- Welcome Message -->
-        <div class="px-3 px-md-0 mb-3">
-            <h1 class="fw-bold">{{ ui_t('pages.dashboard.welcome') }}, {{ auth()->user()->full_name }}</h1>
+    @php
+        $dashDate = \Carbon\Carbon::now()->locale(str_replace('_', '-', app()->getLocale()))->isoFormat('dddd D MMMM YYYY');
+        $dashDept = auth()->user()->departments->first();
+        $dashSubtitle = $dashDept ? $dashDate . ' • ' . $dashDept->name : $dashDate;
+    @endphp
+    <div class="mt-3 position-relative mb-5 px-3 px-md-0 lgv2-dashboard-home">
+        <x-page-hero :title="ui_t('nav.dashboard')" :subtitle="$dashSubtitle" />
+
+        <div class="d-flex flex-column flex-lg-row flex-lg-wrap align-items-start justify-content-lg-between gap-3 mb-4">
+            <p class="text-muted small mb-0">{{ ui_t('pages.dashboard.welcome') }}, <span class="text-dark fw-semibold">{{ auth()->user()->full_name }}</span></p>
+            <nav class="lgv2-dash-quick d-flex flex-wrap gap-2" aria-label="{{ __('Accès rapides tableau de bord') }}">
+                @can('viewAny', \App\Models\Document::class)
+                    <a href="{{ route('documents.all') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                        <i class="fa-solid fa-folder-open me-1 opacity-75" aria-hidden="true"></i>{{ ui_t('nav.all_documents') }}
+                    </a>
+                    <a href="{{ route('documents.kanban') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                        <i class="fa-solid fa-table-columns me-1 opacity-75" aria-hidden="true"></i>{{ __('Kanban') }}
+                    </a>
+                @endcan
+                @canany(['approve', 'decline'], \App\Models\Document::class)
+                    <a href="{{ route('documents.status') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                        <i class="fa-solid fa-clipboard-check me-1 opacity-75" aria-hidden="true"></i>{{ ui_t('nav.approvals') }}
+                    </a>
+                @endcanany
+                <a href="{{ route('activity.feed') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                    <i class="fa-solid fa-list-ul me-1 opacity-75" aria-hidden="true"></i>{{ __('Fil d’événements') }}
+                </a>
+                @can('create', \App\Models\Document::class)
+                    <a href="{{ route('documents.create') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                        <i class="fa-solid fa-cloud-arrow-up me-1" aria-hidden="true"></i>{{ ui_t('nav.upload') }}
+                    </a>
+                @endcan
+            </nav>
         </div>
 
-        <!-- Overview Section -->
-        <div class="overview-section px-3 px-md-0">
-            <div class="d-flex justify-content-between">
-                <h2>{{ ui_t('pages.dashboard.overview') }}</h2>
+        <!-- KPI -->
+        <div class="overview-section mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h2 class="mb-0">{{ ui_t('pages.dashboard.overview') }}</h2>
             </div>
             @include('components.stats-cards')
         </div>
 
-        <!-- Main Dashboard Content -->
-        <div class="row">
-            <div class="col-lg-6 col-md-12">
-                <div class="left-column">
-                    <!-- Categories Section -->
-                    @include('components.categories-stats')
+        <!-- Activité + stockage (remonté sous les KPI) -->
+        @include('components.dashboard-activity-storage', [
+            'documents' => $documents,
+            'pendingApprovalTasks' => $pendingApprovalTasks ?? collect(),
+        ])
+
+        <!-- Catégories accessibles + Statistiques -->
+        <div class="row g-4 align-items-stretch lgv2-dashboard-main-row mt-1">
+            <div class="col-lg-6 col-md-12 d-flex">
+                <div class="left-column flex-grow-1 w-100">
+                    @include('components.dashboard-accessible-categories', ['categories' => $categories])
                 </div>
             </div>
-            <div class="col-lg-6 col-md-12 mt-5 mt-lg-0">
-                <!-- Chart -->
-                @include('components.documents-chart')
+            <div class="col-lg-6 col-md-12 d-flex">
+                <div class="w-100 d-flex flex-column">
+                    @include('components.documents-chart')
+                </div>
             </div>
         </div>
 
-        <!-- Secondary row: charts/cards -->
-        <div class="row mt-4">
-            <div class="col-lg-6 col-md-12 mb-3 mb-lg-0">
-                @include('components.doc-types-donut')
+        <!-- Types + salles -->
+        <div class="row g-4 align-items-stretch mt-1">
+            <div class="col-lg-6 col-md-12 d-flex">
+                <div class="w-100">@include('components.doc-types-donut')</div>
             </div>
-            <div class="col-lg-6 col-md-12">
-                @include('components.rooms-cards')
+            <div class="col-lg-6 col-md-12 d-flex">
+                <div class="w-100">@include('components.rooms-cards')</div>
             </div>
         </div>
 
-        <!-- Pending approvals Section -->
+        <!-- Approbations -->
         @can('viewAny', \App\Models\Document::class)
-            <div class="mt-5">
-                <h2 class="fw-bold mb-3">{{ ui_t('pages.dashboard.approvals') }}</h2>
+            <div class="lgv2-dash-approvals-block mt-5">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h3 class="section-label mb-0">{{ ui_t('pages.dashboard.approvals') }}</h3>
+                </div>
                 <livewire:documents-table :showOnlyPendingApprovals="true" />
             </div>
         @endcan
-
-        
     </div>
 @endsection

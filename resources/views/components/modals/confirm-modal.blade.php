@@ -104,6 +104,17 @@
                             }
                             
                             extraFieldsContainer.appendChild(select);
+                        } else if (field.type === 'textarea') {
+                            const ta = document.createElement('textarea');
+                            ta.name = field.name;
+                            ta.className = 'form-control mb-3';
+                            ta.placeholder = field.placeholder || '';
+                            ta.value = field.value || '';
+                            if (field.rows) ta.rows = field.rows;
+                            if (field.minlength !== undefined) ta.setAttribute('minlength', String(field.minlength));
+                            if (field.maxlength !== undefined) ta.setAttribute('maxlength', String(field.maxlength));
+                            if (field.required) ta.required = true;
+                            extraFieldsContainer.appendChild(ta);
                         } else {
                             // Handle regular input fields
                             const input = document.createElement('input');

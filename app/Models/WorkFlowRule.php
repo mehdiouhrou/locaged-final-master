@@ -11,9 +11,11 @@ class WorkFlowRule extends Model
 
     protected $fillable = [
         'department_id',
+        'category_id',
+        'level',
+        'approver_role',
         'from_status',
         'to_status',
-        // 'role_id'
     ];
 
     protected static function booted()
@@ -40,6 +42,8 @@ class WorkFlowRule extends Model
         return $this->belongsTo(Department::class);
     }
 
-
-
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
 }

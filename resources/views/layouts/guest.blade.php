@@ -9,18 +9,34 @@
     <!-- Webfont: Inter for consistent Helvetica-like rendering -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
     <title>{{ config('app.name', 'Locaged') }}</title>
 </head>
-<body>
+<body class="locaged-v2 locaged-v2-guest">
+@php($loginCoverUrl = \App\Support\Branding::loginImageUrl())
 <div class="container-fluid ps-0">
-    <div class="row " style="height: 100vh;overflow: hidden;">
-        <div class="col-lg-8 col-md-7 d-md-flex d-none p-0">
-            <div class="w-100 h-100" style="background: url('{{ \App\Support\Branding::loginImageUrl() }}') no-repeat center center / cover;"></div>
+    <div class="row flex-column flex-md-row" style="min-height: 100vh; overflow: hidden;">
+        {{-- Bannière visible sur mobile (avant la zone login) --}}
+        <div class="col-12 d-md-none p-0 order-first">
+            <div
+                class="w-100 guest-login-cover-bg guest-login-cover-bg--mobile"
+                style="background-image: url('{{ e($loginCoverUrl) }}');"
+                role="img"
+                aria-hidden="true"
+            ></div>
         </div>
-        <div class="col-lg-4 col-md-5 col-12 mx-auto  px-5 px-md-0 d-flex align-items-center justify-content-center">
-         @yield('content')
+        <div class="col-lg-8 col-md-7 d-none d-md-block p-0">
+            <div
+                class="w-100 h-100 guest-login-cover-bg guest-login-cover-bg--desktop"
+                style="background-image: url('{{ e($loginCoverUrl) }}');"
+                role="img"
+                aria-hidden="true"
+            ></div>
+        </div>
+        <div class="col-lg-4 col-md-5 col-12 mx-auto px-5 px-md-0 d-flex align-items-center justify-content-center order-last order-md-last py-4 py-md-0">
+            @yield('content')
         </div>
     </div>
+</div>
 </body>
 </html>

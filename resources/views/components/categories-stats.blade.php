@@ -7,7 +7,7 @@
 
     if ($currentUser) {
         // For Admin de cellule / user, capture a primary service (used only for data attributes)
-        if ($currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('user')) {
+        if ($currentUser->can('view service user') || ($currentUser->can('view service document') && ! $currentUser->can('access management sidebar'))) {
             $primaryService = $currentUser->service ?? $currentUser->services->first();
         }
 
@@ -53,20 +53,14 @@
             $homeController = app(\App\Http\Controllers\HomeController::class);
             $visibleDocsQuery = $homeController->getVisibleDocumentsQuery();
 
-            // Only "master" and "Super Administrator" should see all departments on the dashboard
-            $isGlobalAdmin = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+            $isGlobalAdmin = $user && ($user->can('view any role') || $user->can('view organization wide reports'));
 
-            // Department-level administrators:
-            //  - legacy "Department Administrator"
-            //  - canonical "Admin de pole" (pole admin)
-            $isDepartmentAdmin = $user && (
-                $user->hasRole('Department Administrator') ||
-                $user->hasRole('Admin de pole')
+            $isDepartmentAdmin = $user && $user->can('filter audit logs by assigned departments');
+
+            $isServiceScoped = $user && (
+                $user->can('view service user')
+                || ($user->can('view service document') && ! $user->can('access management sidebar'))
             );
-
-            // Service-level users (Admin de cellule / service user) may have multiple services
-            // NOTE: Admin de pole is NOT treated as service-scoped; they see department -> sub-dept -> service.
-            $isServiceScoped = $user && ($user->hasRole('Admin de cellule') || $user->hasRole('user'));
 
             // IMPORTANT: For service-scoped users, we want to show their services first,
             // even if they are also attached to a sub-department.
@@ -257,19 +251,14 @@
         @elseif(! $primarySubDept)
             <!-- Show categories directly if user has only one department (and user is not sub-department scoped) -->
             @php
-                $departmentId = $userDepartments->first()?->id;
-                if ($departmentId) {
-                    $categories = \App\Models\Category::where('department_id', $departmentId)
-                        ->withCount([
-                            'documents as pending_count' => fn($q) => $q->where('status', 'pending'),
-                            'documents as total_count',
-                        ])
-                        ->orderBy('total_count', 'desc')
-                        ->take(4)
-                        ->get();
-                } else {
-                    $categories = collect();
-                }
+                $categories = \App\Models\Category::query()
+                    ->withCount([
+                        'documents as pending_count' => fn ($q) => $q->where('status', 'pending'),
+                        'documents as total_count',
+                    ])
+                    ->orderBy('total_count', 'desc')
+                    ->take(4)
+                    ->get();
             @endphp
 
             @if($categories->count() > 0)

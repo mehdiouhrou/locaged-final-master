@@ -2,32 +2,32 @@
 
 @section('content')
 
+    @php
+        $totalDocuments = \App\Models\Document::count();
+        $pendingDocuments = \App\Models\Document::where('status', 'pending')->count();
+        $approvedDocuments = \App\Models\Document::where('status', 'approved')->count();
+        $todayDocuments = \App\Models\Document::whereDate('created_at', today())->count();
+        $auditSubtitle = number_format($totalDocuments) . ' · ' . number_format($pendingDocuments) . ' ' . ui_t('pages.stats.pending') . ' · ' . number_format($approvedDocuments) . ' ' . ui_t('pages.stats.approved');
+    @endphp
+
     <div class="activity-log px-4 px-md-0 position-relative">
-        <div class="d-md-flex mt-5 mb-4 align-items-center">
-            <h4 class="mb-4 mb-md-0 me-md-3">{{ ui_t('pages.file_audit') }}</h4>
-            <div class="flex-grow-1 d-flex justify-content-md-center">
-                <div class="btn-group2 mb-2">
-                    <button class="me-4">
+        <x-page-hero class="mt-4" :title="ui_t('pages.file_audit')" :subtitle="$auditSubtitle" dense>
+            <x-slot:actions>
+                <div class="btn-group2">
+                    <button type="button" class="me-2 me-md-3">
                         <a href="{{ route('users.logs') }}" class="text-decoration-none">{{ ui_t('pages.activity_log.activity_log') }}</a>
                     </button>
-                    <button class="me-4  button-active2">
+                    <button type="button" class="me-2 me-md-3 button-active2">
                         <a href="{{ route('documents.index') }}" class="text-decoration-none">{{ ui_t('pages.file_audit') }}</a>
                     </button>
-                    @unless(auth()->user()->hasAnyRole(['Admin de departments', 'Division Chief', 'Admin de cellule', 'service manager']))
-                        <button class="me-4">
+                    @unless(auth()->user()->can('filter audit logs by assigned services') || auth()->user()->can('view subdepartment scoped documents'))
+                        <button type="button" class="me-0">
                             <a href="{{ route('logs.deletions') }}" class="text-decoration-none">{{ __('Deletion log') }}</a>
                         </button>
                     @endunless
                 </div>
-            </div>
-        </div>
-
-        @php
-            $totalDocuments = \App\Models\Document::count();
-            $pendingDocuments = \App\Models\Document::where('status', 'pending')->count();
-            $approvedDocuments = \App\Models\Document::where('status', 'approved')->count();
-            $todayDocuments = \App\Models\Document::whereDate('created_at', today())->count();
-        @endphp
+            </x-slot:actions>
+        </x-page-hero>
 
         <!-- Statistics Cards -->
         <div class="row g-3 mb-4">

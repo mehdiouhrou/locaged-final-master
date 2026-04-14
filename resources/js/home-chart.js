@@ -40,10 +40,10 @@ if (chartEl) {
         data: {
             labels: labelsMonthly,
             datasets: [
-                { label: approvedLabel, data: getData(monthlyData, 'approved', 8), backgroundColor: '#28a745', borderRadius: 6, barThickness: 12 },
-                { label: pendingLabel, data: getData(monthlyData, 'pending', 8), backgroundColor: '#f1c40f', borderRadius: 6, barThickness: 12 },
-                { label: declinedLabel, data: getData(monthlyData, 'declined', 8), backgroundColor: '#dc3545', borderRadius: 6, barThickness: 12 },
-                { label: expiredLabel, data: getData(monthlyData, 'expired', 8), backgroundColor: '#343a40', borderRadius: 6, barThickness: 12 }
+                { label: approvedLabel, data: getData(monthlyData, 'approved', 8), backgroundColor: '#cc2929', borderRadius: 6, barThickness: 12 },
+                { label: pendingLabel, data: getData(monthlyData, 'pending', 8), backgroundColor: '#f59e0b', borderRadius: 6, barThickness: 12 },
+                { label: declinedLabel, data: getData(monthlyData, 'declined', 8), backgroundColor: '#94a3b8', borderRadius: 6, barThickness: 12 },
+                { label: expiredLabel, data: getData(monthlyData, 'expired', 8), backgroundColor: '#64748b', borderRadius: 6, barThickness: 12 }
             ]
         },
         options: {

@@ -54,7 +54,7 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSiz
             });
 
         // Respect the same department visibility logic as in UserController@index
-        if (! $current->hasRole('master') && ! $current->hasRole('Super Administrator')) {
+        if (! $current->can('view any role') && ! $current->can('view organization wide reports')) {
             $deptIds = DB::table('department_user')
                 ->where('user_id', $current->id)
                 ->pluck('department_id');

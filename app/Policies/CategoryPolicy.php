@@ -13,20 +13,7 @@ class CategoryPolicy
     public function viewAny(User $user): bool
     {
         // Primary check: explicit permission
-        if ($user->can('view any category')) {
-            return true;
-        }
-
-        // Fallback by role to avoid UI issues if permissions are not fully synced
-        return $user->hasAnyRole([
-            'Admin de pole',
-            'Admin de departments',
-            'Admin de cellule',
-            'department administrator',
-            'division chief',
-            'service manager',
-            'user', // service-level user can always browse categories
-        ]);
+        return $user->can('view any category');
     }
 
     /**

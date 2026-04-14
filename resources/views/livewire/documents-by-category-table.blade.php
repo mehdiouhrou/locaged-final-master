@@ -7,6 +7,7 @@
             || $dateFrom 
             || $dateTo 
             || $fileType 
+            || ($ocrFilter ?? '') !== ''
             || $favoritesOnly;
     @endphp
     @unless($hasActiveFilters)
@@ -114,13 +115,17 @@
                 </button>
             </div>
         @endif
-        <div class="table-controls mb-5">
-            <div class="search-files">
+        <div class="row g-4 align-items-start lgv2-documents-split mb-4">
+            <aside class="col-12 col-lg-3">
+                <div class="lgv2-filter-panel card border-0 shadow-sm p-3 mb-0">
+                    <div class="lgv2-filter-panel-title text-uppercase text-muted small fw-bold mb-3">{{ __('Filtres') }}</div>
+                    <div class="d-flex flex-column gap-3">
+            <div class="search-files w-100">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="{{ ui_t('tables.file_name') }}" wire:model.live="search" />
             </div>
-            <div class="table-filters">
-                <select class="form-select" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
+            <div class="table-filters d-flex flex-column gap-2 w-100">
+                <select class="form-select w-100" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
                     <option value="all">{{ ui_t('filters.all') }}</option>
                     @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                         <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
@@ -129,7 +134,7 @@
                 </select>
 
 
-                <select class="form-select" wire:model.change="fileType">
+                <select class="form-select w-100" wire:model.change="fileType">
                     <option value="">{{ ui_t('filters.file_type') }}</option>
                     <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                     <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -139,13 +144,22 @@
                     <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                 </select>
 
-                <div class="d-flex align-items-center gap-1">
-                    <label>{{ ui_t('filters.from') }}: </label>
+                <select class="form-select w-100" wire:model.change="ocrFilter" title="{{ __('Filtrer selon le traitement OCR de la dernière version') }}">
+                    <option value="">{{ __('OCR (tous)') }}</option>
+                    <option value="none">{{ __('Sans job OCR') }}</option>
+                    <option value="queued">{{ __('OCR en file') }}</option>
+                    <option value="processing">{{ __('OCR en cours') }}</option>
+                    <option value="completed">{{ __('OCR terminé') }}</option>
+                    <option value="failed">{{ __('OCR en échec') }}</option>
+                </select>
+
+                <div class="d-flex flex-column gap-1">
+                    <label class="small text-muted mb-0">{{ ui_t('filters.from') }}</label>
                     <input type="date" class="form-control" wire:model.change="dateFrom" placeholder="{{ ui_t('filters.from') }}" />
                 </div>
 
-                <div class="d-flex align-items-center gap-1">
-                    <label>{{ ui_t('filters.to') }}: </label>
+                <div class="d-flex flex-column gap-1">
+                    <label class="small text-muted mb-0">{{ ui_t('filters.to') }}</label>
                     <input type="date" class="form-control" wire:model.change="dateTo" placeholder="{{ ui_t('filters.to') }}" />
                 </div>
 
@@ -202,7 +216,7 @@
                         font-size: 18px;
                     }
                 </style>
-                <div class="fav-toggle-wrap ms-2 d-flex align-items-center">
+                <div class="fav-toggle-wrap d-flex align-items-center">
                     <input type="checkbox" id="favoritesOnlyCat" class="fav-toggle-input" wire:model.change="favoritesOnly">
                     <label for="favoritesOnlyCat"
                            class="fav-toggle {{ $favoritesOnly ? 'is-active' : '' }}"
@@ -215,7 +229,7 @@
                 </div>
 
                 <!-- Per Page Selector -->
-                <select class="form-select" wire:model.change="perPage" style="max-width: 120px;">
+                <select class="form-select w-100" wire:model.change="perPage">
                     <option value="10">10 per page</option>
                     <option value="50">50 per page</option>
                     <option value="100">100 per page</option>
@@ -224,13 +238,16 @@
                 </select>
 
                 <!-- Reset button -->
-                <button type="button" wire:click="resetFilters" class="btn btn-sm btn-outline-danger text-nowrap">
+                <button type="button" wire:click="resetFilters" class="btn btn-sm btn-outline-danger text-nowrap w-100">
                     {{ ui_t('filters.reset_filters') }}
                 </button>
 
             </div>
-        </div>
-
+                    </div>
+                </div>
+            </aside>
+            <div class="col-12 col-lg-9">
+        <div class="recent-files-section mb-0">
         <table class="files-table">
             <thead>
             <tr>
@@ -250,7 +267,7 @@
             </thead>
             <tbody>
             @foreach($documents as $doc)
-                <tr class="document-row" data-doc-id="{{ $doc->id }}">
+                <tr class="document-row @if(collect($checkedDocuments ?? [])->contains($doc->id) || collect($checkedDocuments ?? [])->contains((string) $doc->id)) lgv2-row-selected @endif" data-doc-id="{{ $doc->id }}">
                     <td>
                         <input type="checkbox"
                                wire:model.change="checkedDocuments"
@@ -258,19 +275,23 @@
                     </td>
                     <td>
                         <div class="file-item">
-                            <div class="file-icon">
+                            <div class="flex-shrink-0 d-flex align-items-start pt-1">
                                 @if($doc->latestVersion)
-                                    @php
-                                        $extension = strtolower(pathinfo($doc->latestVersion->file_path, PATHINFO_EXTENSION));
-                                        $iconClass = getFileIcon($extension);
-                                    @endphp
-                                    <i class="{{ $iconClass }}" style="font-size: 24px;"></i>
+                                    <x-file-type-badge :path="$doc->latestVersion->file_path" />
                                 @else
-                                    <i class="fas fa-file text-secondary" style="font-size: 24px;"></i>
+                                    <x-file-type-badge />
                                 @endif
                             </div>
-                            <div>
-                                <div class="file-name text-truncate" style="max-width: 260px;" title="{{ $doc->title }}">{{ $doc->title }}</div>
+                            <div class="min-w-0">
+                                <div class="file-name text-truncate" style="max-width: 260px;" title="{{ $doc->title }}">
+                                    @if($doc->latestVersion)
+                                        <a href="{{ route('document-versions.preview', ['id' => $doc->latestVersion->id]) }}" class="text-decoration-none text-reset">
+                                            {{ $doc->title }}
+                                        </a>
+                                    @else
+                                        {{ $doc->title }}
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -350,11 +371,9 @@
                             @can('view',$doc)
                                 @if($doc->latestVersion)
                                     @php
-                                        $baseUrl = route('document-versions.fullscreen', ['id' => $doc->latestVersion->id]);
+                                        $baseUrl = route('document-versions.preview', ['id' => $doc->latestVersion->id]);
                                         $navIds = implode(',', $documentsIds ?? []);
-                                        // Include return URL to preserve current page state with filters
-                                        $returnUrl = request()->fullUrl();
-                                        $fullUrl = $baseUrl . '?nav_ids=' . urlencode($navIds) . '&return_url=' . urlencode($returnUrl);
+                                        $fullUrl = $baseUrl . '?nav_ids=' . urlencode($navIds);
                                     @endphp
                                     <a href="{{ $fullUrl }}"
                                        class="btn-table btn-table-preview" title="{{ ui_t('pages.documents.preview') }}" aria-label="{{ ui_t('pages.documents.preview') }}">
@@ -392,7 +411,7 @@
                                     @endcan
 
 
-                                    @if(auth()->user()?->hasRole('master') || auth()->user()?->hasRole('Super Administrator'))
+                                    @if(auth()->user()?->can('view any role') || auth()->user()?->can('view organization wide reports') || auth()->user()?->can('view any department'))
                                         <li class="pointer">
                                             <a class="dropdown-item trigger-action"
                                                data-id="{{ $doc->id }}"
@@ -424,7 +443,7 @@
                                     @endif
 
 
-                                        @can('view',$doc)
+                                        @can('download',$doc)
                                     <li class="pointer">
                                         <a class="dropdown-item" href="#"
                                            onclick="event.preventDefault(); showDocumentMetadata({{ $doc->id }})">
@@ -450,9 +469,9 @@
                     <td colspan="10">
                         @php
                             $currentUser = auth()->user();
-                            $isAdminDePole = $currentUser->hasRole('Admin de pole') || $currentUser->hasRole('Department Administrator');
-                            $isAdminDeDepartments = $currentUser->hasRole('Admin de departments') || $currentUser->hasRole('Division Chief');
-                            $isAdminDeCellule = $currentUser->hasRole('Admin de cellule') || $currentUser->hasRole('Service Manager');
+                            $isAdminDePole = $currentUser->can('filter audit logs by assigned departments');
+                            $isAdminDeDepartments = $currentUser->can('view subdepartment scoped documents');
+                            $isAdminDeCellule = $currentUser->can('filter audit logs by assigned services');
                             
                             // Define roles that should be hidden for each user type
                             $hiddenRolesForAdminDePole = ['master', 'super administrator', 'admin'];
@@ -559,10 +578,12 @@
 
         @include('components.modals.confirm-modal')
         <x-pagination :items="$documents"></x-pagination>
+        </div>
+            </div>
+        </div>
+
     </div>
-
 </div>
-
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -693,13 +714,11 @@
         `).join('');
 
 
-        // Filter categories to only show those belonging to the document's service
-        const filteredCategories = metadata.service_id
-            ? categories.filter(c => String(c.service_id) === String(metadata.service_id))
-            : categories;
+        // Categories are not tied to org rows anymore; list is already scoped server-side.
+        const filteredCategories = categories;
 
         const categoryOptions = filteredCategories.map(c => `
-            <option value="${c.id}" data-service-id="${c.service_id}" ${String(c.id) == String(metadata.category_id ?? '') ? 'selected' : ''}>${c.name}</option>
+            <option value="${c.id}" ${String(c.id) == String(metadata.category_id ?? '') ? 'selected' : ''}>${c.name}</option>
         `).join('');
 
 
@@ -1026,6 +1045,9 @@
             'approved': 'success',
             'pending': 'warning',
             'declined': 'danger',
+            'refused': 'danger',
+            'expired': 'secondary',
+            'destroyed': 'dark',
             'archived': 'secondary'
         };
         return colors[status] || 'secondary';

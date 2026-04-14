@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\Log;
 class DocumentSearchService
 {
     /**
-     * Search documents using Elasticsearch with consistent results
+     * Search documents using Laravel Scout (Typesense).
      */
     public static function searchDocuments(string $query = '', array $filters = [], int $perPage = 15, int $page = 1): LengthAwarePaginator
     {
-        // Step 1: Basic Elasticsearch search
-        $searchResults = self::performElasticsearchSearch($query);
+        // Step 1: Basic Scout search
+        $searchResults = self::performScoutSearch($query);
         
         // Step 2: Apply permission filtering
         $searchResults = self::applyPermissionFilter($searchResults);
@@ -31,7 +31,7 @@ class DocumentSearchService
     }
 
     /**
-     * Search documents by category using Elasticsearch
+     * Search documents by category using Scout.
      */
     public static function searchByCategory(int $categoryId, string $query = '', array $filters = [], int $perPage = 15, int $page = 1): LengthAwarePaginator
     {
@@ -42,12 +42,12 @@ class DocumentSearchService
     }
 
     /**
-     * Search document versions using Elasticsearch
+     * Search document versions using Scout.
      */
     public static function searchVersions(string $query = '', array $filters = [], int $perPage = 15, int $page = 1): LengthAwarePaginator
     {
-        // Step 1: Basic Elasticsearch search
-        $searchResults = self::performElasticsearchSearch($query);
+        // Step 1: Basic Scout search
+        $searchResults = self::performScoutSearch($query);
         
         // Step 2: Apply permission filtering
         $searchResults = self::applyPermissionFilter($searchResults);
@@ -60,12 +60,12 @@ class DocumentSearchService
     }
 
     /**
-     * Get statistics for reports using Elasticsearch
+     * Get statistics for reports using Scout.
      */
     public static function getStatistics(array $filters = []): array
     {
-        // Step 1: Basic Elasticsearch search
-        $searchResults = self::performElasticsearchSearch('*');
+        // Step 1: Basic Scout search
+        $searchResults = self::performScoutSearch('*');
         
         // Step 2: Apply permission filtering
         $searchResults = self::applyPermissionFilter($searchResults);
@@ -78,9 +78,9 @@ class DocumentSearchService
     }
 
     /**
-     * Perform basic Elasticsearch search
+     * Perform basic Scout search (Typesense driver).
      */
-    private static function performElasticsearchSearch(string $query): Collection
+    private static function performScoutSearch(string $query): Collection
     {
         if (strlen($query) < 2 && $query !== '*') {
             return collect();
@@ -90,7 +90,7 @@ class DocumentSearchService
             $builder = DocumentVersion::search($query ?: '*');
             $searchResults = $builder->get();
         } catch (\Throwable $e) {
-            Log::warning('Elasticsearch search failed, falling back to empty result set', [
+            Log::warning('Scout search failed, falling back to empty result set', [
                 'query' => $query,
                 'error' => $e->getMessage(),
             ]);
@@ -122,16 +122,14 @@ class DocumentSearchService
             return collect();
         }
 
-        $isSuper = $user->hasRole('master')
-            || $user->hasRole('Super Administrator')
-            || $user->hasRole('super administrator')
-            || $user->hasRole('super_admin');
+        $isSuper = $user->can('view any role')
+            || $user->can('view organization wide reports');
 
-        // Precompute strict visibility for Division Chief (sub-department admin)
+        // Precompute strict visibility for sous-départements (ex-Division Chief / Admin de departments)
         $divisionChiefDeptIds = collect();
         $divisionChiefServiceIds = collect();
 
-        if ($user->hasRole('Division Chief')) {
+        if ($user->can('view subdepartment scoped documents')) {
             $divisionChiefDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
                 ? $user->departments->pluck('id')->filter()
                 : collect();
@@ -178,9 +176,9 @@ class DocumentSearchService
                 return true;
             }
 
-            // Strict rule for Division Chief: must match both department AND one of
+            // Strict rule for sous-département: must match both department AND one of
             // the services under their assigned sub-departments. No broader fallback.
-            if ($user->hasRole('Division Chief')) {
+            if ($user->can('view subdepartment scoped documents')) {
                 if ($divisionChiefDeptIds->isEmpty() || $divisionChiefServiceIds->isEmpty()) {
                     return false;
                 }
@@ -218,12 +216,8 @@ class DocumentSearchService
                     $serviceIds = $visibleServiceIds->all();
 
                     $docServiceId = $document->service_id;
-                    // Prefer direct category.service_id, fall back to subcategory->category if needed
-                    $categoryServiceId = $document->category?->service_id
-                        ?? $document->subcategory?->category?->service_id;
 
-                    if (($docServiceId && in_array($docServiceId, $serviceIds)) ||
-                        ($categoryServiceId && in_array($categoryServiceId, $serviceIds))) {
+                    if ($docServiceId && in_array($docServiceId, $serviceIds)) {
                         return true;
                     }
                 }

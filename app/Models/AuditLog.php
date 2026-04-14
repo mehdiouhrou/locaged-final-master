@@ -16,6 +16,12 @@ class AuditLog extends Model
         'version_id',
         'action',
         'ip_address',
+        'user_agent',
+        'metadata',
+        'hash_version',
+        'previous_hash',
+        'entry_hash',
+        'sealed_at',
         'occurred_at',
     ];
 
@@ -32,8 +38,7 @@ class AuditLog extends Model
 
             $user = auth()->user();
 
-            // Super admins see all audit logs
-            if ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin')) {
+            if ($user->can('view any document')) {
                 return;
             }
 
@@ -75,6 +80,8 @@ class AuditLog extends Model
     }
 
     protected $casts = [
-        'occurred_at' => 'datetime'
+        'occurred_at' => 'datetime',
+        'sealed_at' => 'datetime',
+        'metadata' => 'array',
     ];
 }

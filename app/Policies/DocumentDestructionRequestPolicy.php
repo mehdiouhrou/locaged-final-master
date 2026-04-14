@@ -12,15 +12,10 @@ class DocumentDestructionRequestPolicy
      */
     public function viewAny(User $user): bool
     {
-        if ($user->can('view any document destruction request') || 
-            $user->can('view department document destruction request') ||
-            $user->can('view service document') || 
-            $user->hasRole('Admin de cellule') || 
-            $user->hasRole('Service Manager')) {
-            return true;
-        }
-
-        return false;
+        return $user->can('view any document destruction request')
+            || $user->can('view department document destruction request')
+            || $user->can('view own document destruction request')
+            || $user->can('access document expiration management');
     }
 
     /**
@@ -165,7 +160,6 @@ class DocumentDestructionRequestPolicy
      */
     public function postpone(User $user): bool
     {
-        // Allow master, Super Administrator, Admin de pole, and Admin de departments to postpone
-        return $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'Admin de departments']);
+        return $user->can('postpone document expiration');
     }
 }

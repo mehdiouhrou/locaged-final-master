@@ -174,6 +174,7 @@ class UiTranslationController extends Controller
             'login_left_image' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:8192'],
             'max_users' => ['nullable','integer','min:0'],
             'timezone' => ['nullable','string','timezone'],
+            'org_root_name' => ['nullable','string','max:120'],
         ]);
 
         if ($request->hasFile('header_logo')) {
@@ -192,6 +193,12 @@ class UiTranslationController extends Controller
 
         if ($request->filled('timezone')) {
             Branding::setTimezone($request->input('timezone'));
+        }
+
+        // Only master can change the top-most hierarchy branch label.
+        if ($request->has('org_root_name')) {
+            abort_unless(auth()->user()?->can('view any role'), 403);
+            Branding::setOrgRootName((string) $request->input('org_root_name'));
         }
 
         return redirect()->back()->with('success','Branding updated successfully.');

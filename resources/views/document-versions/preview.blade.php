@@ -1,543 +1,303 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-    @php 
-        use Illuminate\Support\Str;
-        // Use $document if passed directly (for expired documents), otherwise fall back to $doc->document
+    @php
         $document = $document ?? ($doc->document ?? null);
-        // Check if this is a destruction preview (should hide metadata sidebar)
         $isDestructionContext = request()->boolean('destruction');
+        $status = (string) ($document->status ?? '');
+        $isBorrowed = isset($currentLoan) && $currentLoan;
+        $statusBadgeClass = match ($status) {
+            'approved' => 'bg-success-subtle text-success-emphasis',
+            'pending' => 'bg-warning-subtle text-warning-emphasis',
+            'declined' => 'bg-danger-subtle text-danger-emphasis',
+            'expired' => 'bg-secondary-subtle text-secondary-emphasis',
+            default => 'bg-light text-dark',
+        };
     @endphp
 
-    <div class="open-file mt-5 mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1 class="mb-0">{{ ui_t('pages.versions.preview_title') }}</h1>
-            @if($isDestructionContext)
-                <a href="{{ route('documents-destructions.index') }}" 
-                   class="btn btn-outline-secondary" 
-                   title="{{ __('Close') }}">
-                    <i class="fas fa-times"></i> {{ __('Close') }}
-                </a>
-            @endif
+    <div class="container-fluid px-3 px-md-4 py-3">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body py-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h4 class="fw-bold mb-1 text-uppercase">{{ $document->title }}</h4>
+                    <p class="mb-0 text-muted small">{{ ui_t('pages.documents.status.' . $status) }}</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ route('document-versions.fullscreen', ['id' => $doc->id, 'return_url' => url()->full()]) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-expand me-1"></i>{{ __('Aperçu plein écran') }}
+                    </a>
+                    <a href="{{ route('documents.download', ['id' => $document->id]) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-download me-1"></i>{{ __('Document') }}
+                    </a>
+                    @if($isDestructionContext)
+                        <a href="{{ route('documents-destructions.index') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa-solid fa-xmark me-1"></i>{{ __('Fermer') }}
+                        </a>
+                    @endif
+                </div>
+            </div>
         </div>
-        <div class="row mb-5">
-            {{-- Preview column: full width if destruction context, half otherwise --}}
-            <div class="form-box {{ $isDestructionContext ? 'col-12' : 'col-md-6' }}" style="{{ $isDestructionContext ? 'min-height: 600px;' : '' }}">
-                @if($fileType === 'image')
-                    <img src="{{ $fileUrl }}" class="w-100" alt="{{ ui_t('pages.upload.image_preview') }}" />
-                @elseif($fileType === 'pdf')
-                    <iframe src="{{ $fileUrl }}" width="100%" height="100%" style="border:none;"></iframe>
-                @elseif($fileType === 'doc')
-                    @if(!empty($pdfUrl))
-                        {{-- PDF preview for Word document converted by LibreOffice --}}
-                        <iframe src="{{ $pdfUrl }}" width="100%" height="100%" style="border:none; min-height: 500px;"></iframe>
-                    @else
-                        <div class="d-flex align-items-center justify-content-center h-100">
-                            <div class="text-center">
-                                <i class="fas fa-file-word fa-5x text-primary mb-3"></i>
-                                <h5>{{ ui_t('pages.versions.word_doc') }}</h5>
-                                <p class="text-muted">{{ $document->title }}</p>
-                                <a href="{{ $fileUrl }}" class="btn btn-primary" download>
-                                    <i class="fas fa-download"></i> {{ ui_t('pages.versions.download') }}
-                                </a>
-                            </div>
-                        </div>
-                    @endif
-                @elseif($fileType === 'excel')
-                    @if(!empty($pdfUrl))
-                        {{-- PDF preview for Excel document converted by LibreOffice --}}
-                        <iframe src="{{ $pdfUrl }}" width="100%" height="100%" style="border:none; min-height: 500px;"></iframe>
-                    @else
-                        <div class="d-flex align-items-center justify-content-center h-100">
-                            <div class="text-center">
-                                <i class="fas fa-file-excel fa-5x text-success mb-3"></i>
-                                <h5>{{ ui_t('pages.versions.excel_sheet') }}</h5>
-                                <p class="text-muted">{{ $document->title }}</p>
-                                <a href="{{ $fileUrl }}" class="btn btn-success" download>
-                                    <i class="fas fa-download"></i> {{ ui_t('pages.versions.download') }}
-                                </a>
-                            </div>
-                        </div>
-                    @endif
-                @elseif($fileType === 'video')
-                    <video controls class="w-100" style="max-height: 100%;">
-                        <source src="{{ $fileUrl }}" type="video/mp4">
-                        <source src="{{ $fileUrl }}" type="video/avi">
-                        <source src="{{ $fileUrl }}" type="video/mov">
-                        {{ ui_t('pages.versions.video_not_supported') }}
-                    </video>
-                @elseif($fileType === 'audio')
-                    <div class="d-flex align-items-center justify-content-center h-100">
-                        <div class="text-center">
-                            <i class="fas fa-file-audio fa-5x text-info mb-3"></i>
-                            <h5>{{ ui_t('pages.versions.audio_file') }}</h5>
-                            <p class="text-muted">{{ $document->title }}</p>
-                            <audio controls class="w-100 mb-3">
-                                <source src="{{ $fileUrl }}" type="audio/mpeg">
-                                <source src="{{ $fileUrl }}" type="audio/wav">
-                                <source src="{{ $fileUrl }}" type="audio/ogg">
-                                {{ ui_t('pages.versions.audio_not_supported') }}
-                            </audio>
-                            <br>
-                            <a href="{{ $fileUrl }}" class="btn btn-info" download>
-                                <i class="fas fa-download"></i> {{ ui_t('pages.versions.download') }}
-                            </a>
-                        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-2">
+                        <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Aperçu') }}</h6>
                     </div>
-                @else
-                    <div class="d-flex align-items-center justify-content-center h-100">
-                        <div class="text-center">
-                            <i class="fas fa-file fa-5x text-secondary mb-3"></i>
-                            <h5>{{ ui_t('pages.versions.not_available') }}</h5>
-                            <p class="text-muted">{{ $document->title }}</p>
-                            <a href="{{ $fileUrl }}" class="btn btn-secondary" download>
-                                <i class="fas fa-download"></i> {{ ui_t('pages.versions.download') }}
-                            </a>
-                        </div>
+                    <div class="card-body p-2" style="min-height: 70vh;">
+                        @if($fileType === 'image')
+                            <img src="{{ $fileUrl }}" class="w-100 h-100" style="object-fit: contain; min-height: 65vh;" alt="{{ ui_t('pages.upload.image_preview') }}" />
+                        @elseif($fileType === 'pdf')
+                            <iframe src="{{ $fileUrl }}" class="w-100 border-0" style="min-height: 68vh;"></iframe>
+                        @elseif($fileType === 'doc' || $fileType === 'excel')
+                            @if(!empty($pdfUrl))
+                                <iframe src="{{ $pdfUrl }}" class="w-100 border-0" style="min-height: 68vh;"></iframe>
+                            @else
+                                <div class="h-100 d-flex align-items-center justify-content-center text-center text-muted p-4">
+                                    <div>
+                                        <i class="fa-solid fa-file-lines fa-3x mb-3"></i>
+                                        <p class="mb-2">{{ __('Aperçu intégré non disponible pour ce type de fichier.') }}</p>
+                                        <a href="{{ $fileUrl }}" class="btn btn-sm btn-outline-secondary">{{ __('Télécharger') }}</a>
+                                    </div>
+                                </div>
+                            @endif
+                        @elseif($fileType === 'video')
+                            <video controls class="w-100" style="min-height: 68vh;">
+                                <source src="{{ $fileUrl }}" type="video/mp4">
+                                {{ ui_t('pages.versions.video_not_supported') }}
+                            </video>
+                        @elseif($fileType === 'audio')
+                            <div class="h-100 d-flex align-items-center justify-content-center text-center p-4">
+                                <div>
+                                    <audio controls class="mb-3">
+                                        <source src="{{ $fileUrl }}" type="audio/mpeg">
+                                        {{ ui_t('pages.versions.audio_not_supported') }}
+                                    </audio>
+                                    <div>
+                                        <a href="{{ $fileUrl }}" class="btn btn-sm btn-outline-secondary">{{ __('Télécharger') }}</a>
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="h-100 d-flex align-items-center justify-content-center text-center text-muted p-4">
+                                <div>
+                                    <i class="fa-solid fa-file fa-3x mb-3"></i>
+                                    <p class="mb-2">{{ __('Aperçu non disponible.') }}</p>
+                                    <a href="{{ $fileUrl }}" class="btn btn-sm btn-outline-secondary">{{ __('Télécharger') }}</a>
+                                </div>
+                            </div>
+                        @endif
                     </div>
-                @endif
+                </div>
             </div>
 
-            {{-- Metadata sidebar - hidden in destruction preview context --}}
             @unless($isDestructionContext)
-            <div class="col-md-6">
-                <div class="form-box shadow-sm bg-white h-100">
-                    <form method="post" action="{{ route('documents.update', ['document' => $document->id]) }}">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="mt-4 p-4">
-                            @php $isExpired = $document->expire_at && $document->expire_at->isPast(); @endphp
-                            <label for="fileName" class="form-label">{{ ui_t('pages.versions.file_name') }}</label>
-                            <input
-                                type="text"
-                                class="form-control"
-                                id="fileName"
-                                name="title"
-                                placeholder="{{ ui_t('pages.versions.file_name') }}"
-                                value="{{ old('title', $document->title ?? '') }}"
-                                @if($isExpired) disabled @endif
-                            />
+                <div class="col-12 col-xl-4">
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Métadonnées') }}</h6>
                         </div>
+                        <div class="card-body small">
+                            <dl class="row mb-0 gy-2">
+                                <dt class="col-6 text-muted">{{ __('Statut') }}</dt>
+                                <dd class="col-6 mb-0">
+                                    <span class="badge rounded-pill {{ $statusBadgeClass }}">{{ ui_t('pages.documents.status.' . $status) }}</span>
+                                </dd>
 
-                        <div class="row g-3 mb-3 p-4">
-                            {{-- Pole (Department) - locked --}}
-                            <div class="col-md-6">
-                                <label for="pole" class="form-label">{{ __('Pole') }}</label>
-                                <input
-                                    type="text"
-                                    class="form-control"
-                                    id="pole"
-                                    value="{{ $document->service->subDepartment->department->name ?? 'N/A' }}"
-                                    disabled
-                                />
+                                <dt class="col-6 text-muted">{{ __('Date de création') }}</dt>
+                                <dd class="col-6 mb-0">{{ $document->created_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Date d’expiration') }}</dt>
+                                <dd class="col-6 mb-0">{{ $document->expire_at?->format('d/m/Y') ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Catégorie') }}</dt>
+                                <dd class="col-6 mb-0">{{ $document->category?->name ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Sous-catégorie') }}</dt>
+                                <dd class="col-6 mb-0">{{ $document->subcategory?->name ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Emplacement physique') }}</dt>
+                                <dd class="col-6 mb-0 text-break">{{ $document->box?->__toString() ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Empreinte (SHA-256)') }}</dt>
+                                <dd class="col-6 mb-0 text-break">{{ $document->file_hash ?? 'Non calculée' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Tags') }}</dt>
+                                <dd class="col-6 mb-0 text-break">
+                                    @php
+                                        $tagNames = $document->tags?->pluck('name')->filter()->values() ?? collect();
+                                    @endphp
+                                    {{ $tagNames->isNotEmpty() ? $tagNames->join(', ') : '—' }}
+                                </dd>
+
+                                <dt class="col-6 text-muted">{{ __('Mots-clés') }}</dt>
+                                <dd class="col-6 mb-0 text-break">
+                                    @php
+                                        $rawKeywords = data_get($document->metadata, 'keywords');
+                                        if (is_array($rawKeywords)) {
+                                            $keywordsText = collect($rawKeywords)->filter()->implode(', ');
+                                        } elseif (is_string($rawKeywords)) {
+                                            $keywordsText = trim($rawKeywords);
+                                        } else {
+                                            $keywordsText = '';
+                                        }
+                                    @endphp
+                                    {{ $keywordsText !== '' ? $keywordsText : '—' }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des statuts') }}</h6>
+                        </div>
+                        <div class="card-body py-3">
+                            <x-document-approval-timeline :document="$document" />
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Suivi physique') }}</h6>
+                        </div>
+                        <div class="card-body small">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">{{ __('État du dossier physique') }}</span>
+                                @if($isBorrowed)
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('Emprunté') }}</span>
+                                @else
+                                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis">{{ __('Disponible') }}</span>
+                                @endif
                             </div>
 
-                            {{-- Department (Sub-Department) - locked --}}
-                            <div class="col-md-6">
-                                <label for="department" class="form-label">{{ __('Department') }}</label>
-                                <input
-                                    type="text"
-                                    class="form-control"
-                                    id="department"
-                                    value="{{ $document->service->subDepartment->name ?? 'N/A' }}"
-                                    disabled
-                                />
-                            </div>
+                            @if($isBorrowed)
+                                <div class="border rounded-2 p-2 mb-3">
+                                    <div><strong>{{ __('Emprunteur') }}:</strong> {{ $currentLoan->borrower_name ?? $currentLoan->borrowedBy?->full_name ?? '—' }}</div>
+                                    <div><strong>{{ __('Date emprunt') }}:</strong> {{ $currentLoan->moved_at?->format('d/m/Y H:i') ?? '—' }}</div>
+                                    <div><strong>{{ __('Retour prévu') }}:</strong> {{ $currentLoan->due_at?->format('d/m/Y H:i') ?? '—' }}</div>
+                                </div>
 
-                            {{-- Service - locked --}}
-                            <div class="col-md-6">
-                                <label for="service" class="form-label">{{ __('Service') }}</label>
-                                <input
-                                    type="text"
-                                    class="form-control"
-                                    id="service"
-                                    value="{{ $document->service->name ?? 'N/A' }}"
-                                    disabled
-                                />
-                            </div>
-
-                            {{-- Hidden inputs for required relationships --}}
-                            @if($document->service)
-                                <input type="hidden" name="department_id" value="{{ $document->service->subDepartment->department_id }}" />
-                                <input type="hidden" name="sub_department_id" value="{{ $document->service->sub_department_id }}" />
-                                <input type="hidden" name="service_id" value="{{ $document->service_id }}" />
+                                @can('create', \App\Models\DocumentMovement::class)
+                                    <form method="POST" action="{{ route('documents.return', $document) }}" class="mb-2">
+                                        @csrf
+                                        <label class="form-label small mb-1">{{ __('Note de retour (optionnel)') }}</label>
+                                        <textarea name="return_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('État du dossier au retour') }}"></textarea>
+                                        <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                                            <i class="fa-solid fa-box-open me-1"></i>{{ __('Marquer comme retourné') }}
+                                        </button>
+                                    </form>
+                                @endcan
+                            @else
+                                @can('create', \App\Models\DocumentMovement::class)
+                                    <form method="POST" action="{{ route('documents.borrow', $document) }}" class="mb-2">
+                                        @csrf
+                                        <label class="form-label small mb-1">{{ __('Nom de l’emprunteur') }}</label>
+                                        <input type="text" name="borrower_name" class="form-control form-control-sm mb-2" required placeholder="{{ __('Ex: Nom / Service externe') }}">
+                                        <label class="form-label small mb-1">{{ __('Date prévue de retour (optionnel)') }}</label>
+                                        <input type="datetime-local" name="due_at" class="form-control form-control-sm mb-2">
+                                        <label class="form-label small mb-1">{{ __('Motif (optionnel)') }}</label>
+                                        <textarea name="movement_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('Pourquoi ce dossier est emprunté ?') }}"></textarea>
+                                        <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                                            <i class="fa-solid fa-hand me-1"></i>{{ __('Enregistrer un emprunt') }}
+                                        </button>
+                                    </form>
+                                @else
+                                    <p class="text-muted mb-0">{{ __('Vous n’avez pas les droits pour enregistrer un emprunt.') }}</p>
+                                @endcan
                             @endif
 
-                            {{-- Category - editable, filtered by service --}}
-                            <div class="col-md-6">
-                                <label for="category" class="form-label">{{ __('Category') }}</label>
-                                <select name="category_id" id="category" class="form-select" @if($isExpired) disabled @endif>
-                                    <option value="">{{ __('-- Select Category --') }}</option>
-                                    @if($document->service_id)
-                                        @php
-                                            $serviceCategories = $categories->where('service_id', $document->service_id);
-                                        @endphp
-                                        @forelse($serviceCategories as $category)
-                                            <option value="{{ $category->id }}"
-                                                {{ (old('category_id', $document->category_id ?? '') == $category->id) ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                        @empty
-                                            <option value="" disabled>{{ __('No categories available for this service') }}</option>
-                                        @endforelse
-                                    @else
-                                        <option value="" disabled>{{ __('Please assign a service first') }}</option>
-                                    @endif
-                                </select>
-                            </div>
-
-                            <input type="hidden" name="color" value="{{ old('color', $document->metadata['color'] ?? 'Blue') }}" />
-                        </div>
-
-                        <div class="row g-3 mb-3 p-4">
-                            <div class="col-md-6">
-                                <label for="creationDate" class="form-label">{{ ui_t('pages.versions.creation_date') }}</label>
-                                <input
-                                    type="date"
-                                    class="form-control"
-                                    id="creationDate"
-                                    name="created_at"
-                                    value="{{ old('created_at', optional($document->created_at)->format('Y-m-d')) }}"
-                                    @if($isExpired) disabled @endif
-                                />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="expire_at" class="form-label">{{ ui_t('pages.versions.expire_date') }}</label>
-                                <input
-                                    type="date"
-                                    class="form-control"
-                                    id="expire_at"
-                                    name="expire_at"
-                                    value="{{ old('expire_at', optional($document->expire_at)->format('Y-m-d')) }}"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-3 p-4">
-                            <div class="col-md-6">
-                                <label for="submittedBy" class="form-label">{{ ui_t('pages.versions.submitted_by') }}</label>
-                                <input
-                                    type="text"
-                                    class="form-control"
-                                    id="submittedBy"
-                                    value="{{ $doc->uploadedBy?->full_name }}"
-                                    disabled
-                                />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="tags" class="form-label">{{ ui_t('pages.versions.tags') }}</label>
-                                <select class="form-select" id="tags" name="tags[]" multiple @if($isExpired) disabled @endif>
-                                    @foreach($tags as $tag)
-                                        <option value="{{ $tag->id }}"
-                                            {{ in_array($tag->id, $document->tags->pluck('id')->toArray() ?? []) ? 'selected' : '' }}>
-                                            {{ $tag->name }}
-                                        </option>
+                            <hr class="my-3">
+                            <h6 class="small fw-bold text-muted text-uppercase mb-2">{{ __('Historique physique') }}</h6>
+                            @if(isset($physicalMovements) && $physicalMovements->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach($physicalMovements->take(6) as $movement)
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                                            <div class="fw-semibold">
+                                                @if($movement->movement_type === 'retrieval' && $movement->borrowed_by_user_id)
+                                                    {{ __('Emprunt') }}
+                                                @elseif($movement->movement_type === 'transfer')
+                                                    {{ __('Transfert') }}
+                                                @else
+                                                    {{ __('Mouvement') }}
+                                                @endif
+                                            </div>
+                                            <div class="text-muted">
+                                                {{ $movement->moved_at?->format('d/m/Y H:i') ?? '—' }}
+                                                · {{ $movement->movedBy?->full_name ?? __('Inconnu') }}
+                                            </div>
+                                            @if($movement->borrower_name)
+                                                <div class="text-muted">{{ __('Emprunteur') }}: {{ $movement->borrower_name }}</div>
+                                            @endif
+                                            @if($movement->returned_at)
+                                                <div class="text-success">{{ __('Retourné le') }} {{ $movement->returned_at?->format('d/m/Y H:i') }}</div>
+                                            @endif
+                                        </li>
                                     @endforeach
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="p-4">
-                            <label class="form-label">{{ ui_t('pages.versions.physical_location') }}</label>
-                            <div class="row g-2">
-                                <div class="col-md-3">
-                                    <label class="form-label small">{{ ui_t('pages.versions.room') }}</label>
-                                    <select class="form-select form-select-sm" id="preview_room_id" name="room_id">
-                                        <option value="">{{ ui_t('pages.versions.select_room') }}</option>
-                                        @foreach($rooms as $room)
-                                            <option value="{{ $room->id }}"
-                                                @if($document->box && $document->box->shelf->row->room->id == $room->id) selected @endif>
-                                                {{ $room->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small">{{ ui_t('pages.versions.row') }}</label>
-                                    <select class="form-select form-select-sm" id="preview_row_id" name="row_id" disabled>
-                                        <option value="">{{ ui_t('pages.versions.select_row') }}</option>
-                                        @if($document->box)
-                                            @foreach($document->box->shelf->row->room->rows as $row)
-                                                <option value="{{ $row->id }}"
-                                                    @if($document->box->shelf->row->id == $row->id) selected @endif>
-                                                    {{ $row->name }}
-                                                </option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small">{{ ui_t('pages.versions.shelf') }}</label>
-                                    <select class="form-select form-select-sm" id="preview_shelf_id" name="shelf_id" disabled>
-                                        <option value="">{{ ui_t('pages.versions.select_shelf') }}</option>
-                                        @if($document->box)
-                                            @foreach($document->box->shelf->row->shelves as $shelf)
-                                                <option value="{{ $shelf->id }}"
-                                                    @if($document->box->shelf->id == $shelf->id) selected @endif>
-                                                    {{ $shelf->name }}
-                                                </option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small">{{ ui_t('pages.versions.box') }} <span class="text-danger">*</span></label>
-                                    <select class="form-select form-select-sm" id="preview_box_id" name="box_id" required disabled>
-                                        <option value="">{{ ui_t('pages.versions.select_box') }}</option>
-                                        @if($document->box)
-                                            @foreach($document->box->shelf->boxes as $box)
-                                                <option value="{{ $box->id }}"
-                                                    @if($document->box_id == $box->id) selected @endif>
-                                                    {{ $box->name }}
-                                                </option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                </div>
-                            </div>
-                            @if($document->box)
-                                <small class="text-muted mt-2 d-block">{{ ui_t('pages.versions.current') }} <code>{{ $document->box->__toString() }}</code></small>
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">{{ __('Aucun mouvement physique enregistré.') }}</p>
                             @endif
                         </div>
+                    </div>
 
-                        <div class="d-flex justify-content-end gap-3 p-2">
-                            @if(($document->status ?? null) === 'pending')
-                                @can('decline',$document)
+                    @if(($document->status ?? null) === 'pending')
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body d-flex gap-2 justify-content-end">
+                                @can('decline', $document)
                                     <button
-                                        class="btn btn-outline-danger  trigger-action"
+                                        class="btn btn-sm btn-outline-danger trigger-action"
                                         data-id="{{ $document->id }}"
                                         data-name="{{ $document->title }}"
                                         data-url="{{ route('documents.decline', $document->id) }}"
                                         data-method="PUT"
-                                        data-button-text="{{ ui_t('pages.versions.confirm') }}"
-                                        data-title="{{ ui_t('pages.versions.reject_title') }}"
-                                        data-body="{{ ui_t('pages.versions.reject_body') }}"
+                                        data-button-text="{{ ui_t('actions.confirm') }}"
+                                        data-title="{{ ui_t('pages.documents.reject_title') }}"
+                                        data-body="{{ ui_t('pages.documents.reject_body') }}"
+                                        data-extra-fields='{{ json_encode([["type"=>"textarea","name"=>"decline_reason","label"=>__("Motif du refus (optionnel)"),"required"=>false,"rows"=>4,"maxlength"=>5000,"placeholder"=>__("Décrivez la raison du refus (facultatif)")]], JSON_UNESCAPED_UNICODE) }}'
                                     >
-                                        {{ ui_t('pages.versions.reject') }}
+                                        {{ __('Refuser') }}
                                     </button>
                                 @endcan
-                                @can('approve',$document)
-                                        <button
-                                            class="btn btn-outline-success  trigger-action"
-                                            data-id="{{ $document->id }}"
-                                            data-name="{{ $document->title }}"
-                                            data-url="{{ route('documents.approve', $document->id) }}"
-                                            data-method="PUT"
-                                            data-button-text="{{ ui_t('pages.versions.confirm') }}"
-                                            data-title="{{ ui_t('pages.versions.approve_title') }}"
-                                            data-body="{{ ui_t('pages.versions.approve_body') }}"
-                                            data-icon="{{ asset('assets/mage_question-mark-circle.png') }}"
-                                            data-button-class="btn-success"
-                                        >
-                                            {{ ui_t('pages.versions.approve') }}
-                                        </button>
+                                @can('approve', $document)
+                                    <button
+                                        class="btn btn-sm btn-outline-success trigger-action"
+                                        data-id="{{ $document->id }}"
+                                        data-name="{{ $document->title }}"
+                                        data-url="{{ route('documents.approve', $document->id) }}"
+                                        data-method="PUT"
+                                        data-button-text="{{ ui_t('actions.confirm') }}"
+                                        data-title="{{ ui_t('pages.documents.approve_title') }}"
+                                        data-body="{{ ui_t('pages.documents.approve_body') }}"
+                                        data-button-class="btn-success"
+                                    >
+                                        {{ __('Approuver') }}
+                                    </button>
                                 @endcan
-                            @endif
-                            @can('update',$document)
-                                <button type="submit" class="btn py-2 px-4 btn-outline-primary">{{ ui_t('pages.versions.modify') }}</button>
-                            @endcan
-
-
-                        </div>
-
-                        {{-- Navigation buttons for approval context --}}
-                        @if($isApprovalContext && ($prevApprovalUrl || $nextApprovalUrl))
-                            <div class="border-top mt-3 pt-3 px-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    @if($prevApprovalUrl)
-                                        <a href="{{ $prevApprovalUrl }}" 
-                                           class="btn btn-outline-secondary py-2 px-4"
-                                           title="{{ $prevApprovalTitle }}"
-                                           data-bs-toggle="tooltip"
-                                           data-bs-placement="top">
-                                            <i class="fas fa-chevron-left me-2"></i>
-                                            {{ ui_t('pages.versions.previous_document') }}
-                                        </a>
-                                    @else
-                                        <div></div>
-                                    @endif
-
-                                    @if($nextApprovalUrl)
-                                        <a href="{{ $nextApprovalUrl }}" 
-                                           class="btn btn-outline-secondary py-2 px-4"
-                                           title="{{ $nextApprovalTitle }}"
-                                           data-bs-toggle="tooltip"
-                                           data-bs-placement="top">
-                                            {{ ui_t('pages.versions.next_document') }}
-                                            <i class="fas fa-chevron-right ms-2"></i>
-                                        </a>
-                                    @else
-                                        <div></div>
-                                    @endif
-                                </div>
                             </div>
-                        @endif
-                    </form>
+                        </div>
+                    @endif
+
+                    @if($isApprovalContext && ($prevApprovalUrl || $nextApprovalUrl))
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            @if($prevApprovalUrl)
+                                <a href="{{ $prevApprovalUrl }}" class="btn btn-sm btn-outline-secondary" title="{{ $prevApprovalTitle }}">
+                                    <i class="fa-solid fa-chevron-left me-1"></i>{{ __('Précédent') }}
+                                </a>
+                            @else
+                                <span></span>
+                            @endif
+                            @if($nextApprovalUrl)
+                                <a href="{{ $nextApprovalUrl }}" class="btn btn-sm btn-outline-secondary" title="{{ $nextApprovalTitle }}">
+                                    {{ __('Suivant') }}<i class="fa-solid fa-chevron-right ms-1"></i>
+                                </a>
+                            @endif
+                        </div>
+                    @endif
                 </div>
-            </div>
             @endunless
         </div>
     </div>
 
-        @include('components.modals.confirm-modal')
-
-    <script>
-        const previewRooms = @json($rooms);
-        const currentBoxId = @json($document->box_id ?? null);
-        const documentServiceId = @json($document->service_id ?? null);
-        const translations = {
-            selectRow: @json(ui_t('pages.physical.selects.select_row')),
-            firstSelectRow: @json(ui_t('pages.physical.selects.first_select_row')),
-            selectShelf: @json(ui_t('pages.physical.selects.select_shelf')),
-            firstSelectShelf: @json(ui_t('pages.physical.selects.first_select_shelf')),
-            selectBox: @json(ui_t('pages.physical.selects.select_box')),
-        };
-        
-        const roomSelect = document.getElementById('preview_room_id');
-        const rowSelect = document.getElementById('preview_row_id');
-        const shelfSelect = document.getElementById('preview_shelf_id');
-        const boxSelect = document.getElementById('preview_box_id');
-        
-        // Capture the server-side selected values before any JavaScript manipulation
-        const initialRowId = rowSelect.value ? parseInt(rowSelect.value) : null;
-        const initialShelfId = shelfSelect.value ? parseInt(shelfSelect.value) : null;
-        const initialBoxId = boxSelect.value ? parseInt(boxSelect.value) : null;
-        
-        if (roomSelect) {
-            // If document has a box, initialize all dropdowns properly
-            if (currentBoxId && roomSelect.value) {
-                const roomId = parseInt(roomSelect.value);
-                updatePreviewRows(roomId, initialRowId);
-                
-                // After rows are populated, check if there's a selected row and enable shelf
-                setTimeout(() => {
-                    if (rowSelect.value) {
-                        const rowId = parseInt(rowSelect.value);
-                        updatePreviewShelves(roomId, rowId, initialShelfId);
-                        
-                        // After shelves are populated, check if there's a selected shelf and enable box
-                        setTimeout(() => {
-                            if (shelfSelect.value) {
-                                const shelfId = parseInt(shelfSelect.value);
-                                updatePreviewBoxes(roomId, rowId, shelfId, initialBoxId);
-                            }
-                        }, 50);
-                    }
-                }, 50);
-            }
-            
-            roomSelect.addEventListener('change', function() {
-                const roomId = parseInt(this.value);
-                updatePreviewRows(roomId);
-                shelfSelect.innerHTML = '<option value="">' + translations.firstSelectRow + '</option>';
-                shelfSelect.disabled = true;
-                boxSelect.innerHTML = '<option value="">' + translations.firstSelectShelf + '</option>';
-                boxSelect.disabled = true;
-            });
-        }
-        
-        function updatePreviewRows(roomId, selectedRowId = null) {
-            rowSelect.innerHTML = '<option value="">' + translations.selectRow + '</option>';
-            
-            if (!roomId) return;
-            
-            const room = previewRooms.find(r => r.id === roomId);
-            if (room) {
-                room.rows.forEach(row => {
-                    const option = document.createElement('option');
-                    option.value = row.id;
-                    option.textContent = row.name;
-                    if (selectedRowId && row.id === selectedRowId) {
-                        option.selected = true;
-                    }
-                    rowSelect.appendChild(option);
-                });
-                rowSelect.disabled = false;
-            }
-        }
-        
-        if (rowSelect) {
-            rowSelect.addEventListener('change', function() {
-                const roomId = parseInt(roomSelect.value);
-                const rowId = parseInt(this.value);
-                updatePreviewShelves(roomId, rowId);
-                boxSelect.innerHTML = '<option value="">' + translations.firstSelectShelf + '</option>';
-                boxSelect.disabled = true;
-            });
-        }
-        
-        function updatePreviewShelves(roomId, rowId, selectedShelfId = null) {
-            shelfSelect.innerHTML = '<option value="">' + translations.selectShelf + '</option>';
-            
-            if (!roomId || !rowId) return;
-            
-            const room = previewRooms.find(r => r.id === roomId);
-            if (room) {
-                const row = room.rows.find(r => r.id === rowId);
-                if (row) {
-                    row.shelves.forEach(shelf => {
-                        const option = document.createElement('option');
-                        option.value = shelf.id;
-                        option.textContent = shelf.name;
-                        if (selectedShelfId && shelf.id === selectedShelfId) {
-                            option.selected = true;
-                        }
-                        shelfSelect.appendChild(option);
-                    });
-                    shelfSelect.disabled = false;
-                }
-            }
-        }
-        
-        if (shelfSelect) {
-            shelfSelect.addEventListener('change', function() {
-                const roomId = parseInt(roomSelect.value);
-                const rowId = parseInt(rowSelect.value);
-                const shelfId = parseInt(this.value);
-                updatePreviewBoxes(roomId, rowId, shelfId);
-            });
-        }
-        
-        function updatePreviewBoxes(roomId, rowId, shelfId, selectedBoxId = null) {
-            boxSelect.innerHTML = '<option value="">' + translations.selectBox + '</option>';
-            
-            if (!roomId || !rowId || !shelfId) return;
-            
-            const room = previewRooms.find(r => r.id === roomId);
-            if (room) {
-                const row = room.rows.find(r => r.id === rowId);
-                if (row) {
-                    const shelf = row.shelves.find(s => s.id === shelfId);
-                    if (shelf) {
-                        shelf.boxes.forEach(box => {
-                            // Filter boxes by service - only show boxes that match the document's service
-                            if (documentServiceId && box.service_id !== documentServiceId) {
-                                return; // Skip this box if it doesn't match the service
-                            }
-                            
-                            const option = document.createElement('option');
-                            option.value = box.id;
-                            option.textContent = box.name;
-                            if (selectedBoxId && box.id === selectedBoxId) {
-                                option.selected = true;
-                            }
-                            boxSelect.appendChild(option);
-                        });
-                        boxSelect.disabled = false;
-                    }
-                }
-            }
-        }
-        
-        // Initialize Bootstrap tooltips for navigation buttons
-        document.addEventListener('DOMContentLoaded', function() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        });
-    </script>
+    @include('components.modals.confirm-modal')
 @endsection

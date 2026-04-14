@@ -1,19 +1,17 @@
-<div class="card border-0 categories-section p-4 h-100">
-    <div
-        class="d-flex  align-items-start flex-wrap mb-5"
-    >
-        <div>
-            <p class="text-muted mb-1 fw-semibold">{{ ui_t('pages.chart.statistics') }}</p>
-            <h5 class="fw-bold">{{ ui_t('pages.chart.summary_approvals') }}</h5>
+<div class="card border-0 categories-section p-4 h-100 d-flex flex-column">
+    <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4 flex-wrap">
+        <div class="min-w-0">
+            <p class="text-muted small fw-bold text-uppercase mb-2" style="letter-spacing: 0.06em;">{{ ui_t('pages.chart.statistics') }}</p>
+            <h5 class="fw-bold mb-0">{{ ui_t('pages.chart.summary_approvals') }}</h5>
         </div>
-        <div class="btn-group mb-2 ms-3" id="chartFilters">
-            <button type="button" class="btn  me-4 button-timeframe" data-period="weekly">{{ ui_t('pages.chart.weekly') }}</button>
-            <button type="button" class="btn  me-4 button-timeframe button-active" data-period="monthly">{{ ui_t('pages.chart.monthly') }}</button>
-            <button type="button" class="btn button-timeframe" data-period="yearly">{{ ui_t('pages.chart.yearly') }}</button>
+        <div class="d-inline-flex align-items-center flex-wrap gap-1" id="chartFilters" role="group" aria-label="{{ ui_t('pages.chart.statistics') }}">
+            <button type="button" class="btn btn-sm px-3 py-2 border-0 button-timeframe" data-period="weekly">{{ ui_t('pages.chart.weekly') }}</button>
+            <button type="button" class="btn btn-sm px-3 py-2 border-0 button-timeframe button-active" data-period="monthly">{{ ui_t('pages.chart.monthly') }}</button>
+            <button type="button" class="btn btn-sm px-3 py-2 border-0 button-timeframe" data-period="yearly">{{ ui_t('pages.chart.yearly') }}</button>
         </div>
     </div>
 
-    <div class="row h-100">
+    <div class="row flex-grow-1 h-100 min-h-0">
         <div class="col-md-9" style="overflow-x: visible;">
             <div style="height: 100%; overflow-x: visible;">
                 <canvas
@@ -63,8 +61,8 @@
                         >
                             <div class="d-flex align-items-center gap-2">
                                 <span
-                                    class="bg-success rounded-circle d-inline-block"
-                                    style="width: 10px; height: 10px"
+                                    class="rounded-circle d-inline-block"
+                                    style="width: 10px; height: 10px; background-color: #c1121f"
                                 ></span>
                                 <span>{{ ui_t('pages.chart.approved') }}</span>
                             </div>
@@ -75,8 +73,8 @@
                         >
                             <div class="d-flex align-items-center gap-2">
                                 <span
-                                    class="bg-warning rounded-circle d-inline-block"
-                                    style="width: 10px; height: 10px"
+                                    class="rounded-circle d-inline-block"
+                                    style="width: 10px; height: 10px; background-color: #f59e0b"
                                 ></span>
                                 <span>{{ ui_t('pages.chart.pending') }}</span>
                             </div>
@@ -87,8 +85,8 @@
                         >
                             <div class="d-flex align-items-center gap-2">
                                 <span
-                                    class="bg-danger rounded-circle d-inline-block"
-                                    style="width: 10px; height: 10px"
+                                    class="rounded-circle d-inline-block"
+                                    style="width: 10px; height: 10px; background-color: #94a3b8"
                                 ></span>
                                 <span>{{ ui_t('pages.chart.rejected') }}</span>
                             </div>
@@ -96,7 +94,7 @@
                         </li>
                         <li class="d-flex justify-content-between align-items-center mt-2">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="bg-dark rounded-circle d-inline-block" style="width: 10px; height: 10px"></span>
+                                <span class="rounded-circle d-inline-block" style="width: 10px; height: 10px; background-color: #64748b"></span>
                                 <span>{{ ui_t('pages.chart.expired') }}</span>
                             </div>
                             <span class="fw-semibold">{{ $statusSummary['expired'] ?? 0 }}</span>

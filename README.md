@@ -1,6 +1,6 @@
 # LocaGed Document Management System
 
-A comprehensive document management system built with Laravel 12, featuring OCR processing, Elasticsearch integration, and multi-language support (French, Arabic, English).
+A comprehensive document management system built with Laravel 12, featuring OCR processing, Typesense integration, and multi-language support (French, Arabic, English).
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ A comprehensive document management system built with Laravel 12, featuring OCR 
 | MySQL | 8.0+ | Database |
 | Redis | 6.0+ | Cache & Sessions |
 | Nginx | 1.18+ | Web Server |
-| Elasticsearch | 8.x | Full-text Search |
+| Typesense | 0.25+ | Full-text Search |
 | Tesseract | 4.1+ | OCR Processing |
 | Supervisor | 4.2+ | Queue Workers |
 | Composer | 2.x | PHP Dependencies |
@@ -55,7 +55,7 @@ sudo bash install.sh
 
 The installer will:
 - Install all required packages
-- Configure Nginx, PHP, MySQL, Redis, Elasticsearch
+- Configure Nginx, PHP, MySQL, Redis, Typesense
 - Set up Supervisor queue workers
 - Configure Laravel scheduler cron
 - Create production-ready configurations
@@ -146,9 +146,12 @@ CACHE_STORE=redis
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 
-# Elasticsearch
-ELASTICSEARCH_HOST=localhost:9200
-SCOUT_DRIVER=Matchish\ScoutElasticSearch\Engines\ElasticSearchEngine
+# Typesense
+SCOUT_DRIVER=typesense
+TYPESENSE_HOST=localhost
+TYPESENSE_PORT=8108
+TYPESENSE_PROTOCOL=http
+TYPESENSE_API_KEY=xyz
 
 # Email (Configure for production)
 MAIL_MAILER=smtp
@@ -331,13 +334,13 @@ sudo supervisorctl status
 sudo supervisorctl restart locaged-worker:*
 ```
 
-**3. Elasticsearch Connection Failed**
+**3. Typesense Connection Failed**
 ```bash
-# Check Elasticsearch status
-sudo systemctl status elasticsearch
+# Check Typesense status
+sudo systemctl status typesense
 
 # Test connection
-curl -X GET "localhost:9200"
+curl -X GET "http://localhost:8108/health"
 ```
 
 **4. Redis Connection Refused**

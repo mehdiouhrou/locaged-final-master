@@ -16,7 +16,7 @@
     </div>
     </a>
 
-    @if(auth()->user() && auth()->user()->hasRole('user'))
+    @if(auth()->user() && auth()->user()->can('view service document') && ! auth()->user()->can('access management sidebar'))
         {{-- Service Users: show pending documents on All Documents page --}}
         <a href="{{ route('documents.all', ['status' => \App\Enums\DocumentStatus::Pending->value, 'page_title' => 'pending_documents', 'show_expired' => 1, 'lock_status' => 1]) }}" class="text-decoration-none text-reset">
     @else

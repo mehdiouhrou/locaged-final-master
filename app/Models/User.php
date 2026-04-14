@@ -6,19 +6,19 @@ namespace App\Models;
 use App\Support\Branding;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -48,6 +48,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -60,6 +62,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -117,6 +120,15 @@ class User extends Authenticatable
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'service_user')->withTimestamps();
+    }
+
+    /**
+     * Profils d'accès V2 (catégories via CDC §2.2).
+     */
+    public function profiles(): BelongsToMany
+    {
+        return $this->belongsToMany(Profile::class, 'profile_user')
+            ->withTimestamps();
     }
 
     public function documentsMovements(): HasMany
@@ -187,7 +199,7 @@ class User extends Authenticatable
             return asset(ltrim($image, '/'));
         }
 
-        return asset('storage/' . ltrim($image, '/'));
+        return asset('storage/'.ltrim($image, '/'));
     }
 
     /**
@@ -200,7 +212,7 @@ class User extends Authenticatable
     {
         // Get the selected language from session (default to French)
         $locale = session('password_reset_locale', 'fr');
-        
+
         $resetUrl = url(route('password.reset', [
             'token' => $token,
             'email' => $this->email,
@@ -209,5 +221,4 @@ class User extends Authenticatable
 
         \Mail::to($this->email)->send(new \App\Mail\PasswordResetNotification($this, $resetUrl, $locale));
     }
-
 }

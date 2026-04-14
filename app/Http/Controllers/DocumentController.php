@@ -5,19 +5,18 @@ namespace App\Http\Controllers;
 use App\Enums\DocumentStatus;
 use App\Exports\DocumentsReportExport;
 use App\Models\Category;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentVersion;
+use App\Models\Service;
 use App\Models\Subcategory;
 use App\Models\SubDepartment;
-use App\Models\AuditLog;
-use App\Models\Department;
-use App\Models\Service;
 use App\Services\PdfConversionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentController extends Controller
@@ -26,6 +25,7 @@ class DocumentController extends Controller
     public function index()
     {
         Gate::authorize('viewAny', Document::class);
+
         return view('documents.index');
     }
 
@@ -37,8 +37,12 @@ class DocumentController extends Controller
     {
         Gate::authorize('view', $document);
 
-        // Redirect to the existing "by document" versions page
-        return redirect()->route('document-versions.by-document', ['id' => $document->id]);
+        if (! $document->latestVersion) {
+            return redirect()->back()->with('error', 'No document version found.');
+        }
+
+        // Single document experience: always open the unified preview page.
+        return redirect()->route('document-versions.preview', ['id' => $document->latestVersion->id]);
     }
 
     /**
@@ -53,7 +57,7 @@ class DocumentController extends Controller
     {
         Gate::authorize('viewAny', Document::class);
 
-        return Excel::download(new DocumentsReportExport($request), 'documents-report-' . now()->format('Ymd_His') . '.xlsx');
+        return Excel::download(new DocumentsReportExport($request), 'documents-report-'.now()->format('Ymd_His').'.xlsx');
     }
 
     public function byCategory($categoryId = null)
@@ -61,7 +65,8 @@ class DocumentController extends Controller
         Gate::authorize('viewAny', Document::class);
 
         $category = $categoryId ? Category::findOrFail($categoryId) : null;
-        return view('documents.by-category',compact('category'));
+
+        return view('documents.by-category', compact('category'));
     }
 
     public function bySubcategory($subcategoryId)
@@ -70,7 +75,7 @@ class DocumentController extends Controller
 
         $subcategory = Subcategory::with('category')->findOrFail($subcategoryId);
         Gate::authorize('view', $subcategory->category);
-        
+
         return view('documents.by-subcategory', compact('subcategory'));
     }
 
@@ -82,10 +87,10 @@ class DocumentController extends Controller
 
         // Note: Expired documents are now always shown in pending approvals
         // The is_expired flag is maintained for visual indicators only
-        
+
         $query = Document::with(['subcategory', 'department', 'box.shelf.row.room', 'createdBy'])
-            ->where('status','pending');
-        
+            ->where('status', 'pending');
+
         $documents = $query->latest()->paginate(10);
 
         return view('documents.status', compact('documents'));
@@ -96,7 +101,6 @@ class DocumentController extends Controller
     {
         Gate::authorize('create', Document::class);
 
-
         return view('documents.create');
     }
 
@@ -105,14 +109,14 @@ class DocumentController extends Controller
     {
         Gate::authorize('create', Document::class);
 
-        $maxFileSizeKb    = (int) config('uploads.max_file_size_kb', 50000);
+        $maxFileSizeKb = (int) config('uploads.max_file_size_kb', 50000);
         $allowedExtensions = config('uploads.allowed_extensions', []);
-        $mimesPart         = !empty($allowedExtensions)
-            ? '|mimes:' . implode(',', $allowedExtensions)
+        $mimesPart = ! empty($allowedExtensions)
+            ? '|mimes:'.implode(',', $allowedExtensions)
             : '';
 
         $validated = $request->validate([
-            'file' => 'required|file|max:' . $maxFileSizeKb . $mimesPart,
+            'file' => 'required|file|max:'.$maxFileSizeKb.$mimesPart,
             'title' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'subcategory_id' => 'nullable|exists:subcategories,id',
@@ -138,25 +142,25 @@ class DocumentController extends Controller
 
         // Check for duplicates (case-insensitive title, same department, same creation date)
         $confirmDuplicate = $request->boolean('confirm_duplicate', false);
-        
-        if (!$confirmDuplicate) {
+
+        if (! $confirmDuplicate) {
             $deptIds = auth()->user()?->departments->pluck('id')->toArray();
-            if (!empty($deptIds)) {
+            if (! empty($deptIds)) {
                 // Extract just the date portion for comparison (ignore time)
                 $searchDate = \Carbon\Carbon::parse($validated['created_at'])->format('Y-m-d');
-                
+
                 $duplicates = Document::whereRaw('LOWER(title) = ?', [strtolower($validated['title'])])
                     ->whereIn('department_id', $deptIds)
                     ->whereDate('created_at', $searchDate)
-                ->get(['id', 'title'])
-                ->map(fn($d) => [
-                    'id' => $d->id,
-                    'title' => $d->title,
-                    'url' => route('document-versions.by-document', ['id' => $d->id])
-                ])
-                ->toArray();
+                    ->get(['id', 'title'])
+                    ->map(fn ($d) => [
+                        'id' => $d->id,
+                        'title' => $d->title,
+                        'url' => route('documents.show', ['document' => $d->id]),
+                    ])
+                    ->toArray();
 
-                if (!empty($duplicates)) {
+                if (! empty($duplicates)) {
                     return back()
                         ->withInput()
                         ->with('duplicates', $duplicates)
@@ -171,7 +175,7 @@ class DocumentController extends Controller
             // Create document
             $document = Document::create($validated);
             $extension = $request->file('file')->getClientOriginalExtension();
-            $filename = $request->title . '_' . now()->format('His') . '.' . $extension;
+            $filename = $request->title.'_'.now()->format('His').'.'.$extension;
             // Upload file to private storage
             $filePath = Storage::disk('local')->putFileAs('', $request->file('file'), $filename);
 
@@ -184,7 +188,7 @@ class DocumentController extends Controller
                 'uploaded_by' => auth()->id(),
                 'version_number' => $versionNumber,
                 'file_path' => $filePath,
-                'file_type' => getFileCategory($extension)
+                'file_type' => getFileCategory($extension),
             ]);
 
             // Automatically convert Word/Excel uploads to PDF so previews are
@@ -204,11 +208,10 @@ class DocumentController extends Controller
             \DB::rollBack();
 
             Log::error('Document creation failed', ['error' => $e->getMessage()]);
+
             return back()->withErrors(['file' => 'Failed to upload document. Please try again.'])->withInput();
         }
     }
-
-
 
     // Update document
     public function update(Request $request, Document $document)
@@ -218,7 +221,7 @@ class DocumentController extends Controller
 
         $isExpired = $document->expire_at && $document->expire_at->isPast();
         $user = auth()->user();
-        $canChangeExpiry = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+        $canChangeExpiry = $user && $user->can('manage document global expiry');
 
         if ($isExpired) {
             // Only allow updating expire_at and box_id
@@ -236,7 +239,7 @@ class DocumentController extends Controller
             }
             $document->box_id = $data['box_id'];
             $document->save();
-            
+
             // Note: Once expire_at is extended to the future, isExpired check will be false
             // on next update, allowing full editing again. Status remains unchanged.
         } else {
@@ -286,8 +289,6 @@ class DocumentController extends Controller
             $document->tags()->sync($tags);
         }
 
-
-
         return back()->with('success', 'Document updated.');
     }
 
@@ -299,7 +300,7 @@ class DocumentController extends Controller
         // Only change status to archived, don't actually delete
         $document->status = DocumentStatus::Archived;
         $document->save();
-        
+
         $document->logAction('archived');
 
         // Stay on the same page instead of redirecting
@@ -311,8 +312,15 @@ class DocumentController extends Controller
 
         Gate::authorize('approve', Document::class);
 
-        $doc = Document::findOrFail($id);
+        $doc = Document::with('latestVersion')->findOrFail($id);
         $doc->status = DocumentStatus::Approved->value;
+
+        $version = $doc->latestVersion;
+        if ($version && Storage::disk('local')->exists($version->file_path)) {
+            $absolutePath = Storage::disk('local')->path($version->file_path);
+            $doc->file_hash = hash_file('sha256', $absolutePath);
+        }
+
         $doc->save();
         $doc->logAction('approved');
 
@@ -322,15 +330,27 @@ class DocumentController extends Controller
         return back()->with('success', 'Document approved.');
     }
 
-    public function decline($id)
+    public function decline(Request $request, $id)
     {
         Gate::authorize('decline', Document::class);
+
+        $validated = $request->validate([
+            'decline_reason' => ['nullable', 'string', 'max:5000'],
+        ]);
 
         $doc = Document::findOrFail($id);
 
         $doc->status = DocumentStatus::Declined->value;
+        $meta = is_array($doc->metadata) ? $doc->metadata : (array) ($doc->metadata ?? []);
+        $declineReason = trim((string) ($validated['decline_reason'] ?? ''));
+        if ($declineReason !== '') {
+            $meta['decline_reason'] = $declineReason;
+        } else {
+            unset($meta['decline_reason']);
+        }
+        $doc->metadata = $meta;
         $doc->save();
-        $doc->logAction('declined');
+        $doc->logAction('declined', null, ['decline_reason' => $declineReason !== '' ? $declineReason : null]);
 
         return back()->with('success', 'Document rejected.');
     }
@@ -358,7 +378,6 @@ class DocumentController extends Controller
         $doc = Document::with('latestVersion')->findOrFail($id);
         Gate::authorize('update', $doc);
 
-
         $doc->latestVersion->locked_by = \auth()->id();
         $doc->latestVersion->locked_at = null;
         $doc->latestVersion->unlocked_at = now();
@@ -370,13 +389,12 @@ class DocumentController extends Controller
         return back()->with('success', 'Document unlocked.');
     }
 
-
     public function download($id)
     {
         $doc = Document::with('latestVersion')->findOrFail($id);
-        Gate::authorize('view', $doc);
+        Gate::authorize('download', $doc);
 
-        if (!$doc->latestVersion) {
+        if (! $doc->latestVersion) {
             return back()->with('error', 'No document version found.');
         }
 
@@ -388,19 +406,19 @@ class DocumentController extends Controller
     {
         // Use withoutGlobalScopes to allow deleting expired documents from destructions page
         $document = Document::withoutGlobalScopes()->findOrFail($id);
-        
+
         // Check if user can permanently delete this document (role-based via policy)
         Gate::authorize('permanentDelete', $document);
-        
+
         // Resolve latest version id (may be null if something is inconsistent)
         $latestVersion = $document->latestVersion;
 
         // Log the action before deletion (pass version id explicitly if available)
         $document->logAction('permanently_deleted', $latestVersion?->id);
-        
+
         // Remove from search index and delete all document versions and their files
         foreach ($document->documentVersions as $version) {
-            // Remove from search index first, but ignore Elasticsearch connectivity issues
+            // Remove from search index first, but ignore search backend issues
             try {
                 $version->unsearchable();
             } catch (\Throwable $e) {
@@ -409,12 +427,12 @@ class DocumentController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
-            
+
             if ($version->file_path && Storage::exists($version->file_path)) {
                 Storage::delete($version->file_path);
             }
-            
-            // Prevent Scout from trying to sync (which crashes if ES is down)
+
+            // Prevent Scout from trying to sync in this destructive loop.
             // We already tried unsearchable() manually above with error handling
             \App\Models\DocumentVersion::withoutSyncingToSearch(function () use ($version) {
                 // Delete associated OCR job if it exists
@@ -424,14 +442,14 @@ class DocumentController extends Controller
                 $version->delete();
             });
         }
-        
+
         // Delete the document itself
         $document->delete();
-        
+
         return redirect()->back()->with('success', ui_t('pages.documents.delete_success'));
     }
 
-    public function rename($id,Request $request)
+    public function rename($id, Request $request)
     {
 
         $doc = Document::findOrFail($id);
@@ -439,7 +457,7 @@ class DocumentController extends Controller
         Gate::authorize('update', $doc);
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255'
+            'title' => 'required|string|max:255',
         ]);
 
         $doc->title = $validated['title'];
@@ -453,13 +471,13 @@ class DocumentController extends Controller
     public function getMetadata($id)
     {
         $document = Document::with([
-            'department', 
-            'service.subDepartment', 
-            'category', 
-            'tags', 
-            'createdBy', 
+            'department',
+            'service.subDepartment',
+            'category',
+            'tags',
+            'createdBy',
             'latestVersion',
-            'box.shelf.row.room'
+            'box.shelf.row.room',
         ])->findOrFail($id);
 
         Gate::authorize('view', $document);
@@ -475,8 +493,8 @@ class DocumentController extends Controller
         }
 
         // Determine sub-department (either from service or direct relationship if exists)
-        $subDepartment = $document->service && $document->service->subDepartment 
-            ? $document->service->subDepartment->name 
+        $subDepartment = $document->service && $document->service->subDepartment
+            ? $document->service->subDepartment->name
             : ($document->sub_department_id ? \App\Models\SubDepartment::find($document->sub_department_id)?->name : null);
 
         // Build hierarchical options available to the current user (same logic as preview sidebar)
@@ -498,17 +516,17 @@ class DocumentController extends Controller
                 ->whereIn('id', $userDeptIdsRaw)
                 ->get();
 
-            if ($user->hasRole('master') || $user->hasRole('Super Administrator')) {
+            if ($user->can('view any role') || $user->can('view organization wide reports')) {
                 // Privileged users see the full hierarchy
-                $userDepartments    = Department::withoutGlobalScopes()->orderBy('name')->get();
+                $userDepartments = Department::withoutGlobalScopes()->orderBy('name')->get();
                 $userSubDepartments = SubDepartment::with('department')->orderBy('name')->get();
-                $userServices       = Service::with('subDepartment.department')->orderBy('name')->get();
+                $userServices = Service::with('subDepartment.department')->orderBy('name')->get();
             } else {
                 // Non-admins are restricted to explicit assignments via pivots
                 $userDepartments = $userDepartmentsRaw;
 
                 // Sub-departments
-                if ($user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments') || $user->hasRole('Division Chief')) {
+                if ($user->can('filter audit logs by assigned departments') || $user->can('filter audit logs by assigned subdepartments')) {
                     $deptIds = $userDepartments->pluck('id');
                     $userSubDepartments = SubDepartment::whereIn('department_id', $deptIds)->get();
                 } else {
@@ -516,10 +534,10 @@ class DocumentController extends Controller
                 }
 
                 // Services
-                if ($user->hasRole('Division Chief') || $user->hasRole('Admin de departments') || $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager')) {
+                if ($user->can('view subdepartment scoped documents') || $user->can('view service user')) {
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
-                } elseif ($user->hasRole('Department Administrator') || $user->hasRole('Admin de pole')) {
+                } elseif ($user->can('filter audit logs by assigned departments') || $user->can('view any department')) {
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
                 } else {
@@ -528,77 +546,73 @@ class DocumentController extends Controller
             }
         }
 
-
         // Get ALL categories from services the user has access to
         // JavaScript will filter these by the selected service_id dynamically
         $accessibleServiceIds = $userServices->pluck('id')->unique();
-        
-        
+
         // Always include the document's current service in accessible services
         // This ensures admins can always see the current category even if service assignments change
-        if ($document->service_id && !$accessibleServiceIds->contains($document->service_id)) {
+        if ($document->service_id && ! $accessibleServiceIds->contains($document->service_id)) {
             $accessibleServiceIds->push($document->service_id);
-            
+
             // Also ensure the document's service is in the services collection
             $documentService = Service::with('subDepartment.department')->find($document->service_id);
-            if ($documentService && !$userServices->contains('id', $documentService->id)) {
+            if ($documentService && ! $userServices->contains('id', $documentService->id)) {
                 $userServices->push($documentService);
-                
+
                 // Include the sub-department if not already present
-                if ($documentService->subDepartment && !$userSubDepartments->contains('id', $documentService->subDepartment->id)) {
+                if ($documentService->subDepartment && ! $userSubDepartments->contains('id', $documentService->subDepartment->id)) {
                     $userSubDepartments->push($documentService->subDepartment);
-                    
+
                     // Include the department if not already present
-                    if ($documentService->subDepartment->department && !$userDepartments->contains('id', $documentService->subDepartment->department->id)) {
+                    if ($documentService->subDepartment->department && ! $userDepartments->contains('id', $documentService->subDepartment->department->id)) {
                         $userDepartments->push($documentService->subDepartment->department);
                     }
                 }
             }
         }
-        
-        $categories = $accessibleServiceIds->isNotEmpty()
-            ? Category::withoutGlobalScopes()->whereIn('service_id', $accessibleServiceIds)->orderBy('name')->get()
-            : Category::withoutGlobalScopes()->orderBy('name')->get();
+
+        $categories = Category::query()->orderBy('name')->get();
 
         // Filter physical location options by document's service
         // Only show boxes that belong to the document's service, and their parent locations
         $serviceId = $document->service_id;
-        
+
         // Get all boxes for this service
-        $serviceBoxes = $serviceId 
+        $serviceBoxes = $serviceId
             ? \App\Models\Box::with('shelf.row.room')
                 ->where('service_id', $serviceId)
                 ->orderBy('name')
                 ->get()
             : \App\Models\Box::with('shelf.row.room')->orderBy('name')->get();
-        
+
         // Extract unique room, row, shelf IDs from these boxes
         $validShelfIds = $serviceBoxes->pluck('shelf_id')->unique()->filter();
         $validShelves = \App\Models\Shelf::with('row')
             ->whereIn('id', $validShelfIds)
             ->orderBy('name')
             ->get();
-        
+
         $validRowIds = $validShelves->pluck('row_id')->unique()->filter();
         $validRows = \App\Models\Row::with('room')
             ->whereIn('id', $validRowIds)
             ->orderBy('name')
             ->get();
-        
+
         $validRoomIds = $validRows->pluck('room_id')->unique()->filter();
         $validRooms = \App\Models\Room::whereIn('id', $validRoomIds)
             ->orderBy('name')
             ->get();
 
         // Map to arrays for JSON response
-        $allRooms = $validRooms->map(function($room) {
+        $allRooms = $validRooms->map(function ($room) {
             return [
                 'id' => $room->id,
                 'name' => $room->name,
             ];
         })->values();
 
-        $allRows = $validRows->map(function($row) {
+        $allRows = $validRows->map(function ($row) {
             return [
                 'id' => $row->id,
                 'name' => $row->name,
@@ -606,7 +620,7 @@ class DocumentController extends Controller
             ];
         })->values();
 
-        $allShelves = $validShelves->map(function($shelf) {
+        $allShelves = $validShelves->map(function ($shelf) {
             return [
                 'id' => $shelf->id,
                 'name' => $shelf->name,
@@ -614,7 +628,7 @@ class DocumentController extends Controller
             ];
         })->values();
 
-        $allBoxes = $serviceBoxes->map(function($box) {
+        $allBoxes = $serviceBoxes->map(function ($box) {
             return [
                 'id' => $box->id,
                 'name' => $box->name,
@@ -633,6 +647,7 @@ class DocumentController extends Controller
         }
 
         $metadata = [
+            'category_access_driver' => config('ged.category_access_driver', 'legacy'),
             'id' => $document->id,
             'title' => $document->title,
             'status' => $document->status,
@@ -653,24 +668,24 @@ class DocumentController extends Controller
             'room_id' => $room_id,
             'row_id' => $row_id,
             'shelf_id' => $shelf_id,
-            'departments' => $userDepartments->map(fn($d) => [
+            'departments' => $userDepartments->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => $d->name,
             ])->values(),
-            'sub_departments' => $userSubDepartments->map(fn($s) => [
+            'sub_departments' => $userSubDepartments->map(fn ($s) => [
                 'id' => $s->id,
                 'name' => $s->name,
                 'department_id' => $s->department_id,
             ])->values(),
-            'services' => $userServices->map(fn($s) => [
+            'services' => $userServices->map(fn ($s) => [
                 'id' => $s->id,
                 'name' => $s->name,
                 'sub_department_id' => $s->sub_department_id,
             ])->values(),
-            'categories' => $categories->map(fn($c) => [
+            'categories' => $categories->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
-                'service_id' => $c->service_id,
+                'sub_department_id' => $c->sub_department_id,
             ])->values(),
             'rooms' => $allRooms,
             'rows' => $allRows,
@@ -718,7 +733,7 @@ class DocumentController extends Controller
         if (array_key_exists('expire_at', $data)) {
             $newExpire = $data['expire_at'] ? now()->create($data['expire_at']) : null;
             $oldExpire = $document->expire_at;
-            if (($oldExpire && !$newExpire) || (!$oldExpire && $newExpire) || ($oldExpire && $newExpire && $oldExpire->ne($newExpire))) {
+            if (($oldExpire && ! $newExpire) || (! $oldExpire && $newExpire) || ($oldExpire && $newExpire && $oldExpire->ne($newExpire))) {
                 $changed['expire_at'] = [
                     $oldExpire?->format('Y-m-d'),
                     $newExpire?->format('Y-m-d'),
@@ -731,13 +746,13 @@ class DocumentController extends Controller
             if (array_key_exists($field, $data) && $data[$field] != $document->{$field}) {
                 $changed[$field] = [$document->{$field}, $data[$field]];
                 $document->{$field} = $data[$field];
-                
+
                 // If category changed, recalculate expiration date automatically
                 if ($field === 'category_id' && $data[$field]) {
                     $category = \App\Models\Category::find($data[$field]);
                     if ($category && $category->expiry_value && $category->expiry_unit) {
                         $createdAt = $document->created_at ?: now();
-                        
+
                         try {
                             switch ($category->expiry_unit) {
                                 case 'days':
@@ -752,10 +767,10 @@ class DocumentController extends Controller
                                 default:
                                     $newExpire = null;
                             }
-                            
+
                             if (isset($newExpire)) {
                                 $oldExpire = $document->expire_at;
-                                if (($oldExpire && !$newExpire) || (!$oldExpire && $newExpire) || ($oldExpire && $newExpire && $oldExpire->ne($newExpire))) {
+                                if (($oldExpire && ! $newExpire) || (! $oldExpire && $newExpire) || ($oldExpire && $newExpire && $oldExpire->ne($newExpire))) {
                                     $changed['expire_at'] = [
                                         $oldExpire?->format('Y-m-d'),
                                         $newExpire?->format('Y-m-d'),
@@ -779,17 +794,17 @@ class DocumentController extends Controller
 
         // Handle tags
         if (array_key_exists('tags', $data)) {
-            $newTags = collect($data['tags'])->filter()->map(fn($tag) => trim($tag))->unique()->values();
+            $newTags = collect($data['tags'])->filter()->map(fn ($tag) => trim($tag))->unique()->values();
             $oldTagNames = $document->tags->pluck('name')->sort()->values();
             $newTagNames = $newTags->sort()->values();
-            
+
             if ($oldTagNames->toJson() !== $newTagNames->toJson()) {
                 $changed['tags'] = [$oldTagNames->toArray(), $newTagNames->toArray()];
-                
+
                 // Create or find tags and sync
                 $tagIds = [];
                 foreach ($newTags as $tagName) {
-                    if (!empty($tagName)) {
+                    if (! empty($tagName)) {
                         $tag = \App\Models\Tag::firstOrCreate(['name' => $tagName]);
                         $tagIds[] = $tag->id;
                     }
@@ -798,10 +813,10 @@ class DocumentController extends Controller
             }
         }
 
-        if (!empty($changed)) {
+        if (! empty($changed)) {
             $document->save();
             $document->logAction('metadata_updated');
-            
+
             // Flash success message for toast notification
             session()->flash('toast_success', __('pages.upload.metadata_updated'));
         }
@@ -809,5 +824,4 @@ class DocumentController extends Controller
         // Return refreshed metadata payload
         return $this->getMetadata($document->id);
     }
-
 }

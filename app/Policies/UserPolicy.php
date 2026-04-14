@@ -14,24 +14,9 @@ class UserPolicy
     public function viewAny(User $user): bool
     {
         // Primary check: explicit permissions
-        if ($user->can('view any user') || $user->can('view department user') || $user->can('view service user')) {
-            return true;
-        }
-
-        // Fallback: certain management roles should always be able to open
-        // the Users page, even if permissions were not fully synced.
-        if ($user->hasAnyRole([
-            'master',
-            'Super Administrator',
-            'admin',
-            'Admin de pole',
-            'Admin de departments',
-            'Admin de cellule',
-        ])) {
-            return true;
-        }
-
-        return false;
+        return $user->can('view any user')
+            || $user->can('view department user')
+            || $user->can('view service user');
     }
 
     /**
@@ -68,22 +53,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        // Primary check: explicit permission
-        $hasPermission = $user->can('create user');
-
-        // Fallback: certain management roles should always be able to create
-        // users even if permissions were not fully synced.
-        $hasFallbackRole = $user->hasAnyRole([
-            'master',
-            'Super Administrator',
-            'admin',
-            'Admin de pole',
-            'Admin de departments',
-            'Admin de cellule',
-            'service manager',
-        ]);
-
-        if (! $hasPermission && ! $hasFallbackRole) {
+        if (! $user->can('create user')) {
             return false;
         }
 
@@ -134,12 +104,11 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
-        // Only allow admin (master) and Super Administrator to delete users
-        if (!$user->hasAnyRole(['master', 'Super Administrator'])) {
+        if (! $user->can('delete user')) {
             return false;
         }
 
-        if ($user->cannot('delete user')) {
+        if (! $user->can('view any role') && ! $user->can('view organization wide reports')) {
             return false;
         }
 

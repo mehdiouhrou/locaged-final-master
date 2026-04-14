@@ -147,6 +147,20 @@
                         @endif
                     </div>
                 </div>
+                @if(auth()->user()?->can('view any role'))
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('Branche principale de la hiérarchie') }}</label>
+                        <input
+                            type="text"
+                            name="org_root_name"
+                            class="form-control"
+                            value="{{ \App\Support\Branding::getOrgRootName() }}"
+                            maxlength="120"
+                            placeholder="{{ __('Direction Générale') }}"
+                        />
+                        <small class="text-muted">{{ __('Seul le rôle Master peut modifier ce libellé.') }}</small>
+                    </div>
+                @endif
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-dark">{{ ui_t('actions.update') }}</button>
                 </div>

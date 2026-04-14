@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Branding
 {
@@ -40,8 +41,25 @@ class Branding
         $data = self::read();
         $val = $data[$key] ?? null;
         if ($val) {
+            $val = ltrim((string) $val, '/');
+
+            // Allow absolute URLs directly.
+            if (Str::startsWith($val, ['http://', 'https://'])) {
+                return $val;
+            }
+
+            // If an asset path was stored, serve it directly from public assets.
+            if (Str::startsWith($val, 'assets/')) {
+                return asset($val);
+            }
+
+            // Stored as path relative to public disk: ensure file exists before using it.
+            if (Storage::disk('public')->exists($val)) {
+                return asset('storage/' . $val);
+            }
+
             // Stored as path relative to public disk, build full URL
-            return asset('storage/' . ltrim($val, '/'));
+            // but fallback below if the file is missing.
         }
         if ($defaultRelativeAsset) {
             return asset($defaultRelativeAsset);
@@ -56,7 +74,42 @@ class Branding
 
     public static function loginImageUrl(): string
     {
-        return self::get('login_left_image', 'assets/cbanner.jpg');
+        return self::resolveLoginCoverUrl();
+    }
+
+    /**
+     * Image de couverture login : chemin racine (/assets/…, /storage/…) pour éviter
+     * un APP_URL différent de l’hôte réel (ex. .env en prod + test en 127.0.0.1).
+     * URLs http(s) absolues conservées (CDN / autre domaine volontaire).
+     */
+    public static function resolveLoginCoverUrl(): string
+    {
+        $data = self::read();
+        $val = isset($data['login_left_image']) ? trim((string) $data['login_left_image']) : '';
+
+        if ($val !== '') {
+            $val = ltrim($val, '/');
+
+            if (Str::startsWith($val, ['http://', 'https://'])) {
+                return $val;
+            }
+
+            if (Str::startsWith($val, 'assets/')) {
+                if (is_file(public_path($val))) {
+                    return '/'.$val;
+                }
+            } elseif (Storage::disk('public')->exists($val)) {
+                return '/storage/'.$val;
+            }
+        }
+
+        foreach (['assets/cbanner.jpg', 'assets/bg.jpg'] as $fallback) {
+            if (is_file(public_path($fallback))) {
+                return '/'.$fallback;
+            }
+        }
+
+        return '/assets/bg.jpg';
     }
 
     /**
@@ -128,6 +181,25 @@ class Branding
     {
         $data = self::read();
         $data['timezone'] = $timezone;
+        self::write($data);
+    }
+
+    /**
+     * Top-most organization node label shown in structures tree.
+     */
+    public static function getOrgRootName(): string
+    {
+        $data = self::read();
+        $name = trim((string) ($data['org_root_name'] ?? ''));
+
+        return $name !== '' ? $name : 'Direction Générale';
+    }
+
+    public static function setOrgRootName(string $name): void
+    {
+        $data = self::read();
+        $clean = trim($name);
+        $data['org_root_name'] = $clean !== '' ? $clean : 'Direction Générale';
         self::write($data);
     }
 }

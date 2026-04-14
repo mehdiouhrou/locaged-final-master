@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Jobs\ProcessOcrJob;
 use App\Models\Category;
-use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\Folder;
@@ -18,7 +17,9 @@ use App\Models\Subcategory;
 use App\Models\Tag;
 use App\Models\SubDepartment;
 use App\Models\Service;
+use App\Services\ClamAvScanner;
 use App\Services\PdfConversionService;
+use App\Services\ProfileCategoryAccessService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
@@ -89,6 +90,33 @@ class MultipleDocumentsCreateForm extends Component
     public $filesWithDuplicates = []; // [fileIndex, fileIndex, ...]
 
     protected $listeners = ['previewFile'];
+
+    /**
+     * Après sélection des fichiers : scan ClamAV optionnel (voir config/clamav.php).
+     */
+    public function updatedDocuments(): void
+    {
+        if (! config('clamav.enabled') || empty($this->documents)) {
+            return;
+        }
+
+        try {
+            $scanner = app(ClamAvScanner::class);
+            foreach ($this->documents as $file) {
+                if (! is_object($file) || ! method_exists($file, 'getRealPath')) {
+                    continue;
+                }
+                $path = $file->getRealPath();
+                if (is_string($path) && $path !== '') {
+                    $scanner->assertClean($path);
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->documents = [];
+            $this->addError('documents', $e->getMessage());
+            Log::warning('Upload rejected by ClamAV gate', ['message' => $e->getMessage()]);
+        }
+    }
 
     protected function rules()
     {
@@ -287,80 +315,26 @@ class MultipleDocumentsCreateForm extends Component
             $this->currentInfo = $this->documentInfos[$this->currentDocumentIndex];
         }
 
-        // If we arrived with a pre-selected category and this file has no
-        // organization/category yet, initialize those fields from the category
+        // Pre-selected category from route/context only sets category_id (no org on categories).
         if ($this->categoryId && empty($this->currentInfo['category_id'])) {
             $category = Category::find($this->categoryId);
             if ($category) {
                 $this->currentInfo['category_id'] = $category->id;
-
-                // Only set org hierarchy if it isn't already chosen for this file
-                $this->currentInfo['department_id']     = $this->currentInfo['department_id']     ?? $category->department_id;
-                $this->currentInfo['sub_department_id'] = $this->currentInfo['sub_department_id'] ?? $category->sub_department_id;
-                $this->currentInfo['service_id']        = $this->currentInfo['service_id']        ?? $category->service_id;
             }
         }
 
-        // Prefill defaults from authenticated user if empty
+        // Prefill author / email from authenticated user
         $user = auth()->user();
         if ($user) {
-            // Always set author and email from authenticated user; not editable via UI
             $this->currentInfo['author'] = $user->full_name ?: ($user->name ?? '');
-            $this->currentInfo['email']  = $user->email ?? '';
+            $this->currentInfo['email'] = $user->email ?? '';
+        }
 
-            // For Service Manager / Service User, preselect department + sub-department
-            // from their assigned departments/sub-departments (pivot tables),
-            // but leave service selectable.
-            // Also apply this logic to Division Chief (sub-department admin).
-            //
-            // Support both English and localized role names:
-            // - Service Manager  ↔  Admin de cellule
-            // - Service User     ↔  user
-            // - Division Chief   ↔  Admin de departments
-            $isServiceRole = $user->hasAnyRole([
-                'Service Manager',
-                'Service User',
-                'Admin de cellule',
-                'user',
-            ]);
-            $isDivisionChief = $user->hasAnyRole([
-                'Division Chief',
-                'Admin de departments',
-            ]);
-            if ($isServiceRole || $isDivisionChief) {
-                $hasOrgSelection = !empty($this->currentInfo['department_id']) || !empty($this->currentInfo['sub_department_id']);
-                if (! $hasOrgSelection) {
-                    // Get first sub-department and its department directly from DB, bypassing global scopes
-                    $subRow = DB::table('sub_department_user')
-                        ->where('user_id', $user->id)
-                        ->orderBy('id')
-                        ->first();
+        // Department / sub-department / service always follow the account (pivots), not the category.
+        $this->hydrateOrgFromUserContext();
 
-                    if ($subRow) {
-                        $subDeptId = $subRow->sub_department_id;
-                        $deptId = DB::table('sub_departments')
-                            ->where('id', $subDeptId)
-                            ->value('department_id');
-
-                        if ($deptId) {
-                            $this->currentInfo['department_id']     = $deptId;
-                            $this->currentInfo['sub_department_id'] = $subDeptId;
-                        }
-                    } else {
-                        // Fallback to first department from pivot if any
-                        $deptId = DB::table('department_user')
-                            ->where('user_id', $user->id)
-                            ->orderBy('id')
-                            ->value('department_id');
-                        if ($deptId) {
-                            $this->currentInfo['department_id'] = $deptId;
-                        }
-                    }
-
-                    // Do NOT preselect service; keep dropdown unlocked for any of user's services
-                    $this->currentInfo['service_id'] = $this->currentInfo['service_id'] ?? null;
-                }
-            }
+        if (! array_key_exists('digital_only', $this->currentInfo)) {
+            $this->currentInfo['digital_only'] = false;
         }
 
         // Ensure a server-side default color for every document to avoid client-only defaults
@@ -429,7 +403,7 @@ class MultipleDocumentsCreateForm extends Component
             ->map(fn($d) => [
                 'id' => $d->id,
                 'title' => $d->title,
-                'url' => route('document-versions.by-document', ['id' => $d->id])
+                'url' => route('documents.show', ['document' => $d->id])
             ])
             ->toArray();
     }
@@ -506,7 +480,7 @@ class MultipleDocumentsCreateForm extends Component
                 ->map(fn($d) => [
                     'id' => $d->id,
                     'title' => $d->title,
-                    'url' => route('document-versions.by-document', ['id' => $d->id])
+                    'url' => route('documents.show', ['document' => $d->id])
                 ])
                 ->toArray();
             
@@ -559,6 +533,7 @@ class MultipleDocumentsCreateForm extends Component
             'new_tags',
             'physical_location_id',
             'box_id',
+            'digital_only',
             'author',
             'email',
             'department_id',
@@ -589,6 +564,61 @@ class MultipleDocumentsCreateForm extends Component
         if (isset($this->documentInfos[$this->currentDocumentIndex])) {
             $this->documentInfos[$this->currentDocumentIndex] = $this->currentInfo;
         }
+    }
+
+    public function applyCurrentInfoToIncomplete(): void
+    {
+        if (empty($this->documentInfos) || empty($this->currentInfo)) {
+            return;
+        }
+
+        // Keep title per file, only propagate metadata values.
+        $copyKeys = [
+            'category_id',
+            'subcategory_id',
+            'color',
+            'created_at',
+            'expire_at',
+            'tags',
+            'new_tags',
+            'box_id',
+            'digital_only',
+        ];
+
+        foreach ($this->documentInfos as $index => $meta) {
+            if ($index === $this->currentDocumentIndex) {
+                $this->documentInfos[$index] = $this->currentInfo;
+                continue;
+            }
+
+            foreach ($copyKeys as $key) {
+                $sourceValue = $this->currentInfo[$key] ?? null;
+                $targetValue = $meta[$key] ?? null;
+
+                if ($this->isMetadataMissing($targetValue) && ! $this->isMetadataMissing($sourceValue)) {
+                    $this->documentInfos[$index][$key] = $sourceValue;
+                }
+            }
+        }
+
+        $this->loadCurrentInfo();
+    }
+
+    private function isMetadataMissing(mixed $value): bool
+    {
+        if (is_null($value)) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            return trim($value) === '';
+        }
+
+        if (is_array($value)) {
+            return count($value) === 0;
+        }
+
+        return false;
     }
 
     public function updatedNewDocuments($value = null)
@@ -712,6 +742,7 @@ class MultipleDocumentsCreateForm extends Component
                     'department_id' => null,
                     'sub_department_id' => null,
                     'service_id' => null,
+                    'digital_only' => false,
                 ];
             }
         }
@@ -724,6 +755,8 @@ class MultipleDocumentsCreateForm extends Component
 
     protected function getStep2Rules(): array
     {
+        $isDigitalOnly = filter_var($this->currentInfo['digital_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
         return [
             'currentInfo.title' => 'required|string|max:255',
             'currentInfo.category_id' => 'required|exists:categories,id',
@@ -735,12 +768,13 @@ class MultipleDocumentsCreateForm extends Component
             'currentInfo.tags' => 'array',
             'currentInfo.tags.*' => 'exists:tags,id',
             'currentInfo.new_tags' => 'nullable|string',
-            'currentInfo.box_id' => 'required|exists:boxes,id',
+            'currentInfo.digital_only' => 'nullable|boolean',
+            'currentInfo.box_id' => $isDigitalOnly ? 'nullable|exists:boxes,id' : 'required|exists:boxes,id',
             'currentInfo.author' => 'required|string|max:255',
             'currentInfo.email' => 'nullable|email|max:255',
-            'currentInfo.department_id' => 'required|exists:departments,id',
+            'currentInfo.department_id' => 'nullable|exists:departments,id',
             'currentInfo.sub_department_id' => 'nullable|exists:sub_departments,id',
-            'currentInfo.service_id' => 'required|exists:services,id',
+            'currentInfo.service_id' => 'nullable|exists:services,id',
             // newFolderName is optional, validated globally when submitting the last document
         ];
     }
@@ -792,50 +826,31 @@ class MultipleDocumentsCreateForm extends Component
 
     public function updatedCurrentInfoDepartmentId(): void
     {
-        // Clear org-dependent fields when department changes
-        $this->currentInfo['sub_department_id'] = null;
-        $this->currentInfo['service_id'] = null;
-        $this->currentInfo['category_id'] = null;
-        if (isset($this->currentInfo['subcategory_id'])) {
-            $this->currentInfo['subcategory_id'] = null;
-        }
-        $this->currentInfo['expire_at'] = null;
-
-        // Trigger highlight animation via Livewire event
-        $this->dispatch('categories-reset');
+        // Org hierarchy is not user-editable; values come from account context only.
     }
 
     public function updatedCurrentInfoSubDepartmentId(): void
     {
-        // When sub-department changes, clear selected service and downstream fields
-        $this->currentInfo['service_id'] = null;
-        $this->currentInfo['category_id'] = null;
-        $this->currentInfo['subcategory_id'] = null;
-        $this->currentInfo['expire_at'] = null;
-
-        $this->dispatch('categories-reset');
     }
 
     public function updatedCurrentInfoServiceId(): void
     {
-        // When service changes, clear category, subcategory and expiry
-        $this->currentInfo['category_id'] = null;
-        $this->currentInfo['subcategory_id'] = null;
-        $this->currentInfo['expire_at'] = null;
+    }
 
-        // Reset location selection
-        $this->selectedRoomId = null;
-        $this->selectedRowId = null;
-        $this->selectedShelfId = null;
-        $this->selectedBoxId = null;
-        $this->currentInfo['box_id'] = null;
-
-        $this->dispatch('categories-reset');
+    public function updatedCurrentInfoDigitalOnly(): void
+    {
+        $isDigitalOnly = filter_var($this->currentInfo['digital_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($isDigitalOnly) {
+            $this->selectedRoomId = null;
+            $this->selectedRowId = null;
+            $this->selectedShelfId = null;
+            $this->selectedBoxId = null;
+            $this->currentInfo['box_id'] = null;
+        }
     }
 
     public function updatedCurrentInfoCategoryId(): void
     {
-        // When category changes, clear subcategory selection, then recompute expiry from category
         $this->currentInfo['subcategory_id'] = null;
         $this->currentInfo['expire_at'] = null;
 
@@ -865,17 +880,95 @@ class MultipleDocumentsCreateForm extends Component
             return false;
         }
 
-        // Master / Super Administrator are always allowed
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator')) {
+        if ($user->can('view any role') || $user->can('view organization wide reports')) {
             return true;
         }
 
-        // Check pivot table directly (bypasses any Department global scopes)
-        $deptCount = DB::table('department_user')
-            ->where('user_id', $user->id)
-            ->count();
+        if ($user->can('view any category')) {
+            return true;
+        }
 
-        return $deptCount > 0;
+        $ids = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
+        if ($ids === null) {
+            return true;
+        }
+        if ($ids->isNotEmpty()) {
+            return true;
+        }
+
+        if (DB::table('department_user')->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+        if (DB::table('sub_department_user')->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+        if (DB::table('service_user')->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+        if ($user->service_id || $user->sub_department_id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function hydrateOrgFromUserContext(): void
+    {
+        if (! auth()->check()) {
+            return;
+        }
+        $this->hydrateOrgMetadata($this->currentInfo);
+    }
+
+    /**
+     * Fill department / sub_department / service from the authenticated user's pivots (not from category).
+     */
+    private function hydrateOrgMetadata(array &$metadata): void
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return;
+        }
+
+        $serviceId = (int) (DB::table('service_user')->where('user_id', $user->id)->orderBy('id')->value('service_id') ?: 0);
+        $service = $serviceId ? Service::query()->find($serviceId) : null;
+
+        if (! $service && $user->service_id) {
+            $service = Service::query()->find($user->service_id);
+            $serviceId = (int) ($service?->id ?: 0);
+        }
+        if (! $service) {
+            $service = $user->services()->orderBy('services.id')->first();
+            $serviceId = (int) ($service?->id ?: 0);
+        }
+
+        $subDeptId = (int) (DB::table('sub_department_user')->where('user_id', $user->id)->orderBy('id')->value('sub_department_id') ?: 0);
+        if ($service) {
+            $subDeptId = $subDeptId ?: (int) $service->sub_department_id;
+        }
+        if (! $subDeptId && $user->sub_department_id) {
+            $subDeptId = (int) $user->sub_department_id;
+        }
+
+        $deptId = (int) (DB::table('department_user')->where('user_id', $user->id)->orderBy('id')->value('department_id') ?: 0);
+        if ($service && ! $deptId) {
+            $service->loadMissing('subDepartment');
+            $deptId = (int) ($service->subDepartment?->department_id ?? 0);
+        }
+        if (! $deptId && $subDeptId) {
+            $deptId = (int) (SubDepartment::query()->where('id', $subDeptId)->value('department_id') ?? 0);
+        }
+
+        $metadata['department_id'] = $deptId ?: null;
+        $metadata['sub_department_id'] = $subDeptId ?: null;
+        $metadata['service_id'] = $serviceId ?: null;
+    }
+
+    private function hydrateOrgForAllDocumentInfos(): void
+    {
+        foreach (array_keys($this->documentInfos) as $idx) {
+            $this->hydrateOrgMetadata($this->documentInfos[$idx]);
+        }
     }
 
     public function nextStep()
@@ -904,9 +997,8 @@ class MultipleDocumentsCreateForm extends Component
             return;
         }
 
+        $this->hydrateOrgFromUserContext();
         $this->validate($this->getStep2Rules());
-
-        // Removed: checkAndShowDuplicateModal() - now using batch duplicate check at submit time
 
         // 1. Save any changes from the form before moving
         $this->saveCurrentInfo();
@@ -987,6 +1079,7 @@ class MultipleDocumentsCreateForm extends Component
     {
         $this->currentPreviewUrl = null;
         $this->currentPreviewType = null;
+        $this->dispatch('upload-pdf-preview-clear');
 
         if (!isset($this->documents[$this->currentDocumentIndex])) {
             return;
@@ -1017,6 +1110,10 @@ class MultipleDocumentsCreateForm extends Component
             } else {
                 $this->currentPreviewType = 'other';
             }
+        }
+
+        if ($this->currentPreviewType === 'pdf' && $this->currentPreviewUrl) {
+            $this->dispatch('upload-pdf-preview-url', url: $this->currentPreviewUrl);
         }
     }
 
@@ -1137,6 +1234,7 @@ class MultipleDocumentsCreateForm extends Component
             return;
         }
 
+        $this->hydrateOrgFromUserContext();
         $this->saveCurrentInfo();
         $this->validate($this->getStep2Rules());
 
@@ -1168,9 +1266,13 @@ class MultipleDocumentsCreateForm extends Component
         $skippedCount = 0;
         $hadError = false;
 
+        $this->hydrateOrgForAllDocumentInfos();
+
         // Use first document's metadata as the shared source when uploading multiple files
         // ONLY when the user has opted in to shared metadata.
         $firstMeta = $this->documentInfos[0] ?? null;
+        $deptId = $firstMeta['department_id'] ?? null;
+        $serviceId = $firstMeta['service_id'] ?? null;
         if ($this->useSharedMetadata && $firstMeta && count($this->documents) > 1) {
             // These fields will be copied from the first document to all others.
             // The title is intentionally excluded so each file keeps its own name.
@@ -1184,6 +1286,7 @@ class MultipleDocumentsCreateForm extends Component
                 'new_tags',
                 'physical_location_id',
                 'box_id',
+                'digital_only',
                 'author',
                 'email',
                 'department_id',
@@ -1207,10 +1310,6 @@ class MultipleDocumentsCreateForm extends Component
         $targetFolderId = $this->folderId;
 
         if (is_null($targetFolderId) && $this->newFolderName) {
-            // Use metadata of first document to set department/service
-            $deptId = $firstMeta['department_id'] ?? null;
-            $serviceId = $firstMeta['service_id'] ?? null;
-
             $folder = Folder::create([
                 'uid'          => uuid_create(),
                 'name'         => $this->newFolderName,
@@ -1275,6 +1374,10 @@ class MultipleDocumentsCreateForm extends Component
             }
 
             $metadata = $this->documentInfos[$index];
+            $isDigitalOnly = filter_var($metadata['digital_only'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            if ($isDigitalOnly) {
+                $metadata['box_id'] = null;
+            }
 
             // Prepare tags: combine selected tag IDs with any newly typed tags
             $selectedTagIds = array_filter($metadata['tags'] ?? []);
@@ -1322,6 +1425,7 @@ class MultipleDocumentsCreateForm extends Component
                     'service_id' => $metadata['service_id'] ?? null,
                     'metadata' => [
                         'color' => $metadata['color'],
+                        'digital_only' => $isDigitalOnly,
                         // Enforce author/email from authenticated user regardless of UI
                         'author' => (auth()->user()?->full_name ?: (auth()->user()?->name ?? $metadata['author'])),
                         'email' => (auth()->user()?->email ?? $metadata['email']),
@@ -1334,7 +1438,7 @@ class MultipleDocumentsCreateForm extends Component
 
                 $versionNumber = 1.0;
 
-                // Create document version without touching the search index (Elasticsearch may be down)
+                // Create document version without touching the search index (search backend may be down)
                 $docVersion = DocumentVersion::withoutSyncingToSearch(function () use ($document, $versionNumber, $filePath, $extension) {
                     return DocumentVersion::create([
                         'document_id'   => $document->id,
@@ -1408,64 +1512,25 @@ class MultipleDocumentsCreateForm extends Component
             ->whereIn('id', $userDeptIdsRaw)
             ->get();
 
-        // Get selected org values from currentInfo
-        $selectedDeptId = $this->currentInfo['department_id'] ?? null;
-        $selectedServiceId = $this->currentInfo['service_id'] ?? null;
         $selectedCategoryId = $this->currentInfo['category_id'] ?? null;
 
-        // Categories filtered by department + service
-        $categoriesQuery = Category::query();
-        if ($selectedDeptId) {
-            $categoriesQuery->where('department_id', $selectedDeptId);
-        }
-        if ($selectedServiceId) {
-            $categoriesQuery->where('service_id', $selectedServiceId);
-        }
-        $categories = $categoriesQuery->orderBy('name')->get();
-        
-        // Subcategories filtered by selected category and department visibility rules
-        $subcategoriesQuery = Subcategory::with('category')
+        $categories = Category::query()->orderBy('name')->get();
+
+        $subcategories = Subcategory::with('category')
             ->when($selectedCategoryId, function ($query) use ($selectedCategoryId) {
                 $query->where('category_id', $selectedCategoryId);
             })
-            ->whereHas('category', function($query) use ($user, $selectedDeptId, $userDepartmentsRaw) {
-                if (!$user->can('view any category')) {
-                    $userDeptIds = $userDepartmentsRaw->pluck('id');
-                    if ($selectedDeptId && $userDeptIds->contains($selectedDeptId)) {
-                        // Filter by selected department if user has access to it
-                        $query->where('department_id', $selectedDeptId);
-                    } else {
-                        // Otherwise filter by user's departments (from department_user)
-                        $query->whereIn('department_id', $userDeptIds);
-                    }
-                } else {
-                    // User can view all categories, but if department is selected, filter by it
-                    if ($selectedDeptId) {
-                        $query->where('department_id', $selectedDeptId);
-                    }
-                }
-            });
-        
-        $subcategories = $subcategoriesQuery->get();
+            ->orderBy('name')
+            ->get();
 
         // Build organization options based directly on pivot tables.
         // - Master / Super Administrator: all org units.
         // - Others: only what they are assigned to via pivots (bypassing Department global scope).
-        $isMasterOrSuper = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
+        $isMasterOrSuper = $user && ($user->can('view any role') || $user->can('view organization wide reports'));
 
-        // Department-level admin roles (English + localized):
-        // - Department Administrator  ↔  Admin de pole
-        $isDepartmentAdmin = $user && $user->hasAnyRole([
-            'Department Administrator',
-            'Admin de pole',
-        ]);
+        $isDepartmentAdmin = $user && $user->can('filter audit logs by assigned departments');
 
-        // Division Chief roles (English + localized):
-        // - Division Chief  ↔  Admin de departments
-        $isDivisionChief = $user && $user->hasAnyRole([
-            'Division Chief',
-            'Admin de departments',
-        ]);
+        $isDivisionChief = $user && $user->can('view subdepartment scoped documents');
 
         if ($isMasterOrSuper) {
             $userDepartments    = \App\Models\Department::withoutGlobalScopes()->orderBy('name')->get();
@@ -1516,12 +1581,13 @@ class MultipleDocumentsCreateForm extends Component
         // Do not load $rooms here as it will override the filtered computed property
         
         return view('livewire.multiple-documents-create-form', [
-            'categories'        => $categories,
-            'subcategories'     => $subcategories,
-            'userDepartments'   => $userDepartments,
-            'userSubDepartments'=> $userSubDepartments,
-            'userServices'      => $userServices,
-            'tags'              => Tag::all(),
+            'categories'                 => $categories,
+            'subcategories'              => $subcategories,
+            'userDepartments'            => $userDepartments,
+            'userSubDepartments'         => $userSubDepartments,
+            'userServices'               => $userServices,
+            'tags'                       => Tag::all(),
+            'canProceedUpload'           => $this->userHasAnyDepartment(),
         ]);
     }
 }

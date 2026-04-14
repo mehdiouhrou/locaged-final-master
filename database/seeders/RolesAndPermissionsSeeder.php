@@ -26,6 +26,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view department document',
             'view service document', // NEW: service-level scope
             'view own document',
+            'upload document',
+            'download document',
             'create document',
             'update document',
             'delete document',
@@ -131,6 +133,42 @@ class RolesAndPermissionsSeeder extends Seeder
             'delete ui translation',
             'restore ui translation',
             'forceDelete ui translation',
+
+            // Access profiles (V2 GED)
+            'manage profiles',
+            'view any profile',
+            'create profile',
+            'update profile',
+            'delete profile',
+            'restore profile',
+            'forceDelete profile',
+
+            // Organizational structure management
+            'manage structures',
+
+            // Horizon & journaux d'audit centralisés (spec alignement)
+            'access horizon',
+            'view system activity log',
+            'view audit log',
+
+            // Expirations / destructions (pages documents expirés, journaux de suppression)
+            'access document expiration management',
+            'postpone document expiration',
+
+            // Rapports / listes transverses (remplace les checks « super admin » par rôle)
+            'view organization wide reports',
+            'manage document global expiry',
+
+            // Filtres journaux d’activité & suppressions (remplace hasRole dans Livewire)
+            'filter audit logs by assigned departments',
+            'filter audit logs by assigned subdepartments',
+            'filter audit logs by assigned services',
+
+            // Scope documents legacy « Division Chief » (sous-départements assignés)
+            'view subdepartment scoped documents',
+
+            // Navigation back-office (exclut le rôle utilisateur service)
+            'access management sidebar',
         ];
 
         // Create (or find) all permissions
@@ -198,6 +236,18 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // OCR jobs (operational access; Master controls configuration)
             'view any ocr job',
+
+            // Profils d'accès catégories
+            'view any profile', 'create profile', 'update profile', 'delete profile',
+
+            'access horizon',
+            'view system activity log',
+
+            'access document expiration management',
+            'postpone document expiration',
+
+            'view organization wide reports',
+            'manage document global expiry',
         ]);
         Role::firstOrCreate(['name' => 'Super Administrator'])->syncPermissions($superAdminPermissions);
 
@@ -235,10 +285,21 @@ class RolesAndPermissionsSeeder extends Seeder
             'view any service', 'create service', 'update service', 'delete service',
             'view any workflow rule', 'view department workflow rule', 'create workflow rule', 'update workflow rule', 'delete workflow rule',
 
+            // Profils d'accès (pôle)
+            'view any profile', 'create profile', 'update profile', 'delete profile',
+
+            'view system activity log',
+
             // Destruction requests in their departments
             'view department document destruction request',
             'approve document destruction request',
             'decline document destruction request',
+
+            'access document expiration management',
+            'postpone document expiration',
+
+            'filter audit logs by assigned departments',
+            'access management sidebar',
         ]);
         $departmentAdminRole = Role::firstOrCreate(['name' => 'Admin de pole']);
         $departmentAdminRole->syncPermissions($departmentAdminPermissions);
@@ -267,6 +328,16 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Physical locations: View, Create, Update (NO DELETE)
             'view any physical location', 'create physical location', 'update physical location',
+
+            'view department document destruction request',
+            'approve document destruction request',
+            'decline document destruction request',
+            'access document expiration management',
+            'postpone document expiration',
+
+            'filter audit logs by assigned subdepartments',
+            'view subdepartment scoped documents',
+            'access management sidebar',
         ]);
         $divisionChiefRole = Role::firstOrCreate(['name' => 'Admin de departments']);
         $divisionChiefRole->syncPermissions($divisionChiefPermissions);
@@ -296,6 +367,11 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Physical locations: View, Create, Update (NO DELETE)
             'view any physical location', 'create physical location', 'update physical location',
+
+            'access document expiration management',
+
+            'filter audit logs by assigned services',
+            'access management sidebar',
         ]);
         $serviceManagerRole = Role::firstOrCreate(['name' => 'Admin de cellule']);
         $serviceManagerRole->syncPermissions($serviceManagerPermissions);
@@ -328,9 +404,209 @@ class RolesAndPermissionsSeeder extends Seeder
             'view any tag', 'create tag', 'update tag', 'delete tag',
             'view any physical location', 'create physical location', 'update physical location', 'delete physical location',
             'view any service', 'create service', 'update service', 'delete service',
+            'view any profile', 'create profile', 'update profile', 'delete profile',
+
+            'access horizon',
+            'view system activity log',
+
+            'access document expiration management',
+            'postpone document expiration',
+
+            'access management sidebar',
         ]);
         Role::firstOrCreate(['name' => 'admin'])->syncPermissions($adminPermissions);
 
         // Note: no separate basic "user" role anymore; "user" is the service-level user.
+
+        // Rôles libellés en anglais ou hérités : accès file expiration / destructions
+        $expirationPerm = $permissions['access document expiration management'] ?? null;
+        $deptDestructionPerm = $permissions['view department document destruction request'] ?? null;
+        if ($expirationPerm) {
+            $legacyDeptScoped = [
+                'Department Administrator',
+                'Division Chief',
+                'Pole Admin',
+                'admin de pôle',
+            ];
+            $legacyServiceScoped = [
+                'Service Manager',
+                'super administrator',
+                'super_admin',
+            ];
+            foreach ($legacyDeptScoped as $legacyRoleName) {
+                $r = Role::where('name', $legacyRoleName)->first();
+                if ($r) {
+                    $r->givePermissionTo(array_values(array_filter([
+                        $expirationPerm,
+                        $deptDestructionPerm,
+                    ])));
+                }
+            }
+            foreach ($legacyServiceScoped as $legacyRoleName) {
+                $r = Role::where('name', $legacyRoleName)->first();
+                if ($r) {
+                    $r->givePermissionTo($expirationPerm);
+                }
+            }
+        }
+
+        $orgWide = $permissions['view organization wide reports'] ?? null;
+        if ($orgWide) {
+            foreach (['super administrator', 'super_admin'] as $rn) {
+                if ($r = Role::where('name', $rn)->first()) {
+                    $r->givePermissionTo($orgWide);
+                }
+            }
+        }
+
+        $filterDept = $permissions['filter audit logs by assigned departments'] ?? null;
+        if ($filterDept && ($r = Role::where('name', 'Department Administrator')->first())) {
+            $r->givePermissionTo($filterDept);
+        }
+
+        $filterSub = $permissions['filter audit logs by assigned subdepartments'] ?? null;
+        $subDoc = $permissions['view subdepartment scoped documents'] ?? null;
+        if ($r = Role::where('name', 'Division Chief')->first()) {
+            foreach (array_filter([$filterSub, $subDoc]) as $p) {
+                $r->givePermissionTo($p);
+            }
+        }
+
+        $filterSvc = $permissions['filter audit logs by assigned services'] ?? null;
+        if ($filterSvc && ($r = Role::where('name', 'Service Manager')->first())) {
+            $r->givePermissionTo($filterSvc);
+        }
+
+        $sidebar = $permissions['access management sidebar'] ?? null;
+        if ($sidebar) {
+            foreach (['Department Administrator', 'Pole Admin', 'admin de pôle'] as $rn) {
+                if ($r = Role::where('name', $rn)->first()) {
+                    $r->givePermissionTo($sidebar);
+                }
+            }
+        }
+
+        $manageExpiry = $permissions['manage document global expiry'] ?? null;
+        if ($manageExpiry && ($r = Role::where('name', 'super administrator')->first())) {
+            $r->givePermissionTo($manageExpiry);
+        }
+
+        // ------------------------------------------------------------------
+        // 3. Spec V2 role matrix aliases (kept alongside legacy role names)
+        // ------------------------------------------------------------------
+        $matrixRolePermissions = [
+            'Directrice du SPCR' => [
+                'view any document',
+                'create document',
+                'download document',
+                'approve document',
+                'decline document',
+                'delete document',
+                'forceDelete document',
+                'view audit log',
+                'view system activity log',
+                'view organization wide reports',
+                'access document expiration management',
+            ],
+            'IT Admin' => [
+                'view service document',
+                'view own document',
+                'upload document',
+                'create document',
+                'update document',
+                'download document',
+                'create user',
+                'update user',
+                'delete user',
+                'manage profiles',
+                'manage structures',
+                'create category',
+                'update category',
+                'delete category',
+                'view audit log',
+                'view any profile',
+                'create profile',
+                'update profile',
+                'delete profile',
+            ],
+            'Assistante de Direction' => [
+                'view any document',
+                'create document',
+                'download document',
+                'view audit log',
+            ],
+            'Chef de Pôle' => [
+                'view department document',
+                'view own document',
+                'upload document',
+                'create document',
+                'update document',
+                'download document',
+                'approve document',
+                'decline document',
+                'delete document',
+                'view any physical location',
+                'create physical location',
+                'update physical location',
+                'access document expiration management',
+                'postpone document expiration',
+            ],
+            'Chef de Département' => [
+                'view department document',
+                'view subdepartment scoped documents',
+                'view own document',
+                'upload document',
+                'create document',
+                'update document',
+                'download document',
+                'approve document',
+                'decline document',
+                'view any physical location',
+                'create physical location',
+                'update physical location',
+                'access document expiration management',
+                'postpone document expiration',
+            ],
+            'Chargée de dépôt' => [
+                'view own document',
+                'upload document',
+                'create document',
+                'view any category',
+            ],
+        ];
+
+        foreach ($matrixRolePermissions as $roleName => $permissionNamesForRole) {
+            Role::firstOrCreate(['name' => $roleName])
+                ->syncPermissions($pick($permissionNamesForRole));
+        }
+
+        // Keep legacy "user" and service roles aligned with the new document actions.
+        foreach (['user', 'Admin de cellule', 'Admin de departments', 'Admin de pole', 'Super Administrator', 'admin'] as $roleName) {
+            if ($r = Role::where('name', $roleName)->first()) {
+                $grant = [];
+                if ($permissions['create document'] ?? null) {
+                    $grant[] = $permissions['create document'];
+                }
+                if ($permissions['upload document'] ?? null) {
+                    $grant[] = $permissions['upload document'];
+                }
+                if ($permissions['download document'] ?? null) {
+                    $grant[] = $permissions['download document'];
+                }
+                if ($permissions['view audit log'] ?? null) {
+                    $grant[] = $permissions['view audit log'];
+                }
+                if ($permissions['manage profiles'] ?? null && in_array($roleName, ['admin', 'Super Administrator'], true)) {
+                    $grant[] = $permissions['manage profiles'];
+                }
+                if ($permissions['manage structures'] ?? null && in_array($roleName, ['admin', 'Super Administrator', 'Admin de pole'], true)) {
+                    $grant[] = $permissions['manage structures'];
+                }
+
+                if (! empty($grant)) {
+                    $r->givePermissionTo($grant);
+                }
+            }
+        }
     }
 }

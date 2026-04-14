@@ -26,9 +26,10 @@
                     @if($currentPreviewUrl && $this->currentPreviewType === 'image')
                         <img src="{{ $currentPreviewUrl }}" class="img-fluid w-100 h-100" style="object-fit: contain;" alt="{{ ui_t('pages.upload.image_preview') }}" />
                     @elseif($currentPreviewUrl && $this->currentPreviewType === 'pdf')
-                        {{-- Only PDFs are embedded in an iframe. Other file types (Word, Excel, etc.)
-                             will not trigger a browser auto-download and just show the placeholder. --}}
-                        <iframe src="{{ $currentPreviewUrl }}" class="w-100 h-100 border-0"></iframe>
+                        {{-- PDF.js renders into #upload-pdfjs-viewer (see resources/js/upload-pdf-preview.js). --}}
+                        <div wire:ignore class="w-100 h-100 overflow-auto d-flex align-items-start justify-content-center" style="min-height:280px;max-height:72vh;">
+                            <div id="upload-pdfjs-viewer" class="w-100"></div>
+                        </div>
                     @else
                         <div class="text-muted p-3">{{ ui_t('pages.upload.no_preview') }}</div>
                     @endif
@@ -51,109 +52,32 @@
                             </div>
                         @endif
 
-                        <!-- Organizational hierarchy: Department = Sub-Department = Service -->
+                        @php
+                            $selectedCategoryId = $currentInfo['category_id'] ?? null;
+                            $lockCategoryFromContext = !is_null($categoryId ?? null);
+                        @endphp
+
                         <div class="col-md-12 mb-3">
-                            @php
-                                $selectedDepartmentId    = $currentInfo['department_id'] ?? null;
-                                $selectedSubDepartmentId = $currentInfo['sub_department_id'] ?? null;
-                                $selectedServiceId       = $currentInfo['service_id'] ?? null;
-                                $selectedCategoryId      = $currentInfo['category_id'] ?? null;
-                                // When coming from a category page, the Livewire component receives
-                                // a non-null $categoryId and preselects the whole hierarchy. In that
-                                // case we also lock these fields so they cannot be changed.
-                                $lockHierarchyFromCategory = !is_null($categoryId ?? null);
-                            @endphp
-
-                            <label class="form-label">{{ ui_t('pages.upload.pole') }} / {{ ui_t('pages.upload.department') }} / {{ ui_t('pages.upload.services') }} <span class="text-danger">*</span></label>
-
-                            <div class="row g-3">
-                                {{-- Department (from department_user) --}}
-                                <div class="col-md-4">
-                                    <label class="form-label small mb-1">{{ ui_t('pages.upload.pole') }}</label>
-                                    <select class="form-select @error('currentInfo.department_id') is-invalid @enderror"
-                                            required
-                                            wire:model.change="currentInfo.department_id"
-                                            @if($lockHierarchyFromCategory) disabled @endif>
-                                        <option value="">{{ ui_t('pages.upload.select_department') }}</option>
-                                        @foreach($userDepartments as $dept)
-                                            <option value="{{ $dept->id }}" @selected($selectedDepartmentId == $dept->id)>{{ $dept->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('currentInfo.department_id')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                {{-- Sub-Department (from sub_department_user, filtered by selected department) --}}
-                                <div class="col-md-4">
-                                    <label class="form-label small mb-1">{{ ui_t('pages.upload.department') }}</label>
-                                    <select class="form-select"
-                                            wire:model.change="currentInfo.sub_department_id"
-                                            @if(!$selectedDepartmentId || $lockHierarchyFromCategory) disabled @endif>
-                                        <option value="">{{ ui_t('pages.upload.select_sub_department') }}</option>
-                                        @foreach($userSubDepartments as $sub)
-                                            @if($selectedDepartmentId && $sub->department_id == $selectedDepartmentId)
-                                                <option value="{{ $sub->id }}" @selected($selectedSubDepartmentId == $sub->id)>
-                                                    {{ $sub->name }}
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                {{-- Service (from service_user, filtered by selected sub-department) --}}
-                                <div class="col-md-4">
-                                    <label class="form-label small mb-1">{{ ui_t('pages.upload.services') }}</label>
-                                    <select class="form-select @error('currentInfo.service_id') is-invalid @enderror"
-                                            wire:model.change="currentInfo.service_id"
-                                            @if(!$selectedSubDepartmentId || $lockHierarchyFromCategory) disabled @endif>
-                                        <option value="">{{ ui_t('pages.upload.select_service') }}</option>
-                                        @foreach($userServices as $service)
-                                            @if($selectedSubDepartmentId && $service->sub_department_id == $selectedSubDepartmentId)
-                                                <option value="{{ $service->id }}" @selected($selectedServiceId == $service->id)>
-                                                    {{ $service->name }}
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                    @error('currentInfo.service_id')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <small class="text-muted d-block mt-1">
-                                @if($lockHierarchyFromCategory)
-                                    {{ ui_t('pages.upload.hierarchy_locked_message') }}
-                                @else
-                                    {{ ui_t('pages.upload.hierarchy_help_text') }}
-                                @endif
-                            </small>
+                            <p class="small text-muted mb-0">{{ __('La structure (pôle, département, service) du document est déduite de votre compte, pas de la catégorie.') }}</p>
                         </div>
 
-                        <!-- Category (filtered by selected Service) -->
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ ui_t('pages.upload.category') }}<span class="text-danger">*</span></label>
                             <select id="categorySelect"
                                     class="form-select @error('currentInfo.category_id') is-invalid @enderror"
                                     required
                                     wire:model.change="currentInfo.category_id"
-                                    @if(!$selectedServiceId || $lockHierarchyFromCategory) disabled @endif>
+                                    @if($lockCategoryFromContext) disabled @endif>
                                 <option value="">{{ ui_t('pages.upload.select_category') }}</option>
                                 @foreach($categories as $category)
-                                    @if(!$selectedServiceId || $category->service_id == $selectedServiceId)
-                                        <option value="{{ $category->id }}" @selected($selectedCategoryId == $category->id)>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endif
+                                    <option value="{{ $category->id }}" @selected($selectedCategoryId == $category->id)>
+                                        {{ $category->name }}
+                                    </option>
                                 @endforeach
                             </select>
                             @error('currentInfo.category_id')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                            @if(!$selectedServiceId && !$lockHierarchyFromCategory)
-                                <small class="text-muted">{{ ui_t('pages.upload.select_service_first') }}</small>
-                            @endif
                         </div>
 
                         <!-- Subcategory (filtered by selected Category, now optional) -->
@@ -238,15 +162,28 @@
 
                         <!-- Physical Location (Hierarchical) -->
                         <div class="col-md-12 mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="digitalOnlyCheck"
+                                       wire:model.live="currentInfo.digital_only">
+                                <label class="form-check-label" for="digitalOnlyCheck">
+                                    Document uniquement digital pour l'instant
+                                </label>
+                            </div>
                             <label class="form-label">
-                                {{ ui_t('pages.upload.physical_location') }} <span class="text-danger">*</span>
+                                {{ ui_t('pages.upload.physical_location') }}
+                                @if(!($currentInfo['digital_only'] ?? false))
+                                    <span class="text-danger">*</span>
+                                @endif
                             </label>
                             
                             <!-- Step 1: Room -->
                             <div class="row g-2 mb-2">
                                 <div class="col-md-3">
                                     <label class="form-label small">1. {{ ui_t('pages.upload.room') }}</label>
-                                    <select class="form-select form-select-sm" wire:model.live="selectedRoomId">
+                                    <select class="form-select form-select-sm" wire:model.live="selectedRoomId"
+                                            @if($currentInfo['digital_only'] ?? false) disabled @endif>
                                         <option value="">{{ ui_t('pages.upload.select_room') }}</option>
                                         @foreach($this->rooms as $room)
                                             <option value="{{ $room->id }}">{{ $room->name }}</option>
@@ -258,7 +195,7 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">2. {{ ui_t('pages.upload.row') }}</label>
                                     <select class="form-select form-select-sm" wire:model.live="selectedRowId" 
-                                            @if(!$selectedRoomId) disabled @endif>
+                                            @if(!$selectedRoomId || ($currentInfo['digital_only'] ?? false)) disabled @endif>
                                         <option value="">{{ ui_t('pages.upload.select_row') }}</option>
                                         @foreach($this->rows as $row)
                                             <option value="{{ $row->id }}">{{ $row->name }}</option>
@@ -270,7 +207,7 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">3. {{ ui_t('pages.upload.shelf') }}</label>
                                     <select class="form-select form-select-sm" wire:model.live="selectedShelfId"
-                                            @if(!$selectedRowId) disabled @endif>
+                                            @if(!$selectedRowId || ($currentInfo['digital_only'] ?? false)) disabled @endif>
                                         <option value="">{{ ui_t('pages.upload.select_shelf') }}</option>
                                         @foreach($this->shelves as $shelf)
                                             <option value="{{ $shelf->id }}">{{ $shelf->name }}</option>
@@ -282,7 +219,8 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">4. {{ ui_t('pages.upload.box') }}</label>
                             <select class="form-select form-select-sm @error('currentInfo.box_id') is-invalid @enderror" wire:model.live="selectedBoxId"
-                                            @if(!$selectedShelfId) disabled @endif required>
+                                            @if(!$selectedShelfId || ($currentInfo['digital_only'] ?? false)) disabled @endif
+                                            @if(!($currentInfo['digital_only'] ?? false)) required @endif>
                                         <option value="">{{ ui_t('pages.upload.select_box') }}</option>
                                         @foreach($this->boxes as $box)
                                             <option value="{{ $box->id }}">{{ $box->name }}</option>
@@ -294,7 +232,11 @@
                             @error('currentInfo.box_id')
                                 <div class="text-danger small">{{ $message }}</div>
                             @enderror
-                            <small class="text-muted">{{ ui_t('pages.upload.location_structure_hint') }}</small>
+                            @if($currentInfo['digital_only'] ?? false)
+                                <small class="text-muted">Aucun emplacement physique requis pour ce document.</small>
+                            @else
+                                <small class="text-muted">{{ ui_t('pages.upload.location_structure_hint') }}</small>
+                            @endif
                         </div>
 
                         <!-- Author (Read-Only) -->
@@ -314,10 +256,18 @@
                                 // Use the departments collection coming from Livewire (pivot-based and
                                 // already bypassing global scopes) instead of reloading here.
                                 $userDepartmentsForCheck = $userDepartments ?? collect();
-                                $isPrivileged = $user && ($user->hasRole('master') || $user->hasRole('Super Administrator'));
-                                $canProceed = $isPrivileged || $userDepartmentsForCheck->count() > 0;
+                                $isPrivileged = $user && $user->can('manage document global expiry');
+                                $canProceed = ($canProceedUpload ?? false) || $isPrivileged || $userDepartmentsForCheck->count() > 0;
                                 $multiUpload = count($documentInfos) > 1;
                             @endphp
+
+                            @if($multiUpload && !$useSharedMetadata)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary me-2"
+                                        wire:click="applyCurrentInfoToIncomplete">
+                                    {{ __('Appliquer ces données aux documents manquants') }}
+                                </button>
+                            @endif
 
                             @if($multiUpload && $useSharedMetadata)
                                 {{-- Multiple files with shared metadata: one form applies to all --}}

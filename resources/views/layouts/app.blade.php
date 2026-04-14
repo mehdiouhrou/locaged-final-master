@@ -7,6 +7,9 @@
 
     <title>{{ config('app.name', 'Locaged') }}</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
     <!-- Favicon -->
     <link rel="icon" href="{{ asset('assets/L LOGO.svg') }}" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
@@ -18,7 +21,7 @@
     
 
 </head>
-<body dir="{{ session('rtl') ?  'rtl' : 'ltr' }}">
+<body dir="{{ session('rtl') ?  'rtl' : 'ltr' }}" class="locaged-v2">
 <div class="wrapper layout-with-sidebar">
     <div class="container-fluid ps-0">
         <!-- Sidebar (fixed) -->

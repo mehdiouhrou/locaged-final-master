@@ -49,6 +49,103 @@ class DocumentMovementController extends Controller
         return redirect()->back()->with('success', 'Document moved successfully.');
     }
 
+    public function borrow(Request $request, Document $document)
+    {
+        Gate::authorize('create', DocumentMovement::class);
+        Gate::authorize('view', $document);
+
+        if (! $document->box_id) {
+            return back()->with('error', __('Ce document n’a pas d’emplacement physique.'));
+        }
+
+        $openLoan = DocumentMovement::query()
+            ->where('document_id', $document->id)
+            ->where('movement_type', 'retrieval')
+            ->whereNotNull('borrowed_by_user_id')
+            ->whereNull('returned_at')
+            ->latest('moved_at')
+            ->first();
+
+        if ($openLoan) {
+            return back()->with('error', __('Ce document est déjà emprunté.'));
+        }
+
+        $data = $request->validate([
+            'borrowed_by_user_id' => 'nullable|exists:users,id',
+            'borrower_name' => 'nullable|string|max:255',
+            'due_at' => 'nullable|date|after_or_equal:today',
+            'movement_note' => 'nullable|string|max:2000',
+        ]);
+
+        $borrowerName = trim((string) ($data['borrower_name'] ?? ''));
+        if (! empty($data['borrowed_by_user_id'])) {
+            $borrower = \App\Models\User::find($data['borrowed_by_user_id']);
+            if ($borrower) {
+                $borrowerName = $borrower->full_name;
+            }
+        }
+
+        if ($borrowerName === '') {
+            return back()->with('error', __('Veuillez renseigner le nom de l’emprunteur.'));
+        }
+
+        $movement = DocumentMovement::create([
+            'document_id' => $document->id,
+            'movement_type' => 'retrieval',
+            'moved_from_box_id' => $document->box_id,
+            'moved_to_box_id' => null,
+            'moved_by' => Auth::id(),
+            'borrowed_by_user_id' => $data['borrowed_by_user_id'] ?? null,
+            'borrower_name' => $borrowerName,
+            'due_at' => $data['due_at'] ?? null,
+            'movement_note' => $data['movement_note'] ?? null,
+            'moved_at' => now(),
+        ]);
+
+        $document->logAction('borrowed', $document->latestVersion?->id, [
+            'movement_id' => $movement->id,
+            'borrower_name' => $borrowerName,
+            'due_at' => $movement->due_at?->toDateTimeString(),
+        ]);
+
+        return back()->with('success', __('Document physique emprunté avec succès.'));
+    }
+
+    public function returnBorrowed(Request $request, Document $document)
+    {
+        Gate::authorize('create', DocumentMovement::class);
+        Gate::authorize('view', $document);
+
+        $openLoan = DocumentMovement::query()
+            ->where('document_id', $document->id)
+            ->where('movement_type', 'retrieval')
+            ->whereNotNull('borrowed_by_user_id')
+            ->whereNull('returned_at')
+            ->latest('moved_at')
+            ->first();
+
+        if (! $openLoan) {
+            return back()->with('error', __('Aucun emprunt actif pour ce document.'));
+        }
+
+        $data = $request->validate([
+            'return_note' => 'nullable|string|max:2000',
+        ]);
+
+        $openLoan->update([
+            'returned_at' => now(),
+            'returned_by_user_id' => Auth::id(),
+            'return_note' => $data['return_note'] ?? null,
+        ]);
+
+        $document->logAction('returned', $document->latestVersion?->id, [
+            'movement_id' => $openLoan->id,
+            'returned_by_user_id' => Auth::id(),
+        ]);
+
+        return back()->with('success', __('Document physique marqué comme retourné.'));
+    }
+
 
 
     // Update movement

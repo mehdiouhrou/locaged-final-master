@@ -17,66 +17,6 @@
                             @csrf
                             @method('PUT')
 
-                            @php
-                                // $departments is passed from the controller
-                                $oldDept = old('department_id', $category->department_id);
-                                $oldSubDept = old('sub_department_id', $category->sub_department_id);
-                                $oldService = old('service_id', $category->service_id);
-                            @endphp
-
-                            <div class="mb-3">
-                                <label class="form-label fw-medium">{{ ui_t('pages.categories_edit.structure') }} <span class="text-danger">*</span></label>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <select id="categoryDepartmentSelect" name="department_id" class="form-control custom-input" required>
-                                            <option value="">{{ ui_t('pages.categories_edit.select_structure') }}</option>
-                                            @foreach($departments as $department)
-                                                <option value="{{ $department->id }}" {{ $oldDept == $department->id ? 'selected' : '' }}>
-                                                    {{ $department->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('department_id')
-                                            <div class="text-danger small mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <select id="categorySubDepartmentSelect" name="sub_department_id" class="form-control custom-input" required>
-                                            <option value="">{{ ui_t('pages.categories_edit.select_sub_department') }}</option>
-                                            @foreach($departments as $department)
-                                                @foreach($department->subDepartments as $sub)
-                                                    <option value="{{ $sub->id }}" data-department-id="{{ $department->id }}" {{ $oldSubDept == $sub->id ? 'selected' : '' }}>
-                                                        {{ $sub->name }}
-                                                    </option>
-                                                @endforeach
-                                            @endforeach
-                                        </select>
-                                        @error('sub_department_id')
-                                            <div class="text-danger small mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <select id="categoryServiceSelect" name="service_id" class="form-control custom-input" required>
-                                            <option value="">{{ ui_t('pages.categories_edit.select_service') }}</option>
-                                            @foreach($departments as $department)
-                                                @foreach($department->subDepartments as $sub)
-                                                    @foreach($sub->services as $service)
-                                                        <option value="{{ $service->id }}" data-sub-department-id="{{ $sub->id }}" {{ $oldService == $service->id ? 'selected' : '' }}>
-                                                            {{ $service->name }}
-                                                        </option>
-                                                    @endforeach
-                                                @endforeach
-                                            @endforeach
-                                        </select>
-                                        @error('service_id')
-                                            <div class="text-danger small mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="mb-3">
                                 <label for="categoryInput" class="form-label fw-medium">{{ ui_t('pages.categories_edit.enter_category') }}</label>
                                 <input
@@ -104,6 +44,87 @@
                                         <option value="years" {{ old('expiry_unit', $category->expiry_unit)=='years'?'selected':'' }}>{{ ui_t('pages.categories_edit.years') }}</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">{{ __('Services autorisés (direct)') }}</label>
+                                @php
+                                    $selectedServiceIds = old(
+                                        'service_ids',
+                                        $category->services->pluck('id')->map(fn($id) => (string) $id)->all()
+                                    );
+                                @endphp
+                                <select name="service_ids[]" class="form-select custom-input" multiple size="8">
+                                    @foreach($services as $service)
+                                        @php
+                                            $deptName = optional(optional($service->subDepartment)->department)->name;
+                                            $subName = optional($service->subDepartment)->name;
+                                            $serviceLabel = $service->name;
+                                            if ($subName || $deptName) {
+                                                $serviceLabel .= ' — ' . trim(implode(' / ', array_filter([$deptName, $subName])));
+                                            }
+                                        @endphp
+                                        <option value="{{ $service->id }}"
+                                            {{ in_array((string) $service->id, $selectedServiceIds, true) ? 'selected' : '' }}>
+                                            {{ $serviceLabel }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('service_ids')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                                @error('service_ids.*')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">{{ __('Rôles autorisés (direct)') }}</label>
+                                @php
+                                    $selectedRoleIds = old(
+                                        'role_ids',
+                                        $category->roles->pluck('id')->map(fn($id) => (string) $id)->all()
+                                    );
+                                @endphp
+                                <select name="role_ids[]" class="form-select custom-input" multiple size="6">
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->id }}"
+                                            {{ in_array((string) $role->id, $selectedRoleIds, true) ? 'selected' : '' }}>
+                                            {{ $role->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('role_ids')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                                @error('role_ids.*')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-medium">{{ __('Profils d’accès liés (optionnel)') }}</label>
+                                @php
+                                    $selectedProfileIds = old(
+                                        'profile_ids',
+                                        $category->profiles->pluck('id')->map(fn($id) => (string) $id)->all()
+                                    );
+                                @endphp
+                                <select name="profile_ids[]" class="form-select custom-input" multiple size="8">
+                                    @foreach($profiles as $profile)
+                                        <option value="{{ $profile->id }}"
+                                            {{ in_array((string) $profile->id, $selectedProfileIds, true) ? 'selected' : '' }}>
+                                            {{ $profile->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">{{ __('Cette liaison complète la gestion fine dans Profils d’accès.') }}</small>
+                                @error('profile_ids')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                                @error('profile_ids.*')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <div class="subcategory-section">
@@ -170,45 +191,6 @@
 
     {{-- Scripts --}}
     <script>
-        // Cascading selects for Department -> Sub-Department -> Service
-        (function() {
-            const deptSelect = document.getElementById('categoryDepartmentSelect');
-            const subDeptSelect = document.getElementById('categorySubDepartmentSelect');
-            const serviceSelect = document.getElementById('categoryServiceSelect');
-
-            function filterSubDepartments() {
-                const deptId = deptSelect.value;
-                Array.from(subDeptSelect.options).forEach(opt => {
-                    if (!opt.value) return; // keep placeholder
-                    const match = !deptId || opt.dataset.departmentId === deptId;
-                    opt.hidden = !match;
-                    if (!match && opt.selected) {
-                        opt.selected = false;
-                    }
-                });
-                filterServices();
-            }
-
-            function filterServices() {
-                const subId = subDeptSelect.value;
-                Array.from(serviceSelect.options).forEach(opt => {
-                    if (!opt.value) return;
-                    const match = !subId || opt.dataset.subDepartmentId === subId;
-                    opt.hidden = !match;
-                    if (!match && opt.selected) {
-                        opt.selected = false;
-                    }
-                });
-            }
-
-            if (deptSelect && subDeptSelect && serviceSelect) {
-                deptSelect.addEventListener('change', filterSubDepartments);
-                subDeptSelect.addEventListener('change', filterServices);
-                // initial filter based on old() values
-                filterSubDepartments();
-            }
-        })();
-
         const translations = {
             enterSubcategory: @json(ui_t('pages.categories_form.enter_subcategory')),
             removeSubcategory: @json(ui_t('pages.categories_form.remove_subcategory')),

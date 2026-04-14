@@ -7,9 +7,11 @@ use App\Models\Room;
 use App\Models\Row;
 use App\Models\Shelf;
 use App\Models\Box;
+use App\Models\DocumentMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Exports\PhysicalLocationsExport;
 use App\Exports\PhysicalLocationFilesExport;
@@ -20,11 +22,6 @@ class PhysicalLocationController extends Controller
     public function index()
     {
         Gate::authorize('viewAny', PhysicalLocation::class);
-
-        // Legacy admin role should not access Physical Locations settings page
-        if (auth()->user()?->hasRole('admin')) {
-            abort(403);
-        }
 
         $user = auth()->user();
         $accessibleServiceIds = Box::getAccessibleServiceIds($user);
@@ -58,8 +55,46 @@ class PhysicalLocationController extends Controller
         }
 
         $rooms = $roomsQuery->get();
-        
-        return view('physical_locations.index', compact('rooms'));
+
+        $allBoxes = $rooms->flatMap(function ($room) {
+            return $room->rows->flatMap(function ($row) {
+                return $row->shelves->flatMap(function ($shelf) {
+                    return $shelf->boxes;
+                });
+            });
+        })->values();
+
+        $documentIds = $allBoxes
+            ->flatMap(fn ($box) => $box->documents->pluck('id'))
+            ->unique()
+            ->values();
+
+        $openLoans = collect();
+        if ($documentIds->isNotEmpty()) {
+            $openLoans = DocumentMovement::query()
+                ->whereIn('document_id', $documentIds->all())
+                ->where('movement_type', 'retrieval')
+                ->whereNotNull('borrowed_by_user_id')
+                ->whereNull('returned_at')
+                ->orderByDesc('moved_at')
+                ->get()
+                ->unique('document_id')
+                ->keyBy('document_id');
+        }
+
+        $kpis = [
+            'rooms' => $rooms->count(),
+            'rows' => $rooms->sum(fn ($room) => $room->rows->count()),
+            'shelves' => $rooms->sum(fn ($room) => $room->rows->sum(fn ($row) => $row->shelves->count())),
+            'boxes' => $allBoxes->count(),
+            'documents' => $documentIds->count(),
+            'borrowed' => $openLoans->count(),
+            'overdue' => $openLoans->filter(fn ($loan) => $loan->due_at && $loan->due_at->isPast())->count(),
+        ];
+
+        $boxImportPreview = session('box_import_preview', []);
+
+        return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview'));
     }
 
 
@@ -152,7 +187,7 @@ class PhysicalLocationController extends Controller
         if (!$user) return null;
         
         // If super admin, return null (global rooms)
-        if ($user->hasRole('master') || $user->hasRole('Super Administrator') || $user->hasRole('super_admin')) {
+        if ($user->can('view any role') || $user->can('view organization wide reports')) {
             return null;
         }
 
@@ -275,6 +310,226 @@ class PhysicalLocationController extends Controller
 
         $box->load('shelf.row.room');
         return back()->with('success', 'Box "<strong>' . $box->name . '</strong>" added successfully. Path: <strong>' . $box->__toString() . '</strong>');
+    }
+
+    public function bulkAddBoxes(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'shelf_id' => 'required|exists:shelves,id',
+            'prefix' => 'nullable|string|max:120',
+            'start_number' => 'required|integer|min:0',
+            'end_number' => 'required|integer|min:0|gte:start_number',
+            'padding' => 'nullable|integer|min:1|max:8',
+            'separator' => 'nullable|string|max:3',
+            'description' => 'nullable|string|max:2000',
+        ]);
+
+        $start = (int) $validated['start_number'];
+        $end = (int) $validated['end_number'];
+        $padding = (int) ($validated['padding'] ?? 3);
+        $prefix = trim((string) ($validated['prefix'] ?? 'BOX'));
+        $separator = (string) ($validated['separator'] ?? '-');
+        $description = $validated['description'] ?? null;
+
+        $total = ($end - $start) + 1;
+        if ($total > 2000) {
+            return back()->withErrors(['error' => __('La création en lot est limitée à 2000 boîtes par opération.')]);
+        }
+
+        $existingNames = Box::query()
+            ->where('shelf_id', (int) $validated['shelf_id'])
+            ->pluck('name')
+            ->map(fn ($name) => mb_strtolower(trim((string) $name)))
+            ->all();
+        $existingLookup = array_flip($existingNames);
+
+        $toCreate = [];
+        for ($i = $start; $i <= $end; $i++) {
+            $number = str_pad((string) $i, $padding, '0', STR_PAD_LEFT);
+            $name = trim($prefix . ($separator !== '' ? $separator : '') . $number);
+            $lookup = mb_strtolower($name);
+            if (isset($existingLookup[$lookup])) {
+                continue;
+            }
+            $existingLookup[$lookup] = true;
+            $toCreate[] = [
+                'shelf_id' => (int) $validated['shelf_id'],
+                'service_id' => (int) $validated['service_id'],
+                'name' => $name,
+                'description' => $description,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if (empty($toCreate)) {
+            return back()->withErrors(['error' => __('Aucune boîte créée: tous les noms existent déjà sur cette étagère.')]);
+        }
+
+        DB::table('boxes')->insert($toCreate);
+
+        return back()->with('success', __(':count boîtes créées en lot.', ['count' => count($toCreate)]));
+    }
+
+    public function previewBoxImport(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+            'default_service_id' => 'nullable|exists:services,id',
+            'has_header' => 'nullable|boolean',
+        ]);
+
+        $hasHeader = (bool) ($validated['has_header'] ?? true);
+        $path = $request->file('csv_file')->getRealPath();
+        $raw = file_get_contents((string) $path);
+        if ($raw === false || trim($raw) === '') {
+            return back()->withErrors(['error' => __('Le fichier CSV est vide ou illisible.')]);
+        }
+
+        $lines = preg_split('/\r\n|\n|\r/', trim($raw)) ?: [];
+        $rows = [];
+        $errors = [];
+        $defaultServiceId = isset($validated['default_service_id']) ? (int) $validated['default_service_id'] : null;
+
+        foreach ($lines as $lineIndex => $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+            if ($hasHeader && $lineIndex === 0) {
+                continue;
+            }
+
+            $cols = str_getcsv($line, ',');
+            $cols = array_map(fn ($v) => trim((string) $v), $cols);
+
+            // Expected: room,row,shelf,box_name,service_name_or_id(optional),description(optional)
+            $roomName = $cols[0] ?? '';
+            $rowName = $cols[1] ?? '';
+            $shelfName = $cols[2] ?? '';
+            $boxName = $cols[3] ?? '';
+            $serviceToken = $cols[4] ?? '';
+            $description = $cols[5] ?? null;
+
+            $lineNumber = $lineIndex + 1;
+            if ($roomName === '' || $rowName === '' || $shelfName === '' || $boxName === '') {
+                $errors[] = __('Ligne :line: room,row,shelf,box_name sont obligatoires.', ['line' => $lineNumber]);
+                continue;
+            }
+
+            $serviceId = $defaultServiceId;
+            if ($serviceToken !== '') {
+                if (ctype_digit($serviceToken)) {
+                    $serviceId = (int) $serviceToken;
+                } else {
+                    $serviceId = \App\Models\Service::query()
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($serviceToken)])
+                        ->value('id');
+                }
+            }
+
+            if (! $serviceId || ! \App\Models\Service::query()->whereKey($serviceId)->exists()) {
+                $errors[] = __('Ligne :line: service introuvable (ou manquant).', ['line' => $lineNumber]);
+                continue;
+            }
+
+            $rows[] = [
+                'line' => $lineNumber,
+                'room_name' => $roomName,
+                'row_name' => $rowName,
+                'shelf_name' => $shelfName,
+                'box_name' => $boxName,
+                'service_id' => $serviceId,
+                'description' => $description !== '' ? $description : null,
+            ];
+        }
+
+        if (empty($rows) && empty($errors)) {
+            return back()->withErrors(['error' => __('Aucune ligne exploitable détectée dans le CSV.')]);
+        }
+
+        session([
+            'box_import_preview' => [
+                'rows' => $rows,
+                'errors' => $errors,
+                'count_rows' => count($rows),
+                'count_errors' => count($errors),
+                'generated_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        if (! empty($errors)) {
+            return back()->withErrors(['error' => __('Preview généré avec :count erreur(s). Corrigez avant import.', ['count' => count($errors)])]);
+        }
+
+        return back()->with('success', __('Preview import prêt: :count lignes valides.', ['count' => count($rows)]));
+    }
+
+    public function commitBoxImport(Request $request)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $preview = session('box_import_preview');
+        if (! is_array($preview) || empty($preview['rows']) || ! empty($preview['errors'])) {
+            return back()->withErrors(['error' => __('Aucun preview valide à importer.')]);
+        }
+
+        $rows = $preview['rows'];
+
+        try {
+            DB::beginTransaction();
+
+            $created = 0;
+            foreach ($rows as $rowData) {
+                $room = Room::firstOrCreate(
+                    ['name' => (string) $rowData['room_name']],
+                    ['department_id' => $this->getUserDepartmentId(auth()->user())]
+                );
+
+                $row = Row::firstOrCreate([
+                    'room_id' => $room->id,
+                    'name' => (string) $rowData['row_name'],
+                ]);
+
+                $shelf = Shelf::firstOrCreate([
+                    'row_id' => $row->id,
+                    'name' => (string) $rowData['shelf_name'],
+                ]);
+
+                $boxName = trim((string) $rowData['box_name']);
+                $exists = Box::query()
+                    ->where('shelf_id', $shelf->id)
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($boxName)])
+                    ->exists();
+
+                if ($exists) {
+                    throw new \RuntimeException(__('Conflit ligne :line: la boîte ":name" existe déjà sur cette étagère.', [
+                        'line' => $rowData['line'] ?? '?',
+                        'name' => $boxName,
+                    ]));
+                }
+
+                Box::create([
+                    'shelf_id' => $shelf->id,
+                    'service_id' => (int) $rowData['service_id'],
+                    'name' => $boxName,
+                    'description' => $rowData['description'] ?? null,
+                ]);
+                $created++;
+            }
+
+            DB::commit();
+            session()->forget('box_import_preview');
+
+            return back()->with('success', __('Import terminé: :count boîtes créées.', ['count' => $created]));
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => __('Import annulé (rollback): :message', ['message' => $e->getMessage()])]);
+        }
     }
 
     /**

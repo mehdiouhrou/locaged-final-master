@@ -9,6 +9,7 @@
     </div>
 @endsection
 
-
-
+@section('scripts')
+    @vite(['resources/js/upload-pdf-preview.js'])
+@endsection
 

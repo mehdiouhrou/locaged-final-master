@@ -2,10 +2,9 @@
 
 @section('content')
 
-    <div class="pt-2 position-relative">
-        <div class="d-md-flex mt-5">
-            <h4 class="mb-4">{{ ui_t('nav.ocr') }}</h4>
-        </div>
+    <div class="pt-2 position-relative px-3 px-md-0">
+        <x-page-hero class="mt-4" :title="ui_t('nav.ocr')" :subtitle="ui_t('tables.recent_jobs')" dense />
+
         <div class="form-section">
 
            {{-- <div class="upload-section p-3 mt-2">
@@ -31,7 +30,6 @@
 
         </div>
         <div class="activity-log px-4 px-md-0 my-4 ">
-            <h6>{{ ui_t('tables.recent_jobs') }}</h6>
             <table class="files-table">
                 <thead>
                 <tr>

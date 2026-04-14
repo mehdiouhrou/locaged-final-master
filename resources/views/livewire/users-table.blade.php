@@ -54,7 +54,7 @@
             </thead>
             <tbody>
             @foreach($users as $user)
-                <tr class="user-row" data-user-id="{{ $user->id }}">
+                <tr class="user-row @if(collect($checkedUsers ?? [])->contains($user->id) || collect($checkedUsers ?? [])->contains((string) $user->id)) lgv2-row-selected @endif" data-user-id="{{ $user->id }}">
                     <td>
                         <input type="checkbox"
                                wire:model.change="checkedUsers"

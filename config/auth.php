@@ -112,4 +112,7 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    // Require MFA setup for sensitive roles (master + IT Admin).
+    'enforce_sensitive_roles_mfa' => (bool) env('AUTH_ENFORCE_SENSITIVE_ROLES_MFA', false),
+
 ];

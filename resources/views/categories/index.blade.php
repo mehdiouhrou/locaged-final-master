@@ -1,53 +1,43 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class=" container mt-4">
-        <div class=" d-flex justify-content-between mb-5">
-            <div class="d-flex align-items-center all-cat">
-                <a href="{{ route('documents.all') }}">
-                    <h4 class="me-3">{{ ui_t('nav.documents') }}  <i class="fa-solid fa-angle-right"></i> </h4>
+    <div class="container mt-4">
+        @php
+            $categoriesHeroSubtitle = __('Document categories hero subtitle', ['count' => $categories->count()]);
+        @endphp
+        <x-page-hero
+            :title="ui_t('pages.categories_page.all_categories')"
+            :subtitle="$categoriesHeroSubtitle"
+        >
+            <x-slot:actions>
+                <a href="{{ route('documents.all') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-angle-left me-1" aria-hidden="true"></i>{{ ui_t('nav.documents') }}
                 </a>
-                <a href="{{ route('categories.index') }}">
-                    <h5>{{ ui_t('pages.categories_page.all_categories') }}</h5>
-                </a>
-            </div>
-            @can('create', \App\Models\Category::class)
-                <a href="{{ route('categories.create') }}" class="btn-upload">
-                    {{ ui_t('pages.categories_page.add_category') }}
-                </a>
-            @endcan
+                @can('create', \App\Models\Category::class)
+                    <a href="{{ route('categories.create') }}" class="btn btn-upload btn-sm">
+                        {{ ui_t('pages.categories_page.add_category') }}
+                    </a>
+                @endcan
+            </x-slot:actions>
+        </x-page-hero>
 
-        </div>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 mb-5">
             @php
                 $colors = [
-                    ['bar' => '#f0d672', 'icon' => 'assets/Group 634.svg'], // Yellow
-                    ['bar' => '#e63946', 'icon' => 'assets/Group 6.svg'],   // Red
-                    ['bar' => '#47a778', 'icon' => 'assets/Group 8.svg'],   // Green
-                    ['bar' => '#68a0fd', 'icon' => 'assets/Clip path group.svg'], // Blue
-                    ['bar' => '#ff6b6b', 'icon' => 'assets/Group 634.svg'], // Coral
-                    ['bar' => '#4ecdc4', 'icon' => 'assets/Group 6.svg'],   // Teal
-                    ['bar' => '#45b7d1', 'icon' => 'assets/Group 8.svg'],   // Sky Blue
-                    ['bar' => '#96ceb4', 'icon' => 'assets/Clip path group.svg'], // Mint
+                    ['bar' => '#f0d672', 'icon' => 'assets/Group 634.svg'],
+                    ['bar' => '#e63946', 'icon' => 'assets/Group 6.svg'],
+                    ['bar' => '#47a778', 'icon' => 'assets/Group 8.svg'],
+                    ['bar' => '#68a0fd', 'icon' => 'assets/Clip path group.svg'],
+                    ['bar' => '#ff6b6b', 'icon' => 'assets/Group 634.svg'],
+                    ['bar' => '#4ecdc4', 'icon' => 'assets/Group 6.svg'],
+                    ['bar' => '#45b7d1', 'icon' => 'assets/Group 8.svg'],
+                    ['bar' => '#96ceb4', 'icon' => 'assets/Clip path group.svg'],
                 ];
-                
-                // Create a mapping of department IDs to colors
-                $departmentColors = [];
-                $colorIndex = 0;
-                foreach($categories as $category) {
-                    if ($category->department_id && !isset($departmentColors[$category->department_id])) {
-                        $departmentColors[$category->department_id] = $colors[$colorIndex % count($colors)];
-                        $colorIndex++;
-                    }
-                }
             @endphp
-            @foreach($categories->sortBy('department.name') as $category)
+            @foreach($categories->sortBy('name') as $category)
                 <div class="col">
-                    @php 
-                        // Use department-based color, fallback to index-based if no department
-                        $color = $category->department_id && isset($departmentColors[$category->department_id]) 
-                            ? $departmentColors[$category->department_id] 
-                            : $colors[$loop->index % count($colors)]; 
+                    @php
+                        $color = $colors[$loop->index % count($colors)];
                     @endphp
                     <div class="category-card position-relative h-100">
                         <div class="category-card-bar" style="background-color: {{ $color['bar'] }}"></div>
@@ -87,12 +77,6 @@
                                 <div class="info-cat text-start">
                                     <h3 class="category-card-title mb-1">{{ $category->name }}</h3>
                                     <p class="category-card-count mb-0">{{ $category->subcategories_count }} {{ ui_t('pages.categories_page.subcategories') }}</p>
-                                    @if($category->department)
-                                        <small class="text-muted d-flex align-items-center">
-                                            <span class="department-color-indicator me-2" style="background-color: {{ $color['bar'] }}; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
-                                            {{ $category->department->name }}
-                                        </small>
-                                    @endif
                                 </div>
                             </div>
                         </a>

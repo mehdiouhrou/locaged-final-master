@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use App\Models\DocumentVersion;
 use App\Models\PhysicalLocation;
 use App\Models\Room;
@@ -31,14 +32,23 @@ class DocumentVersionController extends Controller
     public function byDocument($id)
     {
 
-        $document = Document::with('documentVersions')->findOrFail($id);
+        $document = Document::with([
+            'documentVersions',
+            'latestVersion',
+            'department',
+            'subcategory.category',
+            'createdBy',
+            'service',
+            'box.shelf.row.room',
+            'statusHistories.changedBy',
+        ])->findOrFail($id);
         Gate::authorize('view', $document);
+        if (! $document->latestVersion) {
+            return redirect()->back()->with('error', 'No document version found.');
+        }
 
-
-        $documentVersions = $document->documentVersions()->paginate(10);
-
-
-        return view('document-versions.by-document', compact('documentVersions','document'));
+        // Single experience: always use preview page for document opening.
+        return redirect()->route('document-versions.preview', ['id' => $document->latestVersion->id]);
     }
 
     public function create($documentId)
@@ -108,6 +118,12 @@ class DocumentVersionController extends Controller
             // Load document without global scopes to allow viewing expired documents
             // (needed for destructions page preview)
             $document = Document::withoutGlobalScopes()
+                ->with([
+                    'category',
+                    'subcategory',
+                    'box.shelf.row.room',
+                    'tags',
+                ])
                 ->where('id', $doc->document_id)
                 ->first();
             
@@ -306,7 +322,7 @@ class DocumentVersionController extends Controller
                 ->whereIn('id', $userDeptIdsRaw)
                 ->get();
 
-            if ($user && ($user->hasRole('master') || $user->hasRole('Super Administrator'))) {
+            if ($user && ($user->can('view any role') || $user->can('view organization wide reports'))) {
                 // Privileged users see the full hierarchy
                 $userDepartments    = Department::withoutGlobalScopes()->orderBy('name')->get();
                 $userSubDepartments = SubDepartment::with('department')->orderBy('name')->get();
@@ -316,7 +332,7 @@ class DocumentVersionController extends Controller
                 $userDepartments = $userDepartmentsRaw;
 
                 // Sub-departments
-                if ($user && $user->hasRole('Department Administrator')) {
+                if ($user && $user->can('filter audit logs by assigned departments')) {
                     // Department Admin: all sub-departments in their departments
                     $deptIds = $userDepartments->pluck('id');
                     $userSubDepartments = SubDepartment::whereIn('department_id', $deptIds)->get();
@@ -326,11 +342,11 @@ class DocumentVersionController extends Controller
                 }
 
                 // Services
-                if ($user && $user->hasRole('Division Chief')) {
+                if ($user && $user->can('view subdepartment scoped documents')) {
                     // Division Chief: all services under their sub-departments
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
-                } elseif ($user && $user->hasRole('Department Administrator')) {
+                } elseif ($user && $user->can('filter audit logs by assigned departments')) {
                     // Department Admin: all services under sub-departments in their departments
                     $subIds = $userSubDepartments->pluck('id');
                     $userServices = Service::whereIn('sub_department_id', $subIds)->get();
@@ -348,6 +364,20 @@ class DocumentVersionController extends Controller
             $rooms = Room::with(['rows.shelves.boxes'])->get();
             $tags = Tag::all(); // Tags are generally accessible
 
+            $physicalMovements = DocumentMovement::query()
+                ->with(['movedBy:id,full_name', 'borrowedBy:id,full_name', 'returnedBy:id,full_name', 'movedFromBox', 'movedToBox'])
+                ->where('document_id', $document->id)
+                ->latest('moved_at')
+                ->limit(8)
+                ->get();
+
+            $currentLoan = $physicalMovements
+                ->first(function ($movement) {
+                    return $movement->movement_type === 'retrieval'
+                        && ! empty($movement->borrowed_by_user_id)
+                        && $movement->returned_at === null;
+                });
+
             return view('document-versions.preview', [
                 'fileUrl'              => $fileUrl,
                 'fileType'             => $fileType,
@@ -363,6 +393,8 @@ class DocumentVersionController extends Controller
                 'userServices'       => $userServices,
                 'rooms'              => $rooms,
                 'tags'               => $tags,
+                'physicalMovements'  => $physicalMovements,
+                'currentLoan'        => $currentLoan,
                 // Approval navigation
                 'isApprovalContext'  => $isApprovalContext,
                 'prevApprovalUrl'    => $prevApprovalUrl,
@@ -673,10 +705,10 @@ class DocumentVersionController extends Controller
             abort(404, 'Document not found.');
         }
         
-        Gate::authorize('view', $document);
+        Gate::authorize('download', $document);
 
         // Log the download action
-        $document->logAction('downloaded', $doc->id);
+        $document->logAction('download', $doc->id);
 
         if (!Storage::disk('local')->exists($doc->file_path)) {
             abort(404, 'File not found.');

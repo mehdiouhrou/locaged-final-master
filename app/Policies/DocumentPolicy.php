@@ -43,7 +43,7 @@ class DocumentPolicy
          *  - the document's service belongs to a sub-department that is also
          *    one of their sub-departments for that same department.
          */
-        if ($user->hasRole('Division Chief')) {
+        if ($user->can('view subdepartment scoped documents')) {
             // Departments assigned to the user
             $userDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
                 ? $user->departments->pluck('id')->filter()
@@ -135,7 +135,7 @@ class DocumentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create document');
+        return $user->can('create document') || $user->can('upload document');
     }
 
     /**
@@ -197,8 +197,7 @@ class DocumentPolicy
      */
     public function delete(User $user, Document $document): bool
     {
-        // Master role can delete any document regardless of ownership or status
-        if ($user->hasRole('master')) {
+        if ($user->can('view any role') && $user->can('delete document')) {
             return true;
         }
 
@@ -211,11 +210,12 @@ class DocumentPolicy
         }
 
         if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
-            return true;
+            // Chef de Pôle: suppression limitée aux documents expirés.
+            return $this->isDocumentExpired($document);
         }
 
         if ($user->can('view own document') && $user->id === $document->created_by) {
-            return true;
+            return $this->isDocumentExpired($document);
         }
         return false;
     }
@@ -282,6 +282,19 @@ class DocumentPolicy
         return $user->can('decline document');
     }
 
+    public function download(User $user, Document $document): bool
+    {
+        if ($user->cannot('download document')) {
+            return false;
+        }
+
+        if ($document->status !== 'approved') {
+            return false;
+        }
+
+        return $this->view($user, $document);
+    }
+
     /**
      * Determine whether the user can permanently delete a document.
      *
@@ -290,14 +303,9 @@ class DocumentPolicy
      */
     public function permanentDelete(User $user, Document $document): bool
     {
-        // Admin roles can always permanently delete
-        if ($user->hasAnyRole([
-            'master',
-            'Super Administrator',
-            'super administrator',
-            'Admin de pole',
-            'admin de pôle',
-        ])) {
+        if ($user->can('view any role')
+            || $user->can('view organization wide reports')
+            || $user->can('view any department')) {
             return true;
         }
 
@@ -307,5 +315,18 @@ class DocumentPolicy
         }
 
         return false;
+    }
+
+    private function isDocumentExpired(Document $document): bool
+    {
+        if ((bool) $document->is_expired) {
+            return true;
+        }
+
+        if ($document->expire_at === null) {
+            return false;
+        }
+
+        return now()->isAfter($document->expire_at);
     }
 }

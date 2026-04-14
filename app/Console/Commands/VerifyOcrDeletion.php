@@ -37,7 +37,13 @@ class VerifyOcrDeletion extends Command
 
             if (!$category) {
                  // Create dummy category if needed
-                 $category = Category::create(['name' => 'Test Cat', 'slug' => 'test-cat', 'department_id' => 1, 'service_id' => 1]);
+                $category = Category::create([
+                    'name' => 'Test Cat OCR '.uniqid(),
+                    'department_id' => 1,
+                    'sub_department_id' => 1,
+                    'expiry_value' => 1,
+                    'expiry_unit' => 'years',
+                ]);
             }
             if (!$box) {
                  // Create dummy box if needed, or skip validation if possible

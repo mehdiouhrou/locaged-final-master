@@ -6,12 +6,19 @@ use App\Enums\DocumentDestructionStatus;
 use App\Enums\DocumentStatus;
 use App\Exports\DestructionRequestsExport;
 use App\Models\AuditLog;
+use App\Models\DestructionCertificate;
+use App\Models\Document;
 use App\Models\DocumentDestructionRequest;
 use App\Models\User;
 use App\Notifications\GeneralNotification;
+use App\Services\DestructionCertificateService;
+use App\Services\DestructionProofService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentDestructionRequestController extends Controller
@@ -20,48 +27,26 @@ class DocumentDestructionRequestController extends Controller
     public function index()
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
-            abort(403);
-        }
+        abort_unless($user && $user->can('access document expiration management'), 403);
 
         // Show documents that have expired in real-time (expire_at is in the past)
         // Must use withoutGlobalScopes() because Document model has a global scope
         // that hides expired documents from normal queries
-        $query = \App\Models\Document::withoutGlobalScopes()
-            ->with(['latestVersion', 'createdBy', 'department'])
+        $query = Document::withoutGlobalScopes()
+            ->with([
+                'latestVersion',
+                'createdBy',
+                'department',
+                'destructionCertificates' => function ($q) {
+                    $q->whereNotNull('pdf_path')->latest('id');
+                },
+            ])
             ->whereNotNull('expire_at')
             ->where('expire_at', '<=', now())
             ->whereNull('deleted_at');  // Exclude soft-deleted documents
-        
-        // Department Administrator: only see expired documents from their departments
-        // Admin/Super Admin: see all expired documents from all departments
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
-        
-        if ($isDeptAdmin && !$isAdmin) {
-            $deptIds = $user->departments?->pluck('id') ?? collect();
-            $query->whereIn('documents.department_id', $deptIds->all());
-        } elseif ($isServiceManager && !$isAdmin) {
-            // Service Manager: Strict service filtering
-            // 1. Direct service assignment
-            $serviceIds = collect();
-            if ($user->service_id) {
-                $serviceIds->push($user->service_id);
-            }
-            // 2. Pivot services
-            if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                $serviceIds = $serviceIds->merge($user->services->pluck('id'));
-            }
-            $serviceIds = $serviceIds->unique()->filter();
 
-            if ($serviceIds->isNotEmpty()) {
-                $query->whereIn('documents.service_id', $serviceIds->all());
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
-        
+        $this->applyDocumentExpiryScope($query, $user);
+
         $expiredDocuments = $query->latest()->paginate(10);
 
         return view('documents-destructions.index', ['expiredDocuments' => $expiredDocuments]);
@@ -72,56 +57,15 @@ class DocumentDestructionRequestController extends Controller
      */
     public function deletionLogs()
     {
-        // We might need to adjust the policy check if it fails for 'Admin de cellule', 
-        // but typically 'viewAny' might be open or we fix the policy separately. 
-        // For now, assuming the controller gate was the main blocker or policy allows it if we fix permissions.
-        // If 403 persists, we check Policy.
-
         $user = auth()->user();
-        
-        // Debug logging
-        if ($user) {
-            \Illuminate\Support\Facades\Log::info("DeletionLog View: User {$user->id} roles: " . $user->getRoleNames()->implode(', '));
-        }
-
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
-            \Illuminate\Support\Facades\Log::warning("DeletionLog View: 403 Forbidden for User {$user->id}");
-            abort(403);
-        }
+        abort_unless($user && $user->can('access document expiration management'), 403);
 
         $query = AuditLog::with(['user', 'document' => function ($q) {
-                $q->withTrashed()->with(['department', 'service.subDepartment']);
-            }])
+            $q->withTrashed()->with(['department', 'service.subDepartment']);
+        }])
             ->where('action', 'permanently_deleted');
 
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
-
-        if ($isDeptAdmin && !$isAdmin) {
-            $deptIds = $user->departments?->pluck('id') ?? collect();
-            $query->whereHas('document', function($q) use ($deptIds) {
-                $q->withTrashed()->whereIn('documents.department_id', $deptIds);
-            });
-        } elseif ($isServiceManager && !$isAdmin) {
-             // Service Manager: Strict service filtering
-            $serviceIds = collect();
-            if ($user->service_id) {
-                $serviceIds->push($user->service_id);
-            }
-            if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                $serviceIds = $serviceIds->merge($user->services->pluck('id'));
-            }
-            $serviceIds = $serviceIds->unique()->filter();
-
-            if ($serviceIds->isNotEmpty()) {
-                 $query->whereHas('document', function($q) use ($serviceIds) {
-                    $q->withTrashed()->whereIn('documents.service_id', $serviceIds);
-                });
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
+        $this->applyDeletionAuditScope($query, $user);
 
         $logs = $query->orderByDesc('occurred_at')->paginate(10);
 
@@ -134,43 +78,14 @@ class DocumentDestructionRequestController extends Controller
     public function exportDeletionLogs()
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAnyRole(['master', 'Super Administrator', 'super administrator', 'Admin de pole', 'admin de pôle', 'Admin de departments', 'Admin de cellule', 'Service Manager', 'Department Administrator'])) {
-            abort(403);
-        }
+        abort_unless($user && $user->can('access document expiration management'), 403);
 
         $query = AuditLog::with(['user', 'document' => function ($q) {
-                $q->withTrashed()->with(['department', 'service.subDepartment']);
-            }])
+            $q->withTrashed()->with(['department', 'service.subDepartment']);
+        }])
             ->where('action', 'permanently_deleted');
 
-        $isDeptAdmin = $user->hasRole('Department Administrator') || $user->hasRole('Admin de pole') || $user->hasRole('Admin de departments');
-        $isServiceManager = $user->hasRole('Admin de cellule') || $user->hasRole('Service Manager');
-        $isAdmin = $user->hasRole(['master', 'Super Administrator', 'super administrator']);
-
-        if ($isDeptAdmin && !$isAdmin) {
-            $deptIds = $user->departments?->pluck('id') ?? collect();
-            $query->whereHas('document', function($q) use ($deptIds) {
-                $q->withTrashed()->whereIn('documents.department_id', $deptIds);
-            });
-        } elseif ($isServiceManager && !$isAdmin) {
-             // Service Manager: Strict service filtering
-            $serviceIds = collect();
-            if ($user->service_id) {
-                $serviceIds->push($user->service_id);
-            }
-            if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                $serviceIds = $serviceIds->merge($user->services->pluck('id'));
-            }
-            $serviceIds = $serviceIds->unique()->filter();
-
-            if ($serviceIds->isNotEmpty()) {
-                 $query->whereHas('document', function($q) use ($serviceIds) {
-                    $q->withTrashed()->whereIn('documents.service_id', $serviceIds);
-                });
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
+        $this->applyDeletionAuditScope($query, $user);
 
         $logs = $query->orderByDesc('occurred_at')->get();
 
@@ -264,6 +179,12 @@ class DocumentDestructionRequestController extends Controller
 
         $destruction->document->logAction('destroyed');
 
+        try {
+            app(DestructionCertificateService::class)->issueForApproval($destruction, auth()->user());
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return back()->with('success', 'Document Destruction approved.');
     }
 
@@ -275,7 +196,7 @@ class DocumentDestructionRequestController extends Controller
         $destruction->status = DocumentDestructionStatus::Rejected;
         $destruction->save();
 
-        return back()->with('success', 'Document Destruction approved.');
+        return back()->with('success', 'Document Destruction declined.');
     }
 
     /**
@@ -363,7 +284,7 @@ class DocumentDestructionRequestController extends Controller
         Gate::authorize('postpone', DocumentDestructionRequest::class);
 
         // Use withoutGlobalScopes to allow postponing expired documents from destructions page
-        $document = \App\Models\Document::withoutGlobalScopes()->findOrFail($documentId);
+        $document = Document::withoutGlobalScopes()->findOrFail($documentId);
 
         if (! $document->expire_at) {
             return back()->with('error', 'This document does not have an expiry date set.');
@@ -425,5 +346,118 @@ class DocumentDestructionRequestController extends Controller
     {
         Gate::authorize('viewAny', DocumentDestructionRequest::class);
         return Excel::download(new DestructionRequestsExport(), 'destruction_requests_' . now()->format('Ymd_His') . '.xlsx');
+    }
+
+    public function downloadDestructionCertificate(DestructionCertificate $certificate)
+    {
+        Gate::authorize('view', $certificate);
+
+        if (! $certificate->pdf_path || ! Storage::disk('private')->exists($certificate->pdf_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('private')->download(
+            $certificate->pdf_path,
+            'pv-destruction-'.$certificate->public_id.'.pdf'
+        );
+    }
+
+    public function verifyDestructionProof(DestructionCertificate $certificate)
+    {
+        Gate::authorize('view', $certificate);
+
+        $verification = app(DestructionProofService::class)->verifyProof($certificate);
+
+        return view('destruction-certificates.verify', [
+            'certificate' => $certificate,
+            'verification' => $verification,
+        ]);
+    }
+
+    public function downloadDestructionProofPackage(DestructionCertificate $certificate)
+    {
+        Gate::authorize('view', $certificate);
+
+        if (! $certificate->proof_package_path || ! Storage::disk('private')->exists($certificate->proof_package_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('private')->download(
+            $certificate->proof_package_path,
+            'preuve-destruction-'.$certificate->public_id.'.zip'
+        );
+    }
+
+    /**
+     * @param  Builder<Document>  $query
+     */
+    private function applyDocumentExpiryScope(Builder $query, User $user): void
+    {
+        if ($user->can('view any document destruction request')) {
+            return;
+        }
+        if ($user->can('view department document destruction request')) {
+            $deptIds = $user->departments?->pluck('id') ?? collect();
+            $query->whereIn('documents.department_id', $deptIds->all());
+
+            return;
+        }
+        if ($user->can('view service document')) {
+            $serviceIds = $this->collectUserServiceIds($user);
+            if ($serviceIds->isNotEmpty()) {
+                $query->whereIn('documents.service_id', $serviceIds->all());
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
+    }
+
+    /**
+     * @param  Builder<AuditLog>  $query
+     */
+    private function applyDeletionAuditScope(Builder $query, User $user): void
+    {
+        if ($user->can('view any document destruction request')) {
+            return;
+        }
+        if ($user->can('view department document destruction request')) {
+            $deptIds = $user->departments?->pluck('id') ?? collect();
+            $query->whereHas('document', function ($q) use ($deptIds) {
+                $q->withTrashed()->whereIn('documents.department_id', $deptIds);
+            });
+
+            return;
+        }
+        if ($user->can('view service document')) {
+            $serviceIds = $this->collectUserServiceIds($user);
+            if ($serviceIds->isNotEmpty()) {
+                $query->whereHas('document', function ($q) use ($serviceIds) {
+                    $q->withTrashed()->whereIn('documents.service_id', $serviceIds);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
+    }
+
+    private function collectUserServiceIds(User $user): Collection
+    {
+        $serviceIds = collect();
+        if ($user->service_id) {
+            $serviceIds->push($user->service_id);
+        }
+        if ($user->relationLoaded('services') || method_exists($user, 'services')) {
+            $serviceIds = $serviceIds->merge($user->services->pluck('id'));
+        }
+
+        return $serviceIds->unique()->filter();
     }
 }

@@ -51,18 +51,17 @@ class UserController extends Controller
             })
             ->get();
 
-        // Extra safety: remove same-rank role names for specific creators
-        if ($current->hasRole('Department Administrator')) {
+        if ($current->roles->contains('name', 'Department Administrator')) {
             $roles = $roles->reject(fn($r) => strtolower($r->name) === 'department administrator');
         }
-        if ($current->hasRole('Super Administrator')) {
+        if ($current->roles->contains('name', 'Super Administrator')) {
             $roles = $roles->reject(fn($r) => strtolower($r->name) === 'super administrator');
         }
 
         // Limit visible org structure based on creator role
         $departmentsQuery = Department::withoutGlobalScopes()->with('subDepartments.services');
 
-        if ($current->hasRole('master') || $current->hasRole('Super Administrator')) {
+        if ($current->can('view any role') || $current->can('view organization wide reports')) {
             $departments = $departmentsQuery->get();
         } else {
             // Base department IDs on explicit department assignments first
@@ -93,9 +92,8 @@ class UserController extends Controller
                     ->pluck('department_id');
             }
 
-            // Treat "Admin de departments" the same as the English alias "Division Chief"
-            $isDivisionChief = $current->hasAnyRole(['Admin de departments', 'Division Chief']);
-            $isServiceManager = $current->hasAnyRole(['Admin de cellule', 'service manager']);
+            $isDivisionChief = $current->can('view subdepartment scoped documents');
+            $isServiceManager = $current->can('view service user');
 
             if ($isDivisionChief || $isServiceManager) {
                 // Division Chief & Service Manager: only own departments and own sub-departments
@@ -150,10 +148,10 @@ class UserController extends Controller
 
         // Extra safety: drop same-rank role from list when editing as dep/super admin
         $current = auth()->user();
-        if ($current->hasRole('Department Administrator')) {
+        if ($current->roles->contains('name', 'Department Administrator')) {
             $roles = $roles->reject(fn($r) => strtolower($r->name) === 'department administrator');
         }
-        if ($current->hasRole('Super Administrator')) {
+        if ($current->roles->contains('name', 'Super Administrator')) {
             $roles = $roles->reject(fn($r) => strtolower($r->name) === 'super administrator');
         }
         return view('users.profile',compact('user','departments','roles'));
@@ -212,17 +210,16 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny',User::class);
 
-        // Division Chief should not access audit page
-        if (auth()->user()?->hasRole('Division Chief')) {
+        if (auth()->user()?->can('view subdepartment scoped documents')) {
             abort(403);
         }
 
         $current = auth()->user();
         $allowedRoleNames = RoleHierarchy::allowedRoleNamesFor($current);
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole')
-        );
+        $isDeptAdmin = $current
+            && $current->can('filter audit logs by assigned departments')
+            && ! $current->can('view organization wide reports')
+            && ! $current->can('view any role');
         
         $usersQuery = User::with('roles');
         
@@ -273,10 +270,7 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny',User::class);
 
-        // Division Chief should not access audit logs page
-        if (auth()->user()?->hasRole('Division Chief')) {
-            abort(403);
-        }
+        abort_unless(auth()->user()?->can('view system activity log'), 403);
 
         return view('users.logs');
     }

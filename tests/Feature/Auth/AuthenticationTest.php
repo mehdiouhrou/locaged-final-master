@@ -1,5 +1,7 @@
 <?php
 
+uses()->group('breeze-incompatible');
+
 use App\Models\User;
 
 test('login screen can be rendered', function () {

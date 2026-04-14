@@ -30,7 +30,7 @@ This script will:
 | PHP | 8.2+ | Runtime |
 | MySQL | 8.0+ | Database |
 | Redis | 6.0+ | Cache & Queues |
-| Elasticsearch | 8.x | Search Engine |
+| Typesense | 0.25+ | Search Engine |
 | Tesseract OCR | 4.1+ | OCR Processing |
 | Nginx | 1.18+ | Web Server |
 | Supervisor | 4.2+ | Queue Workers |
@@ -76,7 +76,7 @@ The `install.sh` script automatically installs **ALL** required software and con
 ### What install.sh Does
 
 - ✅ Installs PHP 8.2 + all extensions
-- ✅ Installs MySQL, Redis, Elasticsearch
+- ✅ Installs MySQL, Redis, Typesense
 - ✅ Installs Tesseract OCR with language packs
 - ✅ Installs Nginx and configures virtual host
 - ✅ Installs Supervisor for queue workers
@@ -121,7 +121,9 @@ SESSION_DRIVER=redis               # Use Redis for production
 CACHE_STORE=redis
 QUEUE_CONNECTION=redis
 
-ELASTICSEARCH_HOST=localhost:9200
+SCOUT_DRIVER=typesense
+TYPESENSE_HOST=localhost
+TYPESENSE_PORT=8108
 
 # Configure SMTP for email
 MAIL_MAILER=smtp
@@ -156,7 +158,7 @@ After installation, verify:
 - [ ] Application loads without errors: `curl http://localhost`
 - [ ] Database connection works
 - [ ] Redis is running: `redis-cli ping`
-- [ ] Elasticsearch is running: `curl localhost:9200`
+- [ ] Typesense is running: `curl http://localhost:8108/health`
 - [ ] Queue workers are active: `sudo supervisorctl status`
 - [ ] Cron job is configured: `crontab -l`
 - [ ] Tesseract languages installed: `tesseract --list-langs`
@@ -173,7 +175,7 @@ After installation, verify:
 
 ### 2. Full-Text Search
 - Upload multiple documents
-- Test Elasticsearch search functionality
+- Test Typesense search functionality
 
 ### 3. Queue Workers
 - Verify background jobs are processed (document uploads, OCR)
@@ -227,7 +229,7 @@ sudo tail -f /var/www/locaged/storage/logs/worker.log
 
 ```bash
 # Restart services
-sudo systemctl restart nginx php8.2-fpm redis-server elasticsearch supervisor
+sudo systemctl restart nginx php8.2-fpm redis-server typesense supervisor
 
 # Clear caches
 php artisan cache:clear && php artisan config:clear
@@ -244,7 +246,7 @@ sudo supervisorctl restart locaged-worker:*
 # Run manual backup
 php artisan backup:run
 
-# Import to Elasticsearch
+# Import to Typesense
 php artisan scout:import "App\Models\DocumentVersion"
 ```
 

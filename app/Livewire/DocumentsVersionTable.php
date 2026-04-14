@@ -85,7 +85,7 @@ class DocumentsVersionTable extends Component
             $filters['document_id'] = $this->documentId;
         }
 
-        // Use Elasticsearch for search, fallback to database for no search
+        // Use Scout (Typesense) for search, fallback to database for no search
         if (!empty($this->search)) {
             $documentVersions = DocumentSearchService::searchVersions($this->search, $filters, 10, $this->page);
         } else {

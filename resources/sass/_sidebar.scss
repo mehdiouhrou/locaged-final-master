@@ -17,6 +17,10 @@
   position: fixed;
   min-height: 100vh;
   box-shadow: 4px 4px 19px 0px #0000000D;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Respect document direction: move sidebar to the inline-start side in RTL */
@@ -85,10 +89,11 @@ body[dir="rtl"] .layout-with-sidebar .main-content { padding-right: clamp(12px, 
 }
 
 .bottom-icons {
-  position: absolute;
-  bottom: 30px;
-  left: 0;
+  position: relative;
+  flex-shrink: 0;
   width: 100%;
+  padding: 1rem 0 1.25rem;
+  margin-top: auto;
 }
 
 
@@ -173,25 +178,52 @@ body[dir="rtl"] .sidebar.collapsed .bottom-icons a:hover .sidebar-text {
   overflow: visible;
   white-space: normal;
 }
+/* Arborescence intégrée dans la sidebar (plus de panneau flottant à droite) */
 .submenu {
-    display: none;
-    list-style: none;
-    padding-left: 15px;
+  display: none;
+  list-style: none;
+  position: static;
+  width: auto;
+  max-height: none;
+  margin: 2px 0 6px 0 !important;
+  padding: 4px 0 6px 0;
+  padding-inline-start: 14px;
+  margin-inline-start: 18px !important;
+  border-inline-start: 2px solid rgba(15, 23, 42, 0.08);
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  opacity: 1;
+  transform: none;
+  overflow: visible;
 }
 
 .has-submenu.active > .submenu {
-    display: block;
+  display: block;
+}
+
+/* En mode replié : pas d’arborescence (illisible) ; le JS rouvre la barre au clic parent */
+.sidebar.collapsed .has-submenu > .submenu {
+  display: none !important;
 }
 
 .submenu li a {
   display: flex;
   align-items: center;
-  padding: 8px;
-  font-size: 14px;
-  margin: 0px 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  margin: 2px 8px 2px 0;
+  border-radius: 8px;
 }
-.sidebar.collapsed .submenu li a{
-   margin: 0px;
+
+.sidebar.collapsed .submenu li a {
+  margin: 2px 4px;
+}
+
+.submenu li a:hover,
+.submenu li a.active {
+  background: rgba(15, 23, 42, 0.05);
+  color: #0f172a;
 }
 
 .sidebar-menu > li > a img {
@@ -213,54 +245,8 @@ body[dir="rtl"] .sidebar.collapsed .bottom-icons a:hover .sidebar-text {
   transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-/* Floating submenu panel and overlay on desktop */
-@media (min-width: 992px) {
-  .sidebar .submenu {
-    position: fixed;
-    top: var(--submenu-top, 64px);
-    inset-inline-start: calc(var(--sidebar-width) + var(--submenu-gap));
-    width: clamp(260px, 28vw, 360px);
-    max-height: min(72vh, calc(100vh - 32px));
-    margin: 0 !important;
-    padding: 12px;
-    background: #ffffff;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.14);
-    border: 1px solid rgba(17,24,39,0.06);
-    border-radius: 12px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    z-index: 9998;
-    opacity: 0;
-    transform: translateX(8px);
-    transition: opacity .18s ease, transform .18s ease;
-    pointer-events: auto;
-  }
-  .sidebar.collapsed .submenu { inset-inline-start: calc(var(--sidebar-collapsed-width) + var(--submenu-gap)); }
-  .sidebar .has-submenu:hover > .submenu,
-  .sidebar .has-submenu.submenu-open > .submenu {
-    display: block;
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  /* Professional look for items inside floating panel */
-  .sidebar .submenu li { margin: 2px 4px; }
-  .sidebar .submenu li a {
-    border-radius: 10px;
-    padding: 10px 12px;
-    color: #111827;
-    line-height: 1.25;
-    white-space: normal;
-    word-break: break-word;
-  }
-  .sidebar .submenu li a:hover,
-  .sidebar .submenu li a.active {
-    background: #f5f7fb;
-    color: #0f172a;
-  }
-  /* Ensure good contrast when sidebar collapsed */
-  .sidebar.collapsed .submenu li a { color: #0f172a; }
-  .sidebar.collapsed .submenu li a:hover { background: #eef2f7; color: #0b1220; }
+.sidebar .submenu li {
+  margin: 0;
 }
 
 /* Semi-transparent overlay behind floating submenu */

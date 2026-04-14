@@ -91,33 +91,24 @@ class ActivityLogsTable extends Component
     private function buildAuthenticationQuery()
     {
         $current = auth()->user();
-        
-        // Check if current user is Super Admin (not master)
-        $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
-            !$current->hasRole('master');
-        
-        $isDeAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole')
-        );
 
-        $isSubDeptAdmin = $current && $current->hasAnyRole(['Admin de departments', 'Division Chief']);
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && ! $isMaster;
 
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
-        
+        $isPoleOrDeptAuditor = $current && $current->can('filter audit logs by assigned departments');
+        $isSubdeptAuditor = $current && $current->can('filter audit logs by assigned subdepartments');
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
         return \App\Models\AuthenticationLog::with(['user', 'user.roles'])
             // Super Admin: hide logs from master users
-            ->when($isSuperAdmin, function($q) {
+            ->when($isSuperAdminNotMaster, function($q) {
                 $q->whereDoesntHave('user.roles', function($r) {
                     $r->whereRaw('LOWER(name) = ?', ['master']);
                 });
             })
-            // Department Administrator (Pole level): only see logs from their department and users below their rank
-            ->when($isDeAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+            // Pôle / administrateur département : périmètre départements assignés
+            ->when($isPoleOrDeptAuditor && ! $hasOrgReport, function($q) use ($current) {
                 $deptIds = $current->departments?->pluck('id') ?? collect();
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
@@ -134,8 +125,8 @@ class ActivityLogsTable extends Component
                     })->orWhereNull('user_id'); // Allow logs from deleted users
                 });
             })
-            // Sub-Department Administrator (Admin de departments): only see logs from users in their sub-departments
-            ->when($isSubDeptAdmin && !$isDeAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+            // Sous-départements : uniquement si pas déjà couvert par le périmètre « pôle »
+            ->when($isSubdeptAuditor && ! $isPoleOrDeptAuditor && ! $hasOrgReport, function($q) use ($current) {
                 $subDeptIds = $current->subDepartments?->pluck('id') ?? collect();
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
@@ -152,8 +143,8 @@ class ActivityLogsTable extends Component
                     })->orWhereNull('user_id'); // Allow logs from deleted users
                 });
             })
-            // Service Manager: only see logs from their services and users below their rank OR their own logs
-            ->when($isServiceManager && !$isDeAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+            // Service / cellule
+            ->when($isServiceAuditor && ! $isPoleOrDeptAuditor && ! $isSubdeptAuditor && ! $hasOrgReport, function($q) use ($current) {
                 $serviceIds = $this->getAccessibleServiceIds($current);
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
 
@@ -229,11 +220,14 @@ class ActivityLogsTable extends Component
     private function buildDocumentQuery()
     {
         $current = auth()->user();
-        
-        // Check if current user is Super Admin (not master)
-        $isSuperAdmin = $current && 
-            $current->hasRole(['Super Administrator', 'super_admin']) && 
-            !$current->hasRole('master');
+
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && ! $isMaster;
+
+        $isPoleOrDeptAuditor = $current && $current->can('filter audit logs by assigned departments');
+        $isSubdeptAuditor = $current && $current->can('filter audit logs by assigned subdepartments');
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
 
         $query = AuditLog::with([
                 'user.departments', 
@@ -249,26 +243,14 @@ class ActivityLogsTable extends Component
             // Exclude OCR view activity from logs
             ->where('action', '!=', 'viewed_ocr')
             // Super Admin: hide logs from master users
-            ->when($isSuperAdmin, function($q) {
+            ->when($isSuperAdminNotMaster, function($q) {
                 $q->whereDoesntHave('user.roles', function($r) {
                     $r->whereRaw('LOWER(name) = ?', ['master']);
                 });
             });
 
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole')
-        );
-
-        $isSubDeptAdmin = $current && $current->hasAnyRole(['Admin de departments', 'Division Chief']);
-
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
-
-        // Department Admin (Pole level) Scope
-        $query->when($isDeptAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+        // Pôle / administrateur département
+        $query->when($isPoleOrDeptAuditor && ! $hasOrgReport, function($q) use ($current) {
             $deptIds = $current->departments?->pluck('id') ?? collect();
             $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
             
@@ -290,8 +272,8 @@ class ActivityLogsTable extends Component
             }
         });
 
-        // Sub-Department Admin Scope (Admin de departments)
-        $query->when($isSubDeptAdmin && !$isDeptAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+        // Sous-départements
+        $query->when($isSubdeptAuditor && ! $isPoleOrDeptAuditor && ! $hasOrgReport, function($q) use ($current) {
             $subDeptIds = $current->subDepartments?->pluck('id') ?? collect();
             $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
             
@@ -321,8 +303,8 @@ class ActivityLogsTable extends Component
             }
         });
 
-        // Service Manager Scope
-        $query->when($isServiceManager && !$isDeptAdmin && !$current->hasRole('master') && !$current->hasRole('super administrator'), function($q) use ($current) {
+        // Service / cellule
+        $query->when($isServiceAuditor && ! $isPoleOrDeptAuditor && ! $isSubdeptAuditor && ! $hasOrgReport, function($q) use ($current) {
             $serviceIds = $this->getAccessibleServiceIds($current);
             $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
 
@@ -408,23 +390,19 @@ class ActivityLogsTable extends Component
         // Get statistics for cards (respect same department/service scoping and role filtering)
         $current = auth()->user();
         $deptIds = $current && $current->departments ? $current->departments->pluck('id') : collect();
-        $isSuper = $current && $current->hasRole(['master','super administrator','super_admin']);
-        
-        $isDeptAdmin = $current && (
-            $current->hasRole('Department Administrator') ||
-            $current->hasRole('Admin de pole') ||
-            $current->hasRole('Admin de departments')
+        $isSuper = $current && ($current->can('view any role') || $current->can('view organization wide reports'));
+
+        $docStatsDeptScope = $current && (
+            $current->can('filter audit logs by assigned departments')
+            || $current->can('filter audit logs by assigned subdepartments')
         );
 
-        $isServiceManager = $current && (
-            $current->hasRole('Admin de cellule') ||
-            $current->hasRole('Service Manager')
-        );
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
 
         $statsBase = AuditLog::query()
             ->where('action', '!=', 'viewed_ocr')
-            // Department Admin: filter by department
-            ->when($isDeptAdmin && $deptIds->isNotEmpty() && ! $isSuper, function($q) use ($deptIds, $current) {
+            // Pôle / sous-département : stats par département
+            ->when($docStatsDeptScope && $deptIds->isNotEmpty() && ! $isSuper, function($q) use ($deptIds, $current) {
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
                 $q->whereHas('document', function($q2) use ($deptIds) {
@@ -436,8 +414,7 @@ class ActivityLogsTable extends Component
                     })->orWhereNull('user_id');
                 });
             })
-            // Service Manager: filter by service
-            ->when($isServiceManager && !$isDeptAdmin && ! $isSuper, function($q) use ($current) {
+            ->when($isServiceAuditor && ! $docStatsDeptScope && ! $isSuper, function($q) use ($current) {
                 $serviceIds = $this->getAccessibleServiceIds($current);
                 $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
                 
@@ -464,7 +441,7 @@ class ActivityLogsTable extends Component
         $uniqueUsers = (clone $statsBase)->distinct('user_id')->count('user_id');
 
         // Get filter options (respect department/service scoping and role hierarchy)
-        if ($isDeptAdmin && $deptIds->isNotEmpty() && ! $isSuper) {
+        if ($docStatsDeptScope && $deptIds->isNotEmpty() && ! $isSuper) {
             $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
             
             $users = User::whereHas('departments', function($q) use ($deptIds) {
@@ -476,7 +453,7 @@ class ActivityLogsTable extends Component
                 ->orderBy('full_name')
                 ->get();
             $departments = Department::whereIn('id', $deptIds)->orderBy('name')->get();
-        } elseif ($isServiceManager && !$isDeptAdmin && ! $isSuper) {
+        } elseif ($isServiceAuditor && ! $docStatsDeptScope && ! $isSuper) {
             $serviceIds = $this->getAccessibleServiceIds($current);
             $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
             
@@ -506,11 +483,10 @@ class ActivityLogsTable extends Component
             }
             $departments = collect();
         } else {
-            // Super Admin: exclude master users from filter dropdown
-            $isSuperAdminNotMaster = $current && 
-                $current->hasRole(['Super Administrator', 'super_admin']) && 
-                !$current->hasRole('master');
-            
+            $isSuperAdminNotMaster = $current
+                && $current->can('view organization wide reports')
+                && ! $current->can('view any role');
+
             if ($isSuperAdminNotMaster) {
                 $users = User::whereDoesntHave('roles', function($q) {
                         $q->whereRaw('LOWER(name) = ?', ['master']);

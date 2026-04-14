@@ -27,7 +27,7 @@ class ReportsController extends Controller
 
         // Get filter data with proper permission and role-based scoping
         $user = auth()->user();
-        $isSuperAdmin = $user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin');
+        $isSuperAdmin = $user->can('view organization wide reports');
 
         // Rooms: only show rooms that contain documents (via rows → shelves → boxes → documents)
         $rooms = \App\Models\Room::whereHas('rows.shelves.boxes.documents')
@@ -47,10 +47,8 @@ class ReportsController extends Controller
                 $query->whereIn('departments.id', $user->departments->pluck('id'));
             })->orderBy('full_name')->get();
             
-        // Categories: super admin sees all, others see categories in their directions
-        $categories = $isSuperAdmin
-            ? Category::orderBy('name')->get()
-            : Category::whereIn('department_id', $user->departments->pluck('id'))->orderBy('name')->get();
+        // Categories: visibilité gérée par le scope global (profils / droits).
+        $categories = Category::query()->orderBy('name')->get();
 
         // Sub-departments: super admin sees all, others see sub-departments under their departments
         $subDepartments = $isSuperAdmin
@@ -109,7 +107,7 @@ class ReportsController extends Controller
             }
         }
 
-        // Use Elasticsearch for search, fallback to database for no search
+        // Use Scout (Typesense) for search, fallback to database for no search
         if ($request->filled('search')) {
             $documents = DocumentSearchService::searchDocuments($request->search, $filters, 20, $request->get('page', 1));
         } else {
@@ -189,7 +187,7 @@ class ReportsController extends Controller
     {
         // Resolve current user and role-scope first
         $user = auth()->user();
-        $isSuperAdmin = $user && ($user->hasRole('master') || $user->hasRole('super administrator') || $user->hasRole('super_admin'));
+        $isSuperAdmin = $user && $user->can('view organization wide reports');
 
         // Prepare filters for DocumentSearchService
         $filters = [];
@@ -235,7 +233,7 @@ class ReportsController extends Controller
             }
         }
 
-        // Use Elasticsearch for statistics if search is provided, otherwise use database
+        // Use Scout (Typesense) for statistics if search is provided, otherwise use database
         if ($request->filled('search')) {
             return DocumentSearchService::getStatistics($filters);
         }
@@ -262,7 +260,7 @@ class ReportsController extends Controller
             $baseQuery->where('documents.department_id', $request->department_id);
         }
 
-        if ($request->filled('user_id') && auth()->user()->hasRole(['master', 'super_admin', 'super administrator'])) {
+        if ($request->filled('user_id') && auth()->user()?->can('view organization wide reports')) {
             $baseQuery->where('created_by', $request->user_id);
         }
 

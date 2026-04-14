@@ -30,6 +30,10 @@ class DocumentsByCategoryTable extends Component
     public $keywords = '';
     public $tags = '';
     public $favoritesOnly = false;
+
+    /** OCR job status on latest version: '', none, queued, processing, completed, failed */
+    public string $ocrFilter = '';
+
     public $documentId = null; // Filter by specific document ID
     public $boxId = ''; // Filter by box ID (physical location)
     public $showExpired = false; // Show expired documents (from dashboard All Documents card)
@@ -55,6 +59,7 @@ class DocumentsByCategoryTable extends Component
         'keywords' => ['except' => ''],
         'tags' => ['except' => ''],
         'favoritesOnly' => ['except' => false],
+        'ocrFilter' => ['except' => '', 'as' => 'ocr'],
         'perPage' => ['except' => 10],
         'boxId' => ['except' => '', 'as' => 'box_id'],
         'documentId' => ['except' => null, 'as' => 'document_id'],
@@ -74,7 +79,7 @@ class DocumentsByCategoryTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'perPage'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage'])) {
             $this->resetPage();
         }
     }
@@ -92,6 +97,7 @@ class DocumentsByCategoryTable extends Component
         $this->tags = '';
         $this->boxId = '';
         $this->favoritesOnly = false;
+        $this->ocrFilter = '';
         $this->perPage = 10; // Reset to default
 
         $this->resetPage();
@@ -156,11 +162,11 @@ class DocumentsByCategoryTable extends Component
 
     public function render()
     {
-        // Base documents query using the database only (no Elasticsearch).
+        // Base documents query using the database only (no Scout dependency).
         // This makes search/filtering always work even if the search engine
         // is not configured.
         $documentsQuery = Document::with([
-            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion', 'auditLogs.user'
+            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion.ocrJob', 'auditLogs.user',
         ]);
 
         // By default, hide expired documents (is_expired = 1/true)
@@ -226,6 +232,20 @@ class DocumentsByCategoryTable extends Component
                 $sub->where('file_type', $this->fileType);
             });
         });
+
+        // OCR pipeline filter (latest version job)
+        if ($this->ocrFilter === 'none') {
+            $documentsQuery->where(function ($q) {
+                $q->whereDoesntHave('latestVersion')
+                    ->orWhereHas('latestVersion', function ($vq) {
+                        $vq->doesntHave('ocrJob');
+                    });
+            });
+        } elseif (in_array($this->ocrFilter, ['queued', 'processing', 'completed', 'failed'], true)) {
+            $documentsQuery->whereHas('latestVersion.ocrJob', function ($q) {
+                $q->where('status', $this->ocrFilter);
+            });
+        }
 
         // Room filter (convert to box_ids)
         if ($this->room) {
@@ -370,13 +390,14 @@ class DocumentsByCategoryTable extends Component
         } else {
             $user->favoriteDocuments()->attach($documentId);
         }
+        $this->dispatch('document-updated');
         $this->resetPage();
     }
 
     public function bulkDelete()
     {
         // Only master role can perform bulk delete
-        if (!auth()->user()->hasRole('master')) {
+        if (! auth()->user()->can('view any role')) {
             session()->flash('error', 'You do not have permission to perform bulk delete.');
             return;
         }
@@ -449,5 +470,6 @@ class DocumentsByCategoryTable extends Component
         }
 
         $this->resetPage();
+        $this->dispatch('document-updated');
     }
 }

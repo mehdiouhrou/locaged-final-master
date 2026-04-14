@@ -34,6 +34,7 @@ class ProcessOcrJob implements ShouldQueue
 
     public function __construct(OcrJob $ocrJob)
     {
+        $this->onQueue(config('ged.ocr_queue', 'default'));
         $this->ocrJob = $ocrJob;
     }
 
@@ -41,7 +42,7 @@ class ProcessOcrJob implements ShouldQueue
     {
 
         Log::info("OCR Job started", ['ocr_job_id' => $this->ocrJob->id]);
-        $this->ocrJob->update(['status' => 'processing', 'processed_at' => now()]);
+        $this->ocrJob->update(['status' => OcrJob::STATUS_PROCESSING, 'processed_at' => now()]);
 
         try {
             $docVersion = $this->ocrJob->documentVersion;
@@ -64,7 +65,7 @@ class ProcessOcrJob implements ShouldQueue
             $docVersion->searchable();
 
             $this->ocrJob->update([
-                'status' => 'completed',
+                'status' => OcrJob::STATUS_COMPLETED,
                 'completed_at' => now(),
             ]);
             Log::info("OCR Job completed successfully", ['ocr_job_id' => $this->ocrJob->id]);
@@ -79,7 +80,7 @@ class ProcessOcrJob implements ShouldQueue
             // Only mark as failed if this is the last attempt
             if ($this->attempts() >= $this->tries) {
                 $this->ocrJob->update([
-                    'status' => 'failed',
+                    'status' => OcrJob::STATUS_FAILED,
                     'error_message' => $e->getMessage(),
                     'completed_at' => now(),
                 ]);

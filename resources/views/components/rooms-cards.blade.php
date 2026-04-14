@@ -46,7 +46,7 @@
     @can('viewAny', \App\Models\PhysicalLocation::class)
         <div class="mt-3 text-end">
             <a href="{{ route('physical-locations.index', ['view_only' => 1]) }}" class="text-decoration-none small text-primary">
-                {{ ui_t('pages.rooms_cards.see_more') }} →
+                {{ ui_t('pages.rooms_cards.see_more') }}<i class="fa-solid fa-angle-right ms-1" aria-hidden="true"></i>
             </a>
         </div>
     @endcan

@@ -30,7 +30,7 @@ class TagPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasAnyRole(['master', 'super_admin', 'Super Administrator', 'user', 'service user', 'Department Administrator', 'Admin de pole', 'Admin de cellule', 'Service Manager', 'Admin de departments']);
+        return $user->can('create tag');
     }
 
     /**

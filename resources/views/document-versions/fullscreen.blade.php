@@ -108,11 +108,13 @@
 
                 {{-- Right: Action buttons --}}
                 <div class="d-flex gap-2">
-                    <a href="{{ route('documents.download', ['id' => $doc->document->id]) }}" 
-                       class="btn-preview" 
+                    @can('download', $doc->document)
+                    <a href="{{ route('documents.download', ['id' => $doc->document->id]) }}"
+                       class="btn-preview"
                        title="{{ ui_t('actions.download') ?? 'Download' }}">
                         <i class="fas fa-download"></i>
                     </a>
+                    @endcan
                     <a href="{{ $closeUrl }}" 
                        id="closePreviewBtn"
                        class="btn-preview" 
@@ -157,10 +159,12 @@
                             <i class="fas fa-file fa-5x mb-3 text-muted"></i>
                             <h5>{{ ui_t('pages.versions.preview_not_available') ?? 'Preview not available' }}</h5>
                             <p class="text-muted">{{ $doc->document->title }}</p>
-                            <a href="{{ route('documents.download', ['id' => $doc->document->id]) }}" 
+                            @can('download', $doc->document)
+                            <a href="{{ route('documents.download', ['id' => $doc->document->id]) }}"
                                class="btn btn-primary mt-3">
                                 <i class="fas fa-download"></i> {{ ui_t('actions.download') ?? 'Download' }}
                             </a>
+                            @endcan
                         </div>
                     </div>
                 @endif
@@ -170,31 +174,10 @@
 
     <script>
         (function() {
-            const defaultCloseUrl = '{{ route("documents.all") }}';
-            const serverCloseUrl = '{{ $closeUrl }}';
-            
-            // Determine the best close URL
-            // Use referrer if it's a valid documents page, otherwise use server-provided URL
-            let closeUrl = serverCloseUrl;
-            
-            // Check if referrer is a valid documents page (not livewire endpoint)
-            if (document.referrer) {
-                const referrerUrl = new URL(document.referrer);
-                const pathname = referrerUrl.pathname;
-                
-                // Only use referrer if it's a documents page, not a livewire endpoint
-                if (pathname.includes('/documents/') && !pathname.includes('/livewire/')) {
-                    closeUrl = document.referrer;
-                }
-            }
-            
-            // Update the close button href
-            const closeBtn = document.getElementById('closePreviewBtn');
-            if (closeBtn) {
-                closeBtn.href = closeUrl;
-            }
-            
-            // Handle Escape key
+            // Always trust the server-provided close URL so fullscreen exits back
+            // to the metadata/preview page when return_url is provided.
+            const closeUrl = '{{ $closeUrl }}';
+
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     window.location.href = closeUrl;

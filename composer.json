@@ -8,22 +8,31 @@
         "framework"
     ],
     "license": "MIT",
+    "repositories": {
+        "packagist.org": false,
+        "aliyun": {
+            "type": "composer",
+            "url": "https://mirrors.aliyun.com/composer/"
+        }
+    },
     "require": {
         "php": "^8.2",
         "ext-zip": "*",
         "laravel/framework": "^12.0",
+        "laravel/horizon": "^5.40",
+        "laravel/sanctum": "^4.0",
         "laravel/scout": "^10.17",
         "laravel/tinker": "^2.10.1",
         "laravel/ui": "^4.6",
         "livewire/livewire": "^3.6",
         "maatwebsite/excel": "^3.1",
-        "matchish/laravel-scout-elasticsearch": "^7.11",
         "mpdf/mpdf": "^8.2",
         "phpoffice/phpspreadsheet": "^1.30",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-permission": "^6.20",
         "spatie/pdf-to-image": "^3.1",
-        "thiagoalessio/tesseract_ocr": "^2.13"
+        "thiagoalessio/tesseract_ocr": "^2.13",
+        "typesense/typesense-php": "^5.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

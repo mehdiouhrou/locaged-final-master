@@ -1,13 +1,13 @@
 <div>
     <div class="header-left">
-        <div class="search-box d-flex align-items-center">
-            <div class="position-relative" style="width: fit-content;">
+        <div class="search-box d-flex align-items-start gap-2 flex-wrap">
+            <div class="position-relative header-search-wrap">
                 <input
                     type="text"
                     name="search"
                     placeholder="{{ ui_t('actions.search') }}"
                     wire:model.live.debounce="query"
-                    class="form-control pe-5"
+                    class="form-control pe-5 header-search-input"
                     autocomplete="off"
                     wire:keydown.enter.prevent="goToDocuments"
                 />
@@ -16,8 +16,7 @@
                 <i class="fas fa-magnifying-glass search-icon text-secondary"></i>
 
                 <button
-                    class="position-absolute border-0 bg-transparent text-secondary"
-                    style="right: 8px; top: 50%; transform: translateY(-50%);"
+                    class="position-absolute border-0 text-secondary header-search-filter-btn"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#filterOverlay"
@@ -42,7 +41,7 @@
                 </button>
 
                 <!-- Filter Overlay (absolute, does not push layout) -->
-                <div id="filterOverlay" class="collapse position-absolute top-100 start-0 search-filter-overlay" style="z-index: 1050; min-width: 100%; max-width: 40rem;">
+                <div id="filterOverlay" class="collapse position-absolute top-100 start-0 search-filter-overlay">
                     <div class="card shadow border-0 rounded-3 mt-2">
                         <div class="card-body p-3 p-md-4" style="max-height: 70vh; overflow: auto;">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -65,9 +64,28 @@
                                             <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                                         </select>
                                     </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{{ ui_t('pages.upload.category') }}</label>
+                                        <select class="form-select" name="category_id" wire:model="filters.category_id">
+                                            <option value="">{{ ui_t('filters.all') }}</option>
+                                            @foreach($categories as $category)
+                                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{{ ui_t('filters.status') }}</label>
+                                        <select class="form-select" name="status" wire:model="filters.status">
+                                            <option value="">{{ ui_t('filters.all') }}</option>
+                                            @foreach($statuses as $status)
+                                                <option value="{{ $status }}">{{ ui_t('pages.documents.status.' . $status) }}</option>
+                                            @endforeach
+                                            <option value="expired">{{ ui_t('pages.documents.status.expired') }}</option>
+                                        </select>
+                                    </div>
 
                                     <!-- Creation Date Range -->
-                                    <div class="col-12">
+                                    <div class="col-12 col-md-6">
                                         <label class="form-label">{{ ui_t('pages.versions.creation_date') }}</label>
                                         <div class="row g-2">
                                             <div class="col-6">
@@ -139,13 +157,16 @@
                 
                 <!-- Search Results Overlay (absolute, does not push layout) -->
                 @if($results)
-                    <div class="position-absolute top-100 start-0 search-results-overlay mt-2" style="z-index: 1040; min-width: 100%; max-width: 40rem;">
+                    <div class="position-absolute top-100 start-0 search-results-overlay mt-2">
                         <div class="card shadow border-0 rounded-3">
                             <ul class="list-group list-group-flush">
                                 @forelse($results as $version)
                                     <li class="list-group-item">
                                         <a href="{{ route('document-versions.preview',['id' => $version->id]) }}" class="text-decoration-none d-block">
-                                            {{ $version->document?->title }}
+                                            <div class="fw-semibold">{!! $this->highlightedTitle($version->document?->title) !!}</div>
+                                            @if(!empty($version->ocr_text))
+                                                <small class="text-muted d-block mt-1">{!! $this->highlightedSnippet($version->ocr_text) !!}</small>
+                                            @endif
                                         </a>
                                     </li>
                                 @empty
@@ -156,12 +177,85 @@
                     </div>
                 @endif
             </div>
+            <div class="d-inline-flex align-items-center gap-2 flex-wrap header-saved-search-row">
+                <input
+                    type="text"
+                    class="form-control form-control-sm"
+                    style="max-width: 190px;"
+                    placeholder="Save this search"
+                    wire:model.defer="savedSearchName"
+                />
+                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveCurrentSearch">
+                    Save
+                </button>
+                @error('savedSearchName')
+                    <small class="text-danger">{{ $message }}</small>
+                @enderror
+                @foreach($this->savedSearches as $savedSearch)
+                    <button type="button" class="btn btn-sm btn-light" wire:click="applySavedSearch({{ $savedSearch->id }})">
+                        {{ $savedSearch->name }}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" wire:click="deleteSavedSearch({{ $savedSearch->id }})">
+                        ×
+                    </button>
+                @endforeach
+            </div>
         </div>
 
     </div>
 
     <style>
-        /* Scoped styles for the search filter overlay */
+        /* Ensure filter/results dropdowns render above dashboard cards */
+        .header,
+        .header-left,
+        .header .header-left,
+        .header .search-box,
+        .header .search-box .header-search-wrap {
+            position: relative;
+            overflow: visible !important;
+        }
+        .header {
+            z-index: 1205;
+        }
+        .header .search-box {
+            z-index: 1210;
+        }
+
+        /* Scoped styles for the search/filter header */
+        .header-search-wrap {
+            width: min(40rem, calc(100vw - 3.5rem));
+        }
+        .header-search-input {
+            min-height: 42px;
+            background: #ffffff !important;
+            border: 1px solid #d1d5db !important;
+            color: #111827 !important;
+            border-radius: 10px !important;
+            padding-left: 2.5rem !important;
+            padding-right: 3.2rem !important;
+            box-shadow: none;
+        }
+        .header-search-input::placeholder {
+            color: #6b7280;
+            opacity: 1;
+        }
+        .header-search-input:focus {
+            border-color: #cc2929 !important;
+            box-shadow: 0 0 0 4px rgba(204, 41, 41, 0.18) !important;
+            background: #ffffff !important;
+        }
+        .header-search-filter-btn {
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #f9fafb;
+            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
         .search-box .search-icon {
             position: absolute;
             left: 15px;
@@ -169,6 +263,7 @@
             transform: translateY(-50%);
             z-index: 2;
             pointer-events: none;
+            color: #6b7280 !important;
         }
         /* Prevent global icon rule from affecting filter icon */
         .search-box .filter-icon {
@@ -182,6 +277,11 @@
             background-color: #ffffff;
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .search-filter-overlay {
+            z-index: 1300;
+            min-width: 100%;
+            max-width: 40rem;
         }
         .search-filter-overlay .form-label {
             margin-bottom: 0.25rem;
@@ -214,6 +314,32 @@
             background-color: #ffffff;
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .search-results-overlay {
+            z-index: 1290;
+            min-width: 100%;
+            max-width: 40rem;
+        }
+        .header-saved-search-row {
+            min-height: 42px;
+            align-content: center;
+        }
+        .header-saved-search-row .form-control {
+            background: #ffffff !important;
+            border: 1px solid #d1d5db !important;
+        }
+        .header-saved-search-row .btn {
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .header-search-wrap,
+            .search-filter-overlay,
+            .search-results-overlay {
+                max-width: calc(100vw - 2rem) !important;
+            }
+            .header-saved-search-row {
+                width: 100%;
+            }
         }
         .search-results-overlay .list-group-item {
             padding: 0.75rem 1rem;

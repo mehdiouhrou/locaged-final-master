@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Scout\Searchable;
 use App\Models\Service;
 use App\Models\SubDepartment;
@@ -184,16 +183,18 @@ class DocumentVersion extends Model
      */
     public function shouldBeSearchable(): bool
     {
-        // Only make the latest version searchable
+        // Only the latest approved version is searchable.
         $latestVersion = $this->document->latestVersion;
         if (!$latestVersion || $latestVersion->id !== $this->id) {
             return false;
         }
-        // if(!Storage::disk('local')->exists($this->file_path)) {
-        //     Log::info('File Does not exist: ' . $this->file_path);
-        //     return false;
-        // }
-        // File existence check removed - allow indexing even if file is missing
+        if (($this->document->status ?? null) !== 'approved') {
+            return false;
+        }
+        if (trim((string) $this->ocr_text) === '') {
+            return false;
+        }
+
         return true;
     }
 
@@ -201,17 +202,23 @@ class DocumentVersion extends Model
 
     public function toSearchableArray(): array
     {
+        $documentDate = $this->document->created_at
+            ? $this->document->created_at->getTimestamp()
+            : null;
+        $uploadedAt = $this->uploaded_at?->getTimestamp();
+
         return [
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'document_id' => $this->document_id,
-            'name' => $this->document->title,
-            'file' => $this->file_path,
-            'ocr_text' => $this->ocr_text,
-            'version_number' => $this->version_number,
-            'uploaded_at' => $this->uploaded_at?->toDateTimeString(),
-            'uploaded_by' => optional($this->uploadedBy)->full_name,
-            'metadata_author' => $this->document->metadata['author'] ?? null,
+            'title' => (string) ($this->document->title ?? ''),
+            'content' => (string) ($this->ocr_text ?? ''),
+            'category_name' => (string) ($this->document->category?->name ?? ''),
+            'status' => (string) ($this->document->status ?? ''),
+            'created_by_name' => (string) ($this->document->createdBy?->full_name ?? ''),
+            'document_date' => $documentDate,
             'tags' => $this->document->tags->pluck('name')->toArray(),
+            'service_name' => (string) ($this->document->service?->name ?? ''),
+            'uploaded_at' => $uploadedAt,
         ];
     }
 

@@ -22,6 +22,7 @@
                                 <th style="min-width: 110px;">{{ ui_t('pages.destructions.creation_date') }}</th>
                                 <th style="min-width: 110px;">{{ ui_t('pages.destructions.expiration_date') }}</th>
                                 <th style="min-width: 80px;">{{ ui_t('pages.destructions.status') }}</th>
+                                <th style="min-width: 160px;" class="text-center">PV / Preuve</th>
                                 <th style="min-width: 200px;" class="text-center">{{ ui_t('pages.destructions.actions') }}</th>
                             </tr>
                         </thead>
@@ -65,6 +66,29 @@
                                         <span class="badge bg-danger">
                                             {{ ui_t('pages.destructions.status_values.expired') }}
                                         </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @php
+                                            $pv = $doc->destructionCertificates->first();
+                                        @endphp
+                                        @if($pv && $pv->pdf_path)
+                                            @can('view', $pv)
+                                                <div class="d-inline-flex gap-1">
+                                                    <a href="{{ route('destruction-certificates.download', $pv) }}"
+                                                       class="btn btn-sm btn-outline-primary"
+                                                       title="PDF">
+                                                        <i class="fa-solid fa-file-pdf"></i>
+                                                    </a>
+                                                    <a href="{{ route('destruction-certificates.proof.verify', $pv) }}"
+                                                       class="btn btn-sm btn-outline-dark"
+                                                       title="{{ __('Vérifier la preuve') }}">
+                                                        <i class="fa-solid fa-shield-check"></i>
+                                                    </a>
+                                                </div>
+                                            @endcan
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
                                     </td>
                                     {{-- Actions --}}
                                     <td>
@@ -138,7 +162,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">
+                                    <td colspan="7" class="text-center py-4 text-muted">
                                         {{ ui_t('pages.destructions.no_expired_documents') }}
                                     </td>
                                 </tr>

@@ -9,6 +9,82 @@
             @endcan
         </div>
 
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('Salles') }}</div>
+                        <div class="fs-5 fw-bold">{{ $kpis['rooms'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('Boîtes') }}</div>
+                        <div class="fs-5 fw-bold">{{ $kpis['boxes'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('Documents') }}</div>
+                        <div class="fs-5 fw-bold">{{ $kpis['documents'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('Empruntés') }}</div>
+                        <div class="fs-5 fw-bold text-warning">{{ $kpis['borrowed'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('En retard') }}</div>
+                        <div class="fs-5 fw-bold text-danger">{{ $kpis['overdue'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted mb-1">{{ __('Recherche') }}</label>
+                        <input type="text" id="locationFilterSearch" class="form-control form-control-sm" placeholder="{{ __('Salle, rangée, étagère, boîte, document') }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-1">{{ __('Salle') }}</label>
+                        <select id="locationFilterRoom" class="form-select form-select-sm">
+                            <option value="all">{{ __('Toutes') }}</option>
+                            @foreach($rooms as $room)
+                                <option value="{{ $room->id }}">{{ $room->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-1">{{ __('Statut boîte') }}</label>
+                        <select id="locationFilterStatus" class="form-select form-select-sm">
+                            <option value="all">{{ __('Tous') }}</option>
+                            <option value="available">{{ __('Disponible') }}</option>
+                            <option value="borrowed">{{ __('Emprunté') }}</option>
+                            <option value="overdue">{{ __('En retard') }}</option>
+                            <option value="empty">{{ __('Vide') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+                        <button id="locationFilterReset" type="button" class="btn btn-sm btn-outline-secondary w-100">{{ __('Réinitialiser') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
 
         @can('create', \App\Models\PhysicalLocation::class)
@@ -204,6 +280,163 @@
                 </div>
             </div>
             @endunless
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-header bg-dark text-white">
+                            <h6 class="mb-0"><i class="fas fa-layer-group me-1"></i> {{ __('Création en lot (plage)') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{{ route('physical-locations.bulk-add-boxes') }}">
+                                @csrf
+                                <div class="mb-2">
+                                    <label class="form-label">{{ __('Service') }}</label>
+                                    <select class="form-select form-select-sm" name="service_id" required>
+                                        <option value="">{{ __('Sélectionner un service') }}</option>
+                                        @php
+                                            $user = auth()->user();
+                                            $accessibleServiceIds = \App\Models\Box::getAccessibleServiceIds($user);
+                                            if ($accessibleServiceIds === 'all') {
+                                                $bulkServices = \App\Models\Service::orderBy('name')->get();
+                                            } else {
+                                                $bulkServices = \App\Models\Service::whereIn('id', $accessibleServiceIds)->orderBy('name')->get();
+                                            }
+                                        @endphp
+                                        @foreach($bulkServices as $service)
+                                            <option value="{{ $service->id }}">{{ $service->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label">{{ __('Salle') }}</label>
+                                        <select class="form-select form-select-sm" id="bulk_box_room_id">
+                                            <option value="">{{ __('Sélectionner') }}</option>
+                                            @foreach($rooms as $room)
+                                                <option value="{{ $room->id }}">{{ $room->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label">{{ __('Rangée') }}</label>
+                                        <select class="form-select form-select-sm" id="bulk_box_row_id">
+                                            <option value="">{{ __('D’abord salle') }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label">{{ __('Étagère') }}</label>
+                                        <select class="form-select form-select-sm" id="bulk_box_shelf_id" name="shelf_id" required>
+                                            <option value="">{{ __('D’abord rangée') }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row g-2 mt-1">
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label">{{ __('Préfixe') }}</label>
+                                        <input type="text" name="prefix" class="form-control form-control-sm" placeholder="ARCH" value="BOX">
+                                    </div>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">{{ __('De') }}</label>
+                                        <input type="number" min="0" name="start_number" class="form-control form-control-sm" value="1" required>
+                                    </div>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">{{ __('À') }}</label>
+                                        <input type="number" min="0" name="end_number" class="form-control form-control-sm" value="100" required>
+                                    </div>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">{{ __('Padding') }}</label>
+                                        <input type="number" min="1" max="8" name="padding" class="form-control form-control-sm" value="3">
+                                    </div>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">{{ __('Séparateur') }}</label>
+                                        <input type="text" name="separator" class="form-control form-control-sm" value="-">
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-2">{{ __('Les noms générés suivent la nomenclature fournie par l’équipe d’archivage.') }}</small>
+                                <div class="mt-3 d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-sm btn-dark">{{ __('Créer la plage') }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-file-csv me-1"></i> {{ __('Import CSV avec preview') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{{ route('physical-locations.import-boxes.preview') }}" enctype="multipart/form-data" class="mb-3">
+                                @csrf
+                                <div class="mb-2">
+                                    <label class="form-label">{{ __('Fichier CSV') }}</label>
+                                    <input type="file" name="csv_file" class="form-control form-control-sm" accept=".csv,.txt" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">{{ __('Service par défaut (si colonne service vide)') }}</label>
+                                    <select class="form-select form-select-sm" name="default_service_id">
+                                        <option value="">{{ __('Aucun') }}</option>
+                                        @foreach($bulkServices as $service)
+                                            <option value="{{ $service->id }}">{{ $service->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="csvHasHeader" name="has_header" value="1" checked>
+                                    <label class="form-check-label" for="csvHasHeader">{{ __('Le fichier contient une ligne d’entête') }}</label>
+                                </div>
+                                <small class="text-muted d-block mb-2">{{ __('Colonnes attendues: room,row,shelf,box_name,service_name_or_id,description') }}</small>
+                                <button type="submit" class="btn btn-sm btn-secondary">{{ __('Générer le preview') }}</button>
+                            </form>
+
+                            @if(!empty($boxImportPreview))
+                                <div class="border rounded-3 p-2">
+                                    <div class="small mb-1">
+                                        <strong>{{ __('Preview') }}</strong>:
+                                        {{ __(':ok lignes valides / :ko erreurs', ['ok' => $boxImportPreview['count_rows'] ?? 0, 'ko' => $boxImportPreview['count_errors'] ?? 0]) }}
+                                    </div>
+                                    @if(!empty($boxImportPreview['errors']))
+                                        <ul class="small text-danger mb-2">
+                                            @foreach(array_slice($boxImportPreview['errors'], 0, 5) as $error)
+                                                <li>{{ $error }}</li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+                                    @if(!empty($boxImportPreview['rows']))
+                                        <div class="table-responsive mb-2" style="max-height: 180px;">
+                                            <table class="table table-sm mb-0">
+                                                <thead>
+                                                <tr>
+                                                    <th>{{ __('Ligne') }}</th>
+                                                    <th>{{ __('Chemin') }}</th>
+                                                    <th>{{ __('Boîte') }}</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                @foreach(array_slice($boxImportPreview['rows'], 0, 20) as $r)
+                                                    <tr>
+                                                        <td>{{ $r['line'] }}</td>
+                                                        <td>{{ $r['room_name'] }} → {{ $r['row_name'] }} → {{ $r['shelf_name'] }}</td>
+                                                        <td>{{ $r['box_name'] }}</td>
+                                                    </tr>
+                                                @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                    <form method="post" action="{{ route('physical-locations.import-boxes.commit') }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-success" {{ !empty($boxImportPreview['count_errors']) ? 'disabled' : '' }}>
+                                            {{ __('Valider import (transaction + rollback)') }}
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
         @endcan
 
         <!-- Hierarchical Tree View -->
@@ -211,18 +444,16 @@
             <h5 class="mb-3">{{ ui_t('pages.physical.actions.location_structure') }}</h5>
             
             @if(isset($rooms) && $rooms->count() > 0)
+                <div class="accordion" id="roomsAccordion">
                 @foreach($rooms as $room)
-                    <div class="card mb-3">
+                    <div class="card mb-3 location-room-card" data-room-id="{{ $room->id }}" data-filter-text="{{ strtolower($room->name.' '.$room->description) }}">
                         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>📍 {{ ui_t('pages.physical.fields.room') }}: {{ $room->name }}</strong>
-                                @if($room->description)
-                                    <small class="d-block">{{ $room->description }}</small>
-                                @endif
-                            </div>
+                            <button class="btn btn-link text-white text-decoration-none p-0 fw-semibold d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#roomCollapse{{ $room->id }}" aria-expanded="false" aria-controls="roomCollapse{{ $room->id }}">
+                                <span>📍 {{ ui_t('pages.physical.fields.room') }}: {{ $room->name }}</span>
+                                <span class="badge bg-light text-dark">{{ $room->rows->count() }} {{ ui_t('pages.physical.fields.row') }}(s)</span>
+                            </button>
                             <div class="d-flex align-items-center">
-                                <span class="badge bg-light text-dark me-2">{{ $room->rows->count() }} {{ ui_t('pages.physical.fields.row') }}(s)</span>
-                                @if(auth()->user()->hasRole(['master', 'Super Administrator']))
+                                @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
                                     <form method="POST" action="{{ route('physical-locations.destroy-room', $room->id) }}" 
                                           class="d-inline" onsubmit="return confirm('{{ ui_t('pages.activity_log.are_you_sure') }}');">
                                         @csrf
@@ -234,20 +465,26 @@
                                 @endif
                             </div>
                         </div>
+                        <div id="roomCollapse{{ $room->id }}" class="collapse location-room-collapse" data-bs-parent="#roomsAccordion">
                         <div class="card-body">
+                            @if($room->description)
+                                <small class="text-muted d-block mb-2">{{ $room->description }}</small>
+                            @endif
                             @if($room->rows->count() > 0)
                                 @foreach($room->rows as $row)
-                                    <div class="ms-3 mb-3 border-start border-3 border-secondary ps-3">
+                                    <div class="ms-3 mb-3 border-start border-3 border-secondary ps-3 location-row-wrap" data-filter-text="{{ strtolower($row->name.' '.$row->description) }}">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <div>
-                                                <strong>📐 {{ ui_t('pages.physical.fields.row') }}: {{ $row->name }}</strong>
+                                                <button class="btn btn-link text-decoration-none p-0 fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#rowCollapse{{ $row->id }}" aria-expanded="false" aria-controls="rowCollapse{{ $row->id }}">
+                                                    📐 {{ ui_t('pages.physical.fields.row') }}: {{ $row->name }}
+                                                </button>
                                                 @if($row->description)
                                                     <small class="text-muted d-block">{{ $row->description }}</small>
                                                 @endif
                                             </div>
                                             <span class="badge bg-secondary">{{ $row->shelves->count() }} {{ ui_t('pages.physical.fields.shelf') }}(s)</span>
                                         </div>
-                                        
+                                        <div id="rowCollapse{{ $row->id }}" class="collapse location-row-collapse">
                                         @if($row->shelves->count() > 0)
                                             @foreach($row->shelves as $shelf)
                                                 <div class="ms-3 mt-2 mb-2 border-start border-2 border-info ps-3">
@@ -263,9 +500,39 @@
                                                     
                                                     <ul class="list-unstyled ms-3 mt-2">
                                                             @foreach($shelf->boxes as $box)
-                                                                <li class="mb-2 p-2 bg-light rounded d-flex justify-content-between align-items-center">
-                                                                    <div>
+                                                                @php
+                                                                    $boxDocuments = $box->documents;
+                                                                    $boxOpenLoans = $boxDocuments->map(function ($doc) use ($openLoans) {
+                                                                        return $openLoans->get($doc->id);
+                                                                    })->filter();
+                                                                    $hasOverdue = $boxOpenLoans->contains(fn ($loan) => $loan->due_at && $loan->due_at->isPast());
+                                                                    $boxStatus = 'available';
+                                                                    if ($boxDocuments->count() === 0) {
+                                                                        $boxStatus = 'empty';
+                                                                    } elseif ($hasOverdue) {
+                                                                        $boxStatus = 'overdue';
+                                                                    } elseif ($boxOpenLoans->isNotEmpty()) {
+                                                                        $boxStatus = 'borrowed';
+                                                                    }
+                                                                    $boxStatusLabel = match ($boxStatus) {
+                                                                        'empty' => __('Vide'),
+                                                                        'overdue' => __('En retard'),
+                                                                        'borrowed' => __('Emprunté'),
+                                                                        default => __('Disponible'),
+                                                                    };
+                                                                    $boxStatusClass = match ($boxStatus) {
+                                                                        'empty' => 'bg-secondary-subtle text-secondary-emphasis',
+                                                                        'overdue' => 'bg-danger-subtle text-danger-emphasis',
+                                                                        'borrowed' => 'bg-warning-subtle text-warning-emphasis',
+                                                                        default => 'bg-success-subtle text-success-emphasis',
+                                                                    };
+                                                                @endphp
+                                                                <li class="mb-2 p-2 bg-light rounded d-flex justify-content-between align-items-start location-box-item"
+                                                                    data-filter-status="{{ $boxStatus }}"
+                                                                    data-filter-text="{{ strtolower($box->name.' '.$box->description.' '.$box->__toString().' '.$boxDocuments->pluck('title')->implode(' ')) }}">
+                                                                    <div class="me-2">
                                                                         <strong>📦 {{ $box->name }}</strong>
+                                                                        <span class="badge rounded-pill {{ $boxStatusClass }} ms-2">{{ $boxStatusLabel }}</span>
                                                                         @if($box->description)
                                                                             <small class="text-muted d-block">{{ $box->description }}</small>
                                                                         @endif
@@ -283,6 +550,36 @@
                                                                             </a>
                                                                         @else
                                                                             <span class="badge bg-secondary ms-2">0 {{ __('file(s)') }}</span>
+                                                                        @endif
+
+                                                                        @if($boxDocuments->isNotEmpty())
+                                                                            <div class="mt-2 d-flex flex-column gap-1">
+                                                                                @foreach($boxDocuments->take(3) as $doc)
+                                                                                    @php
+                                                                                        $docLoan = $openLoans->get($doc->id);
+                                                                                    @endphp
+                                                                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                                                                        <span class="small text-muted text-truncate" style="max-width: 240px;" title="{{ $doc->title }}">{{ $doc->title }}</span>
+                                                                                        @if($docLoan)
+                                                                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('Emprunt en cours') }}</span>
+                                                                                            @can('create', \App\Models\DocumentMovement::class)
+                                                                                                <form method="POST" action="{{ route('documents.return', $doc) }}" class="d-inline">
+                                                                                                    @csrf
+                                                                                                    <button type="submit" class="btn btn-xs btn-outline-success px-2 py-0">{{ __('Retour') }}</button>
+                                                                                                </form>
+                                                                                            @endcan
+                                                                                        @else
+                                                                                            @can('create', \App\Models\DocumentMovement::class)
+                                                                                                <form method="POST" action="{{ route('documents.borrow', $doc) }}" class="d-inline">
+                                                                                                    @csrf
+                                                                                                    <input type="hidden" name="borrower_name" value="{{ auth()->user()->full_name }}">
+                                                                                                    <button type="submit" class="btn btn-xs btn-outline-warning px-2 py-0">{{ __('Emprunter') }}</button>
+                                                                                                </form>
+                                                                                            @endcan
+                                                                                        @endif
+                                                                                    </div>
+                                                                                @endforeach
+                                                                            </div>
                                                                         @endif
                                                                     </div>
                                                                     <div class="d-inline-flex gap-1">
@@ -317,8 +614,10 @@
                                 <p class="text-muted ms-3"><em>{{ ui_t('pages.physical.actions.no_rows') }}</em></p>
                             @endif
                         </div>
+                        </div>
                     </div>
                 @endforeach
+                </div>
             @else
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 
@@ -451,7 +750,7 @@
             if (shelfText) parts.push(shelfText);
             if (boxText) parts.push(boxText);
             // Use arrow separator between path segments
-            pathSpan.textContent = parts.join(' → ');
+            pathSpan.textContent = parts.join(' · ');
         }
 
         // Initialize edit box full path updates based on text inputs
@@ -481,6 +780,81 @@
                 attach(boxNameInput);
 
                 updateEditBoxFullPath(boxId);
+            });
+
+            const searchInput = document.getElementById('locationFilterSearch');
+            const roomSelect = document.getElementById('locationFilterRoom');
+            const statusSelect = document.getElementById('locationFilterStatus');
+            const resetButton = document.getElementById('locationFilterReset');
+
+            function applyLocationFilters() {
+                const term = (searchInput?.value || '').trim().toLowerCase();
+                const roomId = roomSelect?.value || 'all';
+                const status = statusSelect?.value || 'all';
+
+                document.querySelectorAll('.location-room-card').forEach(function (roomCard) {
+                    const roomMatch = roomId === 'all' || roomCard.dataset.roomId === roomId;
+                    let rowMatchCount = 0;
+
+                    roomCard.querySelectorAll('.location-row-wrap').forEach(function (rowWrap) {
+                        let boxMatchCount = 0;
+                        rowWrap.querySelectorAll('.location-box-item').forEach(function (boxItem) {
+                            const text = (boxItem.dataset.filterText || '').toLowerCase();
+                            const statusMatch = status === 'all' || boxItem.dataset.filterStatus === status;
+                            const textMatch = term === '' || text.includes(term);
+                            const showBox = statusMatch && textMatch;
+                            boxItem.style.display = showBox ? '' : 'none';
+                            if (showBox) {
+                                boxMatchCount += 1;
+                            }
+                        });
+
+                        const rowText = (rowWrap.dataset.filterText || '').toLowerCase();
+                        const showRow = boxMatchCount > 0 || (term !== '' && rowText.includes(term) && status === 'all');
+                        rowWrap.style.display = showRow ? '' : 'none';
+                        if (showRow) {
+                            rowMatchCount += 1;
+                        }
+                    });
+
+                    const roomText = (roomCard.dataset.filterText || '').toLowerCase();
+                    const showRoom = roomMatch && (rowMatchCount > 0 || (term !== '' && roomText.includes(term) && status === 'all'));
+                    roomCard.style.display = showRoom ? '' : 'none';
+
+                    const roomCollapse = roomCard.querySelector('.location-room-collapse');
+                    if (window.bootstrap && roomCollapse) {
+                        const instance = window.bootstrap.Collapse.getOrCreateInstance(roomCollapse, { toggle: false });
+                        if (showRoom && (term !== '' || status !== 'all' || roomId !== 'all')) {
+                            instance.show();
+                        } else {
+                            instance.hide();
+                        }
+                    }
+
+                    roomCard.querySelectorAll('.location-row-collapse').forEach(function (rowCollapse) {
+                        if (!window.bootstrap) {
+                            return;
+                        }
+                        const rowWrap = rowCollapse.closest('.location-row-wrap');
+                        const showRow = rowWrap && rowWrap.style.display !== 'none';
+                        const rowInstance = window.bootstrap.Collapse.getOrCreateInstance(rowCollapse, { toggle: false });
+                        if (showRow && (term !== '' || status !== 'all')) {
+                            rowInstance.show();
+                        } else {
+                            rowInstance.hide();
+                        }
+                    });
+                });
+            }
+
+            searchInput?.addEventListener('input', applyLocationFilters);
+            roomSelect?.addEventListener('change', applyLocationFilters);
+            statusSelect?.addEventListener('change', applyLocationFilters);
+            resetButton?.addEventListener('click', function () {
+                if (searchInput) searchInput.value = '';
+                if (roomSelect) roomSelect.value = 'all';
+                if (statusSelect) statusSelect.value = 'all';
+                applyLocationFilters();
             });
         });
 
@@ -535,6 +909,50 @@
             
             if (!roomId || !rowId) return;
             
+            const room = rooms.find(r => r.id === roomId);
+            if (room) {
+                const row = room.rows.find(r => r.id === rowId);
+                if (row) {
+                    row.shelves.forEach(shelf => {
+                        const option = document.createElement('option');
+                        option.value = shelf.id;
+                        option.textContent = shelf.name;
+                        shelfSelect.appendChild(option);
+                    });
+                }
+            }
+        });
+
+        // Bulk create selectors: Room -> Row -> Shelf
+        document.getElementById('bulk_box_room_id')?.addEventListener('change', function() {
+            const roomId = parseInt(this.value);
+            const rowSelect = document.getElementById('bulk_box_row_id');
+            const shelfSelect = document.getElementById('bulk_box_shelf_id');
+            if (!rowSelect || !shelfSelect) return;
+
+            rowSelect.innerHTML = '<option value="">' + translations.selectRow + '</option>';
+            shelfSelect.innerHTML = '<option value="">' + translations.firstSelectRow + '</option>';
+            if (!roomId) return;
+
+            const room = rooms.find(r => r.id === roomId);
+            if (room) {
+                room.rows.forEach(row => {
+                    const option = document.createElement('option');
+                    option.value = row.id;
+                    option.textContent = row.name;
+                    rowSelect.appendChild(option);
+                });
+            }
+        });
+
+        document.getElementById('bulk_box_row_id')?.addEventListener('change', function() {
+            const roomId = parseInt(document.getElementById('bulk_box_room_id')?.value || '');
+            const rowId = parseInt(this.value);
+            const shelfSelect = document.getElementById('bulk_box_shelf_id');
+            if (!shelfSelect) return;
+            shelfSelect.innerHTML = '<option value="">' + translations.selectShelf + '</option>';
+            if (!roomId || !rowId) return;
+
             const room = rooms.find(r => r.id === roomId);
             if (room) {
                 const row = room.rows.find(r => r.id === rowId);

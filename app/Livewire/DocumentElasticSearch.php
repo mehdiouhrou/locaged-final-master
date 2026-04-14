@@ -2,17 +2,24 @@
 
 namespace App\Livewire;
 
+use App\Enums\DocumentStatus;
+use App\Models\Category;
 use App\Models\DocumentVersion;
+use App\Models\SavedSearch;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class DocumentElasticSearch extends Component
 {
     public $query = '';
     public $results = [];
+    public $savedSearchName = '';
 
     public $filters = [
         'type' => '',
+        'category_id' => '',
+        'status' => '',
         'creation_start' => '',
         'creation_end' => '',
         'modified_start' => '',
@@ -48,6 +55,8 @@ class DocumentElasticSearch extends Component
     {
         $this->filters = [
             'type' => '',
+            'category_id' => '',
+            'status' => '',
             'creation_start' => '',
             'creation_end' => '',
             'modified_start' => '',
@@ -60,6 +69,65 @@ class DocumentElasticSearch extends Component
         $this->searchDocuments(); // Optional: refresh results after reset
     }
 
+    public function getSavedSearchesProperty()
+    {
+        $userId = auth()->id();
+        if (! $userId) {
+            return collect();
+        }
+
+        return SavedSearch::query()
+            ->where('user_id', $userId)
+            ->latest()
+            ->limit(10)
+            ->get();
+    }
+
+    public function saveCurrentSearch(): void
+    {
+        $this->validate([
+            'savedSearchName' => ['required', 'string', 'max:120'],
+        ]);
+
+        $name = trim((string) $this->savedSearchName);
+        if ($name === '' || ! auth()->check()) {
+            return;
+        }
+
+        SavedSearch::create([
+            'user_id' => auth()->id(),
+            'name' => $name,
+            'query' => $this->query,
+            'filters' => $this->filters,
+        ]);
+
+        $this->savedSearchName = '';
+    }
+
+    public function applySavedSearch(int $id): void
+    {
+        $saved = SavedSearch::query()
+            ->where('id', $id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (! $saved) {
+            return;
+        }
+
+        $this->query = (string) ($saved->query ?? '');
+        $this->filters = is_array($saved->filters) ? $saved->filters : $this->filters;
+        $this->searchDocuments();
+    }
+
+    public function deleteSavedSearch(int $id): void
+    {
+        SavedSearch::query()
+            ->where('id', $id)
+            ->where('user_id', auth()->id())
+            ->delete();
+    }
+
 
     public function getActiveFiltersCountProperty()
     {
@@ -70,8 +138,7 @@ class DocumentElasticSearch extends Component
     private function searchDocuments()
     {
         // Use a simple database query against DocumentVersion + Document title
-        // so the header search works even when Elasticsearch / Scout is not
-        // configured.
+        // so the header search works even when Scout is not configured.
         $term = trim((string) $this->query);
         if (strlen($term) < 2) {
             $this->results = [];
@@ -110,6 +177,28 @@ class DocumentElasticSearch extends Component
 
                 // If the extension is not in the list of extensions for this type, exclude
                 if (!isset($typeExtensions[$this->filters['type']]) || !in_array($ext, $typeExtensions[$this->filters['type']])) {
+                    return false;
+                }
+            }
+
+            // FILTER: Category
+            if (! empty($this->filters['category_id'])) {
+                $docCategoryId = (int) ($doc->document->category_id ?? 0);
+                if ($docCategoryId !== (int) $this->filters['category_id']) {
+                    return false;
+                }
+            }
+
+            // FILTER: Status
+            if (! empty($this->filters['status'])) {
+                $docStatus = (string) ($doc->document->status ?? '');
+                if ((string) $this->filters['status'] === 'expired') {
+                    $isExpired = (bool) ($doc->document->is_expired ?? false)
+                        || (optional($doc->document->expire_at)?->isPast() ?? false);
+                    if (! $isExpired) {
+                        return false;
+                    }
+                } elseif ($docStatus !== (string) $this->filters['status']) {
                     return false;
                 }
             }
@@ -172,6 +261,75 @@ class DocumentElasticSearch extends Component
         })->values();
     }
 
+    public function highlightedTitle(?string $title): string
+    {
+        $safeTitle = trim((string) $title);
+        if ($safeTitle === '') {
+            return '';
+        }
+
+        return $this->highlightText(Str::limit($safeTitle, 90));
+    }
+
+    public function highlightedSnippet(?string $ocrText): string
+    {
+        $text = trim((string) $ocrText);
+        if ($text === '') {
+            return '';
+        }
+
+        $term = trim((string) $this->query);
+        if ($term === '') {
+            return e(Str::limit($text, 110));
+        }
+
+        $position = mb_stripos($text, $term);
+        if ($position === false) {
+            return e(Str::limit($text, 110));
+        }
+
+        $start = max(0, $position - 45);
+        $snippet = mb_substr($text, $start, 120);
+
+        if ($start > 0) {
+            $snippet = '...'.$snippet;
+        }
+        if (($start + mb_strlen($snippet)) < mb_strlen($text)) {
+            $snippet .= '...';
+        }
+
+        return $this->highlightText($snippet);
+    }
+
+    private function highlightText(string $text): string
+    {
+        $term = trim((string) $this->query);
+        if ($term === '') {
+            return e($text);
+        }
+
+        $escapedTerm = preg_quote($term, '/');
+        $parts = preg_split('/('.$escapedTerm.')/iu', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (! is_array($parts)) {
+            return e($text);
+        }
+
+        $out = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+
+            if (mb_strtolower($part) === mb_strtolower($term)) {
+                $out .= '<mark>'.e($part).'</mark>';
+            } else {
+                $out .= e($part);
+            }
+        }
+
+        return $out;
+    }
+
     public function goToDocuments()
     {
         // Map header filters to DocumentsTable query params
@@ -180,6 +338,8 @@ class DocumentElasticSearch extends Component
         $params = [
             'search'   => $this->query ?: null,
             'fileType' => $fileType ?: null,
+            'category' => $this->filters['category_id'] ?: null,
+            'status'   => $this->filters['status'] ?: null,
             'dateFrom' => $this->filters['creation_start'] ?: null,
             'dateTo'   => $this->filters['creation_end'] ?: null,
             'author'   => $this->filters['author'] ?: null,
@@ -195,6 +355,12 @@ class DocumentElasticSearch extends Component
 
     public function render()
     {
-        return view('livewire.document-elastic-search');
+        $categories = Category::query()->orderBy('name')->get(['id', 'name']);
+        $statuses = array_map(fn (DocumentStatus $s) => $s->value, DocumentStatus::activeCases());
+
+        return view('livewire.document-elastic-search', [
+            'categories' => $categories,
+            'statuses' => $statuses,
+        ]);
     }
 }

@@ -69,7 +69,7 @@ sudo bash install-offline.sh
 |-----------|---------|
 | **Application Code** | Complete Laravel app WITH vendor/ and node_modules/ |
 | **System Packages** | All .deb files for PHP 8.2, MySQL, Redis, Nginx, Supervisor |
-| **Elasticsearch** | Full installer (~500MB) |
+| **Typesense** | Full installer |
 | **Tesseract OCR** | With French, Arabic, English language packs |
 | **Configurations** | Nginx and Supervisor configs from your server |
 | **Tools** | Composer installer |
@@ -83,7 +83,7 @@ The offline installer script installs:
 - ✅ PHP 8.2 + 10 extensions (imagick, gd, mysql, redis, etc.)
 - ✅ MySQL 8.0
 - ✅ Redis
-- ✅ Elasticsearch 8.x
+- ✅ Typesense
 - ✅ Tesseract OCR (3 languages)
 - ✅ Nginx
 - ✅ Supervisor

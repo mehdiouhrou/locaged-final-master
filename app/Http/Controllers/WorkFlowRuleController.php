@@ -23,6 +23,9 @@ class WorkFlowRuleController extends Controller
     {
 
         $validated = $request->validate([
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'level' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'approver_role' => ['nullable', 'string', 'max:120'],
             'from_status' => [
                 'required',
                 'different:to_status',
@@ -30,6 +33,8 @@ class WorkFlowRuleController extends Controller
                 Rule::unique('workflow_rules')
                     ->where(function ($query) use ($departmentId, $request) {
                         return $query->where('department_id', $departmentId)
+                            ->where('category_id', $request->category_id)
+                            ->where('level', (int) ($request->level ?: 1))
                             ->where('to_status', $request->to_status);
                     }),
             ],
@@ -39,6 +44,7 @@ class WorkFlowRuleController extends Controller
         $department = Department::findOrFail($departmentId);
 
         $validated['department_id'] = $department->id;
+        $validated['level'] = (int) ($validated['level'] ?? 1);
         WorkFlowRule::create($validated);
 
         return redirect()->back()->with('success', 'Workflow rule created successfully.');
@@ -48,6 +54,9 @@ class WorkFlowRuleController extends Controller
     public function update(Request $request, WorkFlowRule $workflowRule)
     {
         $validated = $request->validate([
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'level' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'approver_role' => ['nullable', 'string', 'max:120'],
             'from_status' => [
                 'required',
                 new Enum(DocumentStatus::class),
@@ -55,6 +64,8 @@ class WorkFlowRuleController extends Controller
                     ->ignore($workflowRule->id)
                     ->where(function ($query) use ($workflowRule, $request) {
                         return $query->where('department_id', $workflowRule->department_id)
+                        ->where('category_id', $request->category_id)
+                        ->where('level', (int) ($request->level ?: 1))
                         ->where('to_status', $request->to_status);
                     }),
                 'different:to_status',
@@ -66,6 +77,7 @@ class WorkFlowRuleController extends Controller
         ]);
 
 
+        $validated['level'] = (int) ($validated['level'] ?? 1);
         $workflowRule->update($validated);
 
         return redirect()->back()->with('success', 'Workflow rule updated successfully.');
