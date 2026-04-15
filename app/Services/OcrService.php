@@ -5,6 +5,8 @@ namespace App\Services;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
 use thiagoalessio\TesseractOCR\TesseractOCR;
 
 class OcrService
@@ -93,9 +95,14 @@ class OcrService
 
         } catch (Exception $e) {
             Log::error("Failed to load PDF {$pdfPath} or determine page count. File might be corrupted or encrypted: " . $e->getMessage());
-            // If we can't even read the PDF (e.g. encrypted), we can't OCR it.
-            // We return empty string instead of throwing to avoid crashing the queue repeatedly for a bad file.
-            return ''; 
+            $viaPoppler = $this->extractTextFromPdfViaPoppler($pdfPath);
+            if ($viaPoppler !== '') {
+                Log::info('PDF OCR succeeded via Poppler (pdftoppm) after Imagick failure', ['path' => $pdfPath]);
+
+                return $viaPoppler;
+            }
+
+            return '';
         }
 
         $fullText = '';
@@ -222,7 +229,99 @@ class OcrService
             }
         }
 
-        return trim($fullText);
+        $result = trim($fullText);
+        if ($result === '') {
+            $viaPoppler = $this->extractTextFromPdfViaPoppler($pdfPath);
+            if ($viaPoppler !== '') {
+                Log::info('PDF OCR succeeded via Poppler (pdftoppm) after empty Imagick result', ['path' => $pdfPath]);
+
+                return $viaPoppler;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Render PDF pages to PNG with Poppler (does not use ImageMagick's PDF coder — avoids policy blocks).
+     */
+    private function extractTextFromPdfViaPoppler(string $pdfPath): string
+    {
+        $pdftoppm = $this->resolvePdftoppmBinary();
+        if ($pdftoppm === null) {
+            Log::warning('pdftoppm not found; install poppler-utils for PDF OCR fallback (apt install poppler-utils).');
+
+            return '';
+        }
+
+        $tmpDir = storage_path('app/tmp');
+        if (! is_dir($tmpDir) && ! @mkdir($tmpDir, 0755, true)) {
+            Log::error("Cannot create tmp dir for PDF OCR: {$tmpDir}");
+
+            return '';
+        }
+
+        $prefix = $tmpDir.'/'.Str::uuid()->toString();
+        $paths = [];
+
+        try {
+            $process = new Process([$pdftoppm, '-png', '-r', '200', $pdfPath, $prefix]);
+            $process->setTimeout(3600);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                Log::warning('pdftoppm failed: '.$process->getErrorOutput());
+
+                return '';
+            }
+
+            $paths = glob($prefix.'-*.png') ?: [];
+            if ($paths === []) {
+                $paths = glob($prefix.'*.png') ?: [];
+            }
+            natsort($paths);
+            $paths = array_values($paths);
+
+            $fullText = '';
+            foreach ($paths as $png) {
+                if (! is_readable($png) || filesize($png) === 0) {
+                    continue;
+                }
+                try {
+                    $fullText .= (new TesseractOCR($png))
+                        ->lang('fra', 'ara', 'eng')
+                        ->psm(3)
+                        ->oem(1)
+                        ->run()."\n";
+                } catch (Exception $e) {
+                    Log::error("Tesseract failed on Poppler page image {$png}: ".$e->getMessage());
+                }
+            }
+
+            return trim($fullText);
+        } finally {
+            foreach ($paths as $f) {
+                if (is_string($f) && file_exists($f)) {
+                    @unlink($f);
+                }
+            }
+            foreach (glob($prefix.'*.png') ?: [] as $f) {
+                if (file_exists($f)) {
+                    @unlink($f);
+                }
+            }
+        }
+    }
+
+    private function resolvePdftoppmBinary(): ?string
+    {
+        foreach (['/usr/bin/pdftoppm', '/usr/local/bin/pdftoppm'] as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return (new ExecutableFinder)->find('pdftoppm');
     }
 
     private function extractTextFromDocx(string $path): string
