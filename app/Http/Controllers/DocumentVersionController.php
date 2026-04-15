@@ -91,7 +91,7 @@ class DocumentVersionController extends Controller
 
         // Automatically convert Word/Excel versions to PDF right after upload
         // so previews are ready. This mirrors the behavior in DocumentController.
-        if (in_array($docVersion->file_type, ['doc', 'excel'], true)) {
+        if (in_array($docVersion->file_type, officeFileTypesForPdfConversion(), true)) {
             app(PdfConversionService::class)->convertToPdf($docVersion->file_path);
         }
 
@@ -149,7 +149,7 @@ class DocumentVersionController extends Controller
             // keep $fileType as-is ("doc" / "excel") and instead expose a
             // separate $pdfUrl for the Blade view, similar to fullscreen mode.
             $pdfUrl = null;
-            if (in_array($fileType, ['doc', 'excel'], true)) {
+            if (in_array($fileType, officeFileTypesForPdfConversion(), true)) {
                 $converter = app(PdfConversionService::class);
                 $pdfPath   = $converter->convertToPdf($doc->file_path);
 
@@ -436,10 +436,10 @@ class DocumentVersionController extends Controller
             $fileUrl = route('documents.versions.file', ['id' => $id]);
             $fileType = $doc->file_type;
 
-            // For Word/Excel, attempt to resolve or create a converted PDF
+            // For Word/Excel/Presentation, attempt to resolve or create a converted PDF
             // This matches the behavior in viewFullscreen
             $pdfUrl = null;
-            if (in_array($fileType, ['doc', 'excel'], true)) {
+            if (in_array($fileType, officeFileTypesForPdfConversion(), true)) {
                 $converter = app(PdfConversionService::class);
                 $pdfPath = $converter->convertToPdf($doc->file_path);
 
@@ -533,10 +533,10 @@ class DocumentVersionController extends Controller
             $fileUrl  = route('documents.versions.file', ['id' => $id]);
             $fileType = $doc->file_type;
 
-            // For Word/Excel files, ensure we have a PDF conversion so that
+            // For Word/Excel/Presentation files, ensure we have a PDF conversion so that
             // the fullscreen preview can always render a PDF when possible.
             $pdfUrl = null;
-            if (in_array($fileType, ['doc', 'excel'], true)) {
+            if (in_array($fileType, officeFileTypesForPdfConversion(), true)) {
                 $converter = app(PdfConversionService::class);
                 $pdfPath   = $converter->convertToPdf($doc->file_path);
 

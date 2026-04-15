@@ -2,13 +2,18 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class PdfConversionService
 {
+    /** Extensions convertible to PDF for upload preview (Livewire temp path). */
+    public const TEMP_UPLOAD_OFFICE_EXTENSIONS = ['doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'csv', 'ppt', 'pptx'];
+
     /**
      * Convert a document (Word/Excel) to PDF using LibreOffice
      * 
@@ -152,5 +157,98 @@ class PdfConversionService
         $process->run();
 
         return $process->isSuccessful();
+    }
+
+    /**
+     * Convert a readable absolute path (e.g. Livewire temp upload) to a PDF under storage/app/tmp/pdf-preview.
+     * Returns absolute path to the PDF, or null. Caller should unlink the PDF after streaming.
+     */
+    public function convertOfficeAbsolutePathToPdf(string $absolutePath, string $extension): ?string
+    {
+        $extension = strtolower(ltrim($extension, '.'));
+        if (! in_array($extension, self::TEMP_UPLOAD_OFFICE_EXTENSIONS, true)) {
+            return null;
+        }
+        if (! is_readable($absolutePath)) {
+            return null;
+        }
+
+        $tmpBase = storage_path('app/tmp/pdf-preview');
+        if (! is_dir($tmpBase) && ! @mkdir($tmpBase, 0775, true)) {
+            Log::error('Cannot create pdf-preview temp directory', ['dir' => $tmpBase]);
+
+            return null;
+        }
+
+        $id = (string) Str::uuid();
+        $workInput = $tmpBase.DIRECTORY_SEPARATOR.$id.'.'.$extension;
+        if (! @copy($absolutePath, $workInput)) {
+            return null;
+        }
+
+        $expectedPdf = $tmpBase.DIRECTORY_SEPARATOR.$id.'.pdf';
+
+        try {
+            if (in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+                if ($this->convertExcelToPdfWithPhpSpreadsheet($workInput, $expectedPdf) && file_exists($expectedPdf) && filesize($expectedPdf) > 0) {
+                    @unlink($workInput);
+
+                    return $expectedPdf;
+                }
+            }
+
+            if (! $this->isLibreOfficeAvailable()) {
+                @unlink($workInput);
+                Log::warning('Office upload preview: LibreOffice (soffice) not available');
+
+                return null;
+            }
+
+            $uniqueId = uniqid('lo_prev_', true);
+            $tempUserDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'LibreOffice_Preview_'.$uniqueId;
+            $process = new Process([
+                'soffice',
+                '-env:UserInstallation=file://'.$tempUserDir,
+                '--headless',
+                '--convert-to',
+                'pdf',
+                '--outdir',
+                $tmpBase,
+                $workInput,
+            ]);
+            $process->setTimeout(120);
+            $process->run();
+
+            if (is_dir($tempUserDir)) {
+                try {
+                    File::deleteDirectory($tempUserDir);
+                } catch (\Throwable) {
+                    //
+                }
+            }
+
+            @unlink($workInput);
+
+            if (! file_exists($expectedPdf) || filesize($expectedPdf) === 0) {
+                if (file_exists($expectedPdf)) {
+                    @unlink($expectedPdf);
+                }
+                Log::warning('Office upload preview: LibreOffice did not produce PDF', [
+                    'stderr' => $process->getErrorOutput(),
+                ]);
+
+                return null;
+            }
+
+            return $expectedPdf;
+        } catch (\Throwable $e) {
+            @unlink($workInput);
+            if (file_exists($expectedPdf)) {
+                @unlink($expectedPdf);
+            }
+            Log::error('Office upload preview conversion failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 }

@@ -49,7 +49,7 @@
                             <img src="{{ $fileUrl }}" class="w-100 h-100" style="object-fit: contain; min-height: 65vh;" alt="{{ ui_t('pages.upload.image_preview') }}" />
                         @elseif($fileType === 'pdf')
                             <iframe src="{{ $fileUrl }}" class="w-100 border-0" style="min-height: 68vh;"></iframe>
-                        @elseif($fileType === 'doc' || $fileType === 'excel')
+                        @elseif(in_array($fileType, officeFileTypesForPdfConversion(), true))
                             @if(!empty($pdfUrl))
                                 <iframe src="{{ $pdfUrl }}" class="w-100 border-0" style="min-height: 68vh;"></iframe>
                             @else

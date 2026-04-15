@@ -49,7 +49,7 @@
                         <img src="{{ $fileUrl }}" class="w-100" alt="{{ ui_t('pages.versions.image_preview') }}" />
                     @elseif($fileType === 'pdf')
                         <iframe src="{{ $fileUrl }}" width="100%" height="100%" style="border:none;"></iframe>
-                    @elseif(in_array($fileType, ['doc', 'excel']) && $pdfUrl)
+                    @elseif(in_array($fileType, officeFileTypesForPdfConversion()) && $pdfUrl)
                         {{-- Show converted PDF if available (same as fullscreen view) --}}
                         <iframe src="{{ $pdfUrl }}" width="100%" height="100%" style="border:none;"></iframe>
                     @elseif($fileType === 'excel')

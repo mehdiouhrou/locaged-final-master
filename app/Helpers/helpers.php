@@ -10,6 +10,7 @@ if (!function_exists('getFileCategory')) {
             'doc'   => ['doc', 'docx', 'odt', 'rtf', 'txt'],
             'pdf'   => ['pdf'],
             'excel' => ['xls', 'xlsx', 'csv'],
+            'presentation' => ['ppt', 'pptx'],
             'video' => ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'],
             'audio' => ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'],
         ];
@@ -21,6 +22,16 @@ if (!function_exists('getFileCategory')) {
         }
 
         return 'other';
+    }
+}
+
+if (! function_exists('officeFileTypesForPdfConversion')) {
+    /**
+     * Document version file_type values that use server-side PDF for inline preview.
+     */
+    function officeFileTypesForPdfConversion(): array
+    {
+        return ['doc', 'excel', 'presentation'];
     }
 }
 
@@ -54,6 +65,10 @@ if (!function_exists('getFileIcon')) {
             'xls' => 'fas fa-file-excel text-success',
             'xlsx' => 'fas fa-file-excel text-success',
             'csv' => 'fas fa-file-csv text-success',
+
+            // Presentations
+            'ppt' => 'fas fa-file-powerpoint text-warning',
+            'pptx' => 'fas fa-file-powerpoint text-warning',
             
             // Video Files
             'mp4' => 'fas fa-file-video text-info',

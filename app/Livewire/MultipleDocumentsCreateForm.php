@@ -1185,10 +1185,14 @@ class MultipleDocumentsCreateForm extends Component
         }
 
         $mime = $file->getMimeType();
+        $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
         if (is_string($mime)) {
             if (str_starts_with($mime, 'image/')) {
                 $this->currentPreviewType = 'image';
             } elseif ($mime === 'application/pdf') {
+                $this->currentPreviewType = 'pdf';
+            } elseif (in_array($ext, PdfConversionService::TEMP_UPLOAD_OFFICE_EXTENSIONS, true) && $this->currentPreviewUrl) {
+                // Server converts Office → PDF at preview.temp; PDF.js loads the same URL.
                 $this->currentPreviewType = 'pdf';
             } else {
                 $this->currentPreviewType = 'other';

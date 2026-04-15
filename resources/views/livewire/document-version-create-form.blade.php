@@ -37,7 +37,7 @@
                         </button>
 
                         <input type="file" wire:model="file" x-ref="fileInput" class="d-none"
-                               accept=".png,.jpg,.jpeg,.pdf,.webp,.doc,.docx,.xls,.xlsx,.csv,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv,.mp3,.wav,.flac,.aac,.ogg,.m4a" />
+                               accept=".png,.jpg,.jpeg,.pdf,.webp,.doc,.docx,.odt,.rtf,.ppt,.pptx,.xls,.xlsx,.csv,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv,.mp3,.wav,.flac,.aac,.ogg,.m4a" />
 
                         <template x-if="isUploading">
                             <div class="progress mt-3" style="height: 8px; background-color: #2A2A2E;">

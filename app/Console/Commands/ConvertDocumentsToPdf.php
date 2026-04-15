@@ -25,7 +25,7 @@ class ConvertDocumentsToPdf extends Command
         $this->info('Starting PDF conversion...');
 
         // Get all Word and Excel documents
-        $documents = DocumentVersion::whereIn('file_type', ['doc', 'excel'])
+        $documents = DocumentVersion::whereIn('file_type', officeFileTypesForPdfConversion())
             ->orderBy('created_at', 'desc')
             ->get();
 

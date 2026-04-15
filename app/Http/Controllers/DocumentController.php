@@ -195,7 +195,7 @@ class DocumentController extends Controller
             // Automatically convert Word/Excel uploads to PDF so previews are
             // immediately available. This is a best-effort; failures are just
             // logged by PdfConversionService.
-            if (in_array($docVersion->file_type, ['doc', 'excel'], true)) {
+            if (in_array($docVersion->file_type, officeFileTypesForPdfConversion(), true)) {
                 app(PdfConversionService::class)->convertToPdf($docVersion->file_path);
             }
 

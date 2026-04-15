@@ -32,7 +32,7 @@ class OcrService
             }
 
             if ($extension === 'pdf') {
-                // Convert all PDF pages to images and extract text from each page
+                // Prefer embedded text (born-digital PDF); OCR rasterizes pages for scans.
                 return $this->extractTextFromPdf($absoluteFilePath);
             }
 
@@ -80,6 +80,12 @@ class OcrService
             $msg = "File is not readable: {$pdfPath}";
             Log::error($msg);
             throw new Exception($msg);
+        }
+
+        // Born-digital PDFs: extract selectable text (no OCR). Scanned PDFs return little → OCR below.
+        $embedded = $this->tryExtractPdfEmbeddedText($pdfPath);
+        if ($embedded !== null) {
+            return $embedded;
         }
 
         try {
@@ -322,6 +328,61 @@ class OcrService
         }
 
         return (new ExecutableFinder)->find('pdftoppm');
+    }
+
+    /**
+     * Extract text from the PDF text layer (Poppler pdftotext). Fast and accurate for digital PDFs.
+     * Returns null if poppler is missing, command fails, or output looks like an image-only scan.
+     */
+    private function tryExtractPdfEmbeddedText(string $pdfPath): ?string
+    {
+        $bin = $this->resolvePdftotextBinary();
+        if ($bin === null) {
+            return null;
+        }
+
+        try {
+            $process = new Process([$bin, '-layout', '-enc', 'UTF-8', '-q', $pdfPath, '-']);
+            $process->setTimeout(300);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                return null;
+            }
+
+            $text = trim($process->getOutput());
+            if ($text === '') {
+                return null;
+            }
+
+            // Few real letters → treat as scanned / empty text layer and let OCR handle it.
+            $letterCount = preg_match_all('/\pL/u', $text) ?: 0;
+            if ($letterCount < 25 && strlen(preg_replace('/\s+/u', '', $text)) < 40) {
+                return null;
+            }
+
+            Log::info('PDF text extracted from embedded text layer (pdftotext)', [
+                'path' => $pdfPath,
+                'letters' => $letterCount,
+            ]);
+
+            return $text;
+        } catch (\Throwable $e) {
+            Log::debug('pdftotext skipped or failed', ['path' => $pdfPath, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    private function resolvePdftotextBinary(): ?string
+    {
+        foreach (['/usr/bin/pdftotext', '/usr/local/bin/pdftotext'] as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return (new ExecutableFinder)->find('pdftotext');
     }
 
     private function extractTextFromDocx(string $path): string

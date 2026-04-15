@@ -36,6 +36,7 @@ return [
         // Documents
         'pdf',
         'doc', 'docx', 'odt', 'rtf', 'txt',
+        'ppt', 'pptx',
 
         // Spreadsheets
         'xls', 'xlsx', 'csv',

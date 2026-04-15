@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PdfConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\File;
@@ -54,8 +55,21 @@ class FilePreviewController extends Controller
             abort(403);
         }
 
-        $mime = File::mimeType($realPath) ?: 'application/octet-stream';
         $name = $request->string('name')->toString() ?: basename($realPath);
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+        // Browsers cannot render Office files in an iframe; stream a server-generated PDF when possible.
+        if (in_array($ext, PdfConversionService::TEMP_UPLOAD_OFFICE_EXTENSIONS, true)) {
+            $pdfPath = app(PdfConversionService::class)->convertOfficeAbsolutePathToPdf($realPath, $ext);
+            if ($pdfPath !== null && is_readable($pdfPath)) {
+                return response()->file($pdfPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="preview.pdf"',
+                ])->deleteFileAfterSend(true);
+            }
+        }
+
+        $mime = File::mimeType($realPath) ?: 'application/octet-stream';
 
         // Force inline rendering with correct content-type
         $headers = [

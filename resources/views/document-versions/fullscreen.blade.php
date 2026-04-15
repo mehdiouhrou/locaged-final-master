@@ -129,7 +129,7 @@
                     <iframe src="{{ $fileUrl }}" type="application/pdf"></iframe>
                 @elseif($fileType === 'image')
                     <img src="{{ $fileUrl }}" alt="{{ $doc->document->title }}" style="object-fit: contain;" />
-                @elseif(in_array($fileType, ['doc', 'excel']) && $pdfUrl)
+                @elseif(in_array($fileType, officeFileTypesForPdfConversion()) && $pdfUrl)
                     {{-- Show converted PDF if available --}}
                     <iframe src="{{ $pdfUrl }}" type="application/pdf"></iframe>
                 @elseif($fileType === 'video')
