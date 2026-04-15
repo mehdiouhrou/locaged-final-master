@@ -205,7 +205,10 @@ class DocumentVersion extends Model
         $documentDate = $this->document->created_at
             ? $this->document->created_at->getTimestamp()
             : null;
-        $uploadedAt = $this->uploaded_at?->getTimestamp();
+        // Always int for Typesense default_sorting_field (non-optional in scout.php).
+        $uploadedAt = $this->uploaded_at?->getTimestamp()
+            ?? $this->created_at?->getTimestamp()
+            ?? 0;
 
         return [
             'id' => (string) $this->id,

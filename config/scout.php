@@ -195,7 +195,8 @@ return [
                         ['name' => 'document_date', 'type' => 'int64', 'optional' => true],
                         ['name' => 'tags', 'type' => 'string[]', 'optional' => true],
                         ['name' => 'service_name', 'type' => 'string', 'optional' => true],
-                        ['name' => 'uploaded_at', 'type' => 'int64', 'optional' => true],
+                        // Typesense: default_sorting_field cannot be optional (see Typesense docs).
+                        ['name' => 'uploaded_at', 'type' => 'int64', 'optional' => false],
                     ],
                     'default_sorting_field' => 'uploaded_at',
                 ],
