@@ -72,6 +72,28 @@
                             <a href="#" class="text-primary text-decoration-none" style="font-size: 0.9rem;" id="nextBtn3">{{ ui_t('pages.profile.change_password') }}</a>
                         </div>
                     </div>
+                    <div class="col-12 mb-3">
+                        <div class="label">{{ ui_t('pages.translations.language') }}</div>
+                        <form method="POST" action="{{ route('ui-translations.changeLocale') }}" class="mt-1">
+                            @csrf
+                            <select class="form-select" name="locale" style="max-width: 280px;" onchange="this.form.submit()">
+                                <option value="en" {{ ($user->locale ?? app()->getLocale()) === 'en' ? 'selected' : '' }}>English</option>
+                                <option value="fr" {{ ($user->locale ?? app()->getLocale()) === 'fr' ? 'selected' : '' }}>Français</option>
+                                <option value="ar" {{ ($user->locale ?? app()->getLocale()) === 'ar' ? 'selected' : '' }}>العربية</option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <div class="label">{{ ui_t('pages.translations.rtl_title') }}</div>
+                        <form method="POST" action="{{ route('toggle.rtl') }}" class="mt-1">
+                            @csrf
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="rtl" value="1" id="profileRtlSwitch"
+                                       onchange="this.form.submit()" {{ session('rtl') ? 'checked' : '' }} />
+                                <label class="form-check-label" for="profileRtlSwitch">{{ ui_t('pages.translations.enable_rtl') }}</label>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 

@@ -8,58 +8,40 @@ use App\Models\User;
 class UiTranslationPolicy
 {
     /**
-     * Determine whether the user can view any models.
+     * Administration localisation / overrides : aligné sur la route (Master via permission « view any role »).
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view any ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, UiTranslation $uiTranslation): bool
     {
-        return $user->can('view any ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return $user->can('create ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, UiTranslation $uiTranslation): bool
     {
-        return $user->can('update ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, UiTranslation $uiTranslation): bool
     {
-        return $user->can('delete ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, UiTranslation $uiTranslation): bool
     {
-        return $user->can('restore ui translation');
+        return $user->can('view any role');
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, UiTranslation $uiTranslation): bool
     {
-        return $user->can('forceDelete ui translation');
+        return $user->can('view any role');
     }
 }

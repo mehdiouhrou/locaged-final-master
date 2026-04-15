@@ -317,15 +317,13 @@
             $canViewRoles = $u && $u->can('view any role');
             $canViewAuditLogs = $u && $u->can('view system activity log');
             $canViewDestruction = $u && $u->can('access document expiration management');
-            $canViewOcr = $u && $u->can('viewAny', \App\Models\OcrJob::class);
-            $canViewLocalization = $u && $u->can('viewAny', \App\Models\UiTranslation::class);
             $canViewStorage = $u && ($u->can('view any role') || $u->can('view organization wide reports'));
             $canViewHorizon = $u && $u->can('viewHorizon');
 
-            $canAdministrationAccordion = $canViewUsers || $canViewRoles || $canViewAuditLogs || $canViewDestruction || $canViewOcr || $canViewLocalization || $canViewStorage || $canViewHorizon;
+            $canAdministrationAccordion = $canViewUsers || $canViewRoles || $canViewAuditLogs || $canViewDestruction || $canViewStorage || $canViewHorizon;
         @endphp
         @if($canAdministrationAccordion)
-        <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('destruction-certificates.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('destruction-certificates.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ __('Administration') }}</span>
@@ -342,9 +340,9 @@
                 @endif
                 @if($canViewRoles)
                     <li class="mt-2">
-                        <a href="{{ route('roles.index') }}" class="{{ request()->routeIs('roles.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/brifecase-tick.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.roles') }}</span>
+                        <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
+                            <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
                         </a>
                     </li>
                 @endif
@@ -367,22 +365,6 @@
                         <a href="{{ route('destruction-certificates.index') }}" class="{{ request()->routeIs('destruction-certificates.*') ? 'active' : '' }}">
                             <img src="{{ asset('assets/template/document-text.svg') }}" class="me-2" style="width: 1.1rem; height: 1.1rem; opacity: .85;" alt="" />
                             <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewOcr)
-                    <li class="mt-2">
-                        <a href="{{ route('ocr-jobs.index') }}" class="{{ request()->routeIs('ocr-jobs.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/eye.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.ocr') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewLocalization)
-                    <li class="mt-2">
-                        <a href="{{ route('ui-translations.index') }}" class="{{ request()->routeIs('ui-translations.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.localization') }}</span>
                         </a>
                     </li>
                 @endif

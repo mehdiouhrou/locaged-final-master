@@ -15,8 +15,7 @@ class UiTranslationController extends Controller
     {
         Gate::authorize('viewAny', UiTranslation::class);
 
-        $translations = UiTranslation::all();
-        return view('ui_translations.index', compact('translations'));
+        return redirect()->to(route('master.console').'#master-localization');
     }
 
     public function create()
@@ -167,7 +166,7 @@ class UiTranslationController extends Controller
 
     public function brandingUpdate(Request $request)
     {
-        Gate::authorize('update', UiTranslation::class);
+        Gate::authorize('viewAny', UiTranslation::class);
 
         $request->validate([
             'header_logo' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:5120'],
@@ -195,9 +194,7 @@ class UiTranslationController extends Controller
             Branding::setTimezone($request->input('timezone'));
         }
 
-        // Only master can change the top-most hierarchy branch label.
         if ($request->has('org_root_name')) {
-            abort_unless(auth()->user()?->can('view any role'), 403);
             Branding::setOrgRootName((string) $request->input('org_root_name'));
         }
 

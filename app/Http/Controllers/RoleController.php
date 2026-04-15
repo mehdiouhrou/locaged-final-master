@@ -14,9 +14,7 @@ class RoleController extends Controller
     {
         Gate::authorize('viewAny', Role::class);
 
-        $roles = Role::where('name','!=','master')->withCount('users')->withCount('permissions')->paginate(10);
-
-        return view('roles.index',compact('roles'));
+        return redirect()->to(route('master.console').'#master-roles');
     }
 
 
@@ -56,7 +54,7 @@ class RoleController extends Controller
         $role = Role::create(['name' => $request->name]);
         $role->syncPermissions($request->permissions ?? []);
 
-        return redirect()->route('roles.index')->with('success','Role created succesfully');
+        return redirect()->to(route('master.console').'#master-roles')->with('success', 'Role created succesfully');
 
     }
 
@@ -108,7 +106,7 @@ class RoleController extends Controller
         $permissions = $validated['permissions'] ?? [];
         $role->syncPermissions($permissions);
 
-        return redirect()->route('roles.index')
+        return redirect()->to(route('master.console').'#master-roles')
             ->with('success', 'Role updated successfully.');
     }
 

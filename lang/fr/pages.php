@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 return [
     'file_audit' => 'Audit des fichiers',
+    'master_console' => [
+        'title' => 'Console Master',
+        'subtitle' => 'Rôles, suivi OCR, marque, fuseau horaire et clés d’interface sur une seule page.',
+        'jump' => 'Aller à',
+        'link_storage' => 'Stockage & espace serveur',
+        'nav_label' => 'Console Master',
+    ],
     'stats' => [
         'total_documents' => 'Total des documents',
         'all_documents' => 'Tous les documents',
@@ -749,6 +756,12 @@ return [
         'upload_all_anyway' => 'Téléverser tous quand même',
     ],
     'translations' => [
+        'admin_master_only_title' => 'Espace réservé au compte Master',
+        'admin_master_only_body' => 'Ces réglages se gèrent dans la console Master (menu Administration). Seuls les comptes avec la permission « view any role » (rôle Master) y ont accès. La langue d’affichage et le mode RTL se règlent dans votre profil utilisateur.',
+        'admin_page_title' => 'Localisation & marque',
+        'admin_page_subtitle' => 'Fuseau horaire, logos, limite d’utilisateurs et textes d’interface (clés de traduction).',
+        'admin_strings_hint' => 'Éditez les surcharges EN/FR/AR stockées en base ; les valeurs vides conservent les fichiers de langue du projet.',
+        'upload_nginx_hint' => 'Si l’upload du logo renvoie « 413 Request Entity Too Large », augmentez côté nginx client_max_body_size (ex. 20M) et PHP upload_max_filesize / post_max_size sur le serveur.',
         'add_button' => '+ Ajouter des clés de traduction',
         'language' => 'Langue',
         'rtl_title' => 'Disposition de droite à gauche',

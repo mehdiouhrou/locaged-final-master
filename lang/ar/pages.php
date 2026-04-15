@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 return [
     'file_audit' => 'تدقيق الملفات',
+    'master_console' => [
+        'title' => 'وحدة تحكم الماستر',
+        'subtitle' => 'الأدوار، مهام OCR، العلامة، المنطقة الزمنية ومفاتيح الواجهة في صفحة واحدة.',
+        'jump' => 'انتقل إلى',
+        'link_storage' => 'التخزين ومساحة الخادم',
+        'nav_label' => 'وحدة تحكم الماستر',
+    ],
     'stats' => [
         'total_documents' => 'إجمالي الوثائق',
         'all_documents' => 'كل الوثائق',
@@ -734,6 +741,12 @@ return [
         'view_document' => 'عرض الوثيقة',
     ],
     'translations' => [
+        'admin_master_only_title' => 'مساحة مخصصة لحساب الماستر',
+        'admin_master_only_body' => 'تُدار هذه الإعدادات من وحدة تحكم الماستر (قائمة الإدارة). يمكن فقط للحسابات التي لديها إذن « view any role » (دور الماستر) فتحها. تُضبط لغة العرض ووضع RTL من ملف المستخدم الشخصي.',
+        'admin_page_title' => 'التعريب والعلامة',
+        'admin_page_subtitle' => 'المنطقة الزمنية، الشعارات، حد المستخدمين، وتجاوزات نصوص الواجهة.',
+        'admin_strings_hint' => 'حرّر تجاوزات EN/FR/AR المخزنة في قاعدة البيانات؛ الحقول الفارغة تحتفظ بملفات اللغة في المشروع.',
+        'upload_nginx_hint' => 'إذا أعاد تحميل الشعار « 413 Request Entity Too Large »، زد في nginx قيمة client_max_body_size (مثلاً 20M) وفي PHP upload_max_filesize و post_max_size.',
         'add_button' => '+ إضافة مفاتيح الترجمة',
         'language' => 'اللغة',
         'rtl_title' => 'تخطيط من اليمين إلى اليسار',

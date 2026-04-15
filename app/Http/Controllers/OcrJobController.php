@@ -12,17 +12,7 @@ class OcrJobController extends Controller
     {
         Gate::authorize('viewAny', OcrJob::class);
 
-        $ocrJobs = OcrJob::with([
-            'documentVersion' => function ($query) {
-                $query->withTrashed()->with([
-                    'document' => function ($query) {
-                        $query->withTrashed();
-                    }
-                ]);
-            }
-        ])->latest()->paginate(10);
-
-        return view('ocr_jobs.index', compact('ocrJobs'));
+        return redirect()->to(route('master.console').'#master-ocr');
     }
 
 
@@ -41,7 +31,7 @@ class OcrJobController extends Controller
 
         OcrJob::create($validated);
 
-        return redirect()->route('ocr-jobs.index')->with('success', 'OCR Job created successfully.');
+        return redirect()->to(route('master.console').'#master-ocr')->with('success', 'OCR Job created successfully.');
     }
 
 
@@ -61,7 +51,7 @@ class OcrJobController extends Controller
 
         $ocrJob->update($validated);
 
-        return redirect()->route('ocr-jobs.index')->with('success', 'OCR Job updated successfully.');
+        return redirect()->to(route('master.console').'#master-ocr')->with('success', 'OCR Job updated successfully.');
     }
 
     public function destroy(OcrJob $ocrJob)
@@ -70,6 +60,6 @@ class OcrJobController extends Controller
 
         $ocrJob->delete();
 
-        return redirect()->route('ocr-jobs.index')->with('success', 'OCR Job deleted successfully.');
+        return redirect()->to(route('master.console').'#master-ocr')->with('success', 'OCR Job deleted successfully.');
     }
 }

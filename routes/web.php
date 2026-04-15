@@ -10,6 +10,7 @@ use App\Http\Controllers\DocumentVersionController;
 use App\Http\Controllers\OcrJobController;
 use App\Http\Controllers\PhysicalLocationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\MasterConsoleController;
 use App\Http\Controllers\UiTranslationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkFlowRuleController;
@@ -56,9 +57,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         return 'Notification broadcasted to user '.$user->id;
     });
 
-    // UiTranslation
+    // Préférences interface (tous les utilisateurs authentifiés)
     Route::post('ui-translations/changeLocale', [UiTranslationController::class, 'changeLocale'])->name('ui-translations.changeLocale');
-    Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
 
     Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
@@ -119,8 +119,10 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
             ->name('storage.overview');
     });
 
-    // Master only
+    // Master only (permission « view any role » — typiquement réservée au rôle master)
     Route::group(['middleware' => ['permission:view any role']], function () {
+        Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
+        Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
         Route::resources([
             'roles' => \App\Http\Controllers\RoleController::class,
             'ocr-jobs' => OcrJobController::class,

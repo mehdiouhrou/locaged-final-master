@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 return [
     'file_audit' => 'File Audit',
+    'master_console' => [
+        'title' => 'Master console',
+        'subtitle' => 'Roles, OCR jobs, branding, timezone, and UI keys in one place.',
+        'jump' => 'Jump to',
+        'link_storage' => 'Storage & server space',
+        'nav_label' => 'Master console',
+    ],
     'stats' => [
         'total_documents' => 'Total Documents',
         'all_documents' => 'All Documents',
@@ -766,6 +773,12 @@ return [
         'upload_all_anyway' => 'Upload All Anyway',
     ],
     'translations' => [
+        'admin_master_only_title' => 'Master-only administration',
+        'admin_master_only_body' => 'These settings are managed in the Master console (Administration menu). Only accounts with the « view any role » permission (Master role) can open it. Display language and RTL are set from your user profile.',
+        'admin_page_title' => 'Localization & branding',
+        'admin_page_subtitle' => 'Time zone, logos, user cap, and UI translation overrides.',
+        'admin_strings_hint' => 'Edit EN/FR/AR overrides stored in the database; empty fields keep the project language files.',
+        'upload_nginx_hint' => 'If logo upload returns « 413 Request Entity Too Large », raise nginx client_max_body_size (e.g. 20M) and PHP upload_max_filesize / post_max_size on the server.',
         'add_button' => '+ Add translation keys',
         'language' => 'Language',
         'rtl_title' => 'Right-to-Left Layout',

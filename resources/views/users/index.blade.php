@@ -10,7 +10,7 @@
         <x-page-hero :title="ui_t('pages.users_page.users')" :subtitle="$usersHeroSubtitle">
             <x-slot:actions>
                 @can('viewAny', \Spatie\Permission\Models\Role::class)
-                    <a href="{{ route('roles.index') }}" class="btn btn-sm btn-outline-secondary">{{ ui_t('pages.users_page.roles') }}</a>
+                    <a href="{{ route('master.console') }}#master-roles" class="btn btn-sm btn-outline-secondary">{{ ui_t('pages.users_page.roles') }}</a>
                 @endcan
                 @can('viewAny', \App\Models\User::class)
                     @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
