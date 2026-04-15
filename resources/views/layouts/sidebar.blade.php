@@ -12,6 +12,7 @@
     <ul class="sidebar-menu mt-1 flex-grow-1">
         @php
             $u = auth()->user();
+            $canOpenMasterConsole = $u && ($u->can('view any role') || $u->hasRole('master'));
         @endphp
 
         <li class="sidebar-section-label" aria-hidden="true">
@@ -24,6 +25,15 @@
                 <span class="sidebar-text">{{ ui_t('nav.dashboard') }}</span>
             </a>
         </li>
+
+        @if($canOpenMasterConsole)
+        <li class="mt-1">
+            <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+                <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" alt="" />
+                <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
+            </a>
+        </li>
+        @endif
 
         @can('create', \App\Models\Document::class)
         <li class="mt-1">
@@ -314,13 +324,12 @@
 
         @php
             $canViewUsers = $u && $u->can('access management sidebar');
-            $canViewRoles = $u && $u->can('view any role');
             $canViewAuditLogs = $u && $u->can('view system activity log');
             $canViewDestruction = $u && $u->can('access document expiration management');
             $canViewStorage = $u && ($u->can('view any role') || $u->can('view organization wide reports'));
             $canViewHorizon = $u && $u->can('viewHorizon');
 
-            $canAdministrationAccordion = $canViewUsers || $canViewRoles || $canViewAuditLogs || $canViewDestruction || $canViewStorage || $canViewHorizon;
+            $canAdministrationAccordion = $canViewUsers || $canOpenMasterConsole || $canViewAuditLogs || $canViewDestruction || $canViewStorage || $canViewHorizon;
         @endphp
         @if($canAdministrationAccordion)
         <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('destruction-certificates.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
@@ -330,19 +339,19 @@
                 <i class="fa-solid fa-chevron-down submenu-chevron ms-auto small opacity-50" aria-hidden="true"></i>
             </a>
             <ul class="submenu list-unstyled">
+                @if($canOpenMasterConsole)
+                    <li class="mt-2">
+                        <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" alt="" />
+                            <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
+                        </a>
+                    </li>
+                @endif
                 @if($canViewUsers)
                     <li class="mt-2">
                         <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
                             <img src="{{ asset('assets/template/user.svg') }}" class="me-2" />
                             <span class="sidebar-text">{{ ui_t('nav.users') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewRoles)
-                    <li class="mt-2">
-                        <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
                         </a>
                     </li>
                 @endif

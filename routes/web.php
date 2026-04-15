@@ -119,8 +119,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
             ->name('storage.overview');
     });
 
-    // Master only (permission « view any role » — typiquement réservée au rôle master)
-    Route::group(['middleware' => ['permission:view any role']], function () {
+    // Master only : rôle « master » ou permission « view any role »
+    Route::group(['middleware' => ['role_or_permission:master|view any role']], function () {
         Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
         Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
         Route::resources([

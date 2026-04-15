@@ -2,9 +2,79 @@
 
 @section('content')
     <div class="container-fluid px-3 px-md-4 mt-4 mb-5">
-        <div class="mb-4">
+               <div class="mb-4">
             <h1 class="h3 fw-bold mb-1">{{ __('pages.master_console.title') }}</h1>
             <p class="text-muted mb-0">{{ __('pages.master_console.subtitle') }}</p>
+        </div>
+
+        {{-- Aperçu : tout voir d’un coup sur la même page --}}
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100 position-relative">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1">{{ __('pages.master_console.overview_users') }}</div>
+                        <div class="h4 mb-0 fw-bold">
+                            @if($maxUsers > 0)
+                                {{ number_format($userCount) }} <span class="fs-6 text-muted fw-normal">/ {{ number_format($maxUsers) }}</span>
+                            @else
+                                {{ number_format($userCount) }} <span class="fs-6 text-muted fw-normal">{{ __('pages.master_console.overview_users_unlimited') }}</span>
+                            @endif
+                        </div>
+                        @can('viewAny', \App\Models\User::class)
+                            <a href="{{ route('users.index') }}" class="small stretched-link text-decoration-none">{{ __('pages.master_console.overview_manage_users') }}</a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100 position-relative">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1">{{ __('pages.master_console.overview_org') }}</div>
+                        <div class="fw-semibold text-truncate" title="{{ $orgRootName }}">{{ $orgRootName }}</div>
+                        <div class="text-muted small mt-2 mb-0">
+                            <span class="text-uppercase fw-semibold">{{ __('pages.master_console.overview_timezone') }}</span>
+                            <span class="font-monospace">{{ $appTimezone }}</span>
+                        </div>
+                        <a href="#master-localization" class="small stretched-link text-decoration-none">{{ __('pages.master_console.overview_edit_below') }}</a>
+                    </div>
+                </div>
+            </div>
+            @if($ocrOverview)
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100 position-relative">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1">{{ __('pages.master_console.overview_ocr') }}</div>
+                        <div class="d-flex gap-3">
+                            <div>
+                                <div class="h4 mb-0 fw-bold">{{ number_format($ocrOverview['active']) }}</div>
+                                <div class="small text-muted">{{ __('pages.master_console.overview_ocr_active') }}</div>
+                            </div>
+                            <div>
+                                <div class="h4 mb-0 fw-bold text-danger">{{ number_format($ocrOverview['failed']) }}</div>
+                                <div class="small text-muted">{{ __('pages.master_console.overview_ocr_failed') }}</div>
+                            </div>
+                        </div>
+                        <a href="#master-ocr" class="small stretched-link text-decoration-none">{{ __('pages.master_console.overview_ocr_table') }}</a>
+                    </div>
+                </div>
+            </div>
+            @endif
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-semibold mb-2">{{ __('pages.master_console.overview_branding') }}</div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            @php
+                                $hdr = \App\Support\Branding::headerLogoUrl();
+                                $login = \App\Support\Branding::resolveLoginCoverUrl();
+                            @endphp
+                            <img src="{{ $hdr }}" alt="" class="rounded border bg-white" style="height: 36px; width: auto; max-width: 72px; object-fit: contain;" />
+                            <img src="{{ $login }}" alt="" class="rounded border bg-light" style="height: 36px; width: 48px; object-fit: cover;" />
+                        </div>
+                        <a href="#master-localization" class="small text-decoration-none">{{ __('pages.master_console.overview_branding_hint') }}</a>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Liens rapides (hors onglets scroll) --}}

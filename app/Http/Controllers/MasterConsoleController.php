@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\OcrJob;
+use App\Models\User;
+use App\Support\Branding;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 
@@ -13,7 +15,8 @@ class MasterConsoleController extends Controller
      */
     public function show(Request $request)
     {
-        abort_unless($request->user()?->can('view any role'), 403);
+        $user = $request->user();
+        abort_unless($user && ($user->can('view any role') || $user->hasRole('master')), 403);
 
         $roles = Role::query()
             ->where('name', '!=', 'master')
@@ -24,7 +27,12 @@ class MasterConsoleController extends Controller
             ->withQueryString();
 
         $ocrJobs = null;
+        $ocrOverview = null;
         if ($request->user()->can('viewAny', OcrJob::class)) {
+            $ocrOverview = [
+                'active' => OcrJob::query()->whereIn('status', [OcrJob::STATUS_QUEUED, OcrJob::STATUS_PROCESSING])->count(),
+                'failed' => OcrJob::query()->where('status', OcrJob::STATUS_FAILED)->count(),
+            ];
             $ocrJobs = OcrJob::query()
                 ->with([
                     'documentVersion' => function ($query) {
@@ -40,6 +48,17 @@ class MasterConsoleController extends Controller
                 ->withQueryString();
         }
 
-        return view('master.console', compact('roles', 'ocrJobs'));
+        $userCount = User::count();
+        $maxUsers = Branding::getMaxUsers();
+
+        return view('master.console', [
+            'roles' => $roles,
+            'ocrJobs' => $ocrJobs,
+            'ocrOverview' => $ocrOverview,
+            'userCount' => $userCount,
+            'maxUsers' => $maxUsers,
+            'orgRootName' => Branding::getOrgRootName(),
+            'appTimezone' => Branding::getTimezone(),
+        ]);
     }
 }
