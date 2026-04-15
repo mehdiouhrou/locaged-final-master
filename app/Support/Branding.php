@@ -36,6 +36,22 @@ class Branding
         self::write($data);
     }
 
+    /**
+     * Build a URL for a file under public/ with path segments URL-encoded (spaces, etc.),
+     * so nginx and browsers resolve names like "Logo 3.svg" reliably.
+     */
+    protected static function safePublicAssetUrl(string $relativePath): string
+    {
+        $relativePath = trim($relativePath, '/');
+        if ($relativePath === '') {
+            return asset('');
+        }
+
+        $segments = explode('/', $relativePath);
+
+        return asset(implode('/', array_map('rawurlencode', $segments)));
+    }
+
     public static function get(string $key, ?string $defaultRelativeAsset = null): ?string
     {
         $data = self::read();
@@ -50,7 +66,7 @@ class Branding
 
             // If an asset path was stored, serve it directly from public assets.
             if (Str::startsWith($val, 'assets/')) {
-                return asset($val);
+                return self::safePublicAssetUrl($val);
             }
 
             // Stored as path relative to public disk: ensure file exists before using it.
@@ -62,14 +78,14 @@ class Branding
             // but fallback below if the file is missing.
         }
         if ($defaultRelativeAsset) {
-            return asset($defaultRelativeAsset);
+            return self::safePublicAssetUrl($defaultRelativeAsset);
         }
         return null;
     }
 
     public static function headerLogoUrl(): string
     {
-        return self::get('header_logo', 'assets/clogo.jpg');
+        return (string) (self::get('header_logo', 'assets/Logo 3.svg') ?? self::safePublicAssetUrl('assets/Logo 3.svg'));
     }
 
     public static function loginImageUrl(): string

@@ -7,7 +7,7 @@
             </style>
             <div class="login-card">
                 <div class="text-center mb-4">
-                    <img src="{{ asset('assets/Logo 3.svg') }}" alt="Logo" style="max-width: 220px; width: 100%;" />
+                    <img src="{{ \App\Support\Branding::headerLogoUrl() }}" alt="Logo" style="max-width: 220px; width: 100%;" />
                 </div>
                 <div class="text-center mb-3">
                     <h5 class="mb-1">{{ ui_t('auth.ui.secure_space') }}</h5>

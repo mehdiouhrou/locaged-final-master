@@ -3,7 +3,7 @@
 @section('content')
     <div class="login-card" style="width: min(70%, 520px); margin: 0 auto;">
         <div class="text-center mb-4">
-            <img src="{{ asset('assets/Logo 3.svg') }}" alt="Logo" style="max-width: 220px; width: 100%;" />
+            <img src="{{ \App\Support\Branding::headerLogoUrl() }}" alt="Logo" style="max-width: 220px; width: 100%;" />
         </div>
         <h5 class="text-center mb-3">{{ __('Confirmation du mot de passe') }}</h5>
         <p class="text-muted small text-center mb-4">{{ __('Pour des raisons de sécurité, confirmez votre mot de passe pour continuer.') }}</p>

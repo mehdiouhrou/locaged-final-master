@@ -39,7 +39,7 @@
                 </div>
 
                 <div class="text-center mb-4">
-                    <img src="{{ asset('assets/Logo 3.svg') }}" alt="Logo" style="max-width: 220px; width: 100%;" />
+                    <img src="{{ \App\Support\Branding::headerLogoUrl() }}" alt="Logo" style="max-width: 220px; width: 100%;" />
                 </div>
 
                 <h4 class="mb-2 text-center" id="pageTitle">{{ ui_t('auth.ui.reset_password') }}</h4>
