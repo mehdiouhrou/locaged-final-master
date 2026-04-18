@@ -9,7 +9,7 @@ return [
 
     // UI strings for auth screens
     'ui' => [
-        'secure_space' => 'مساحة آمنة لمشاركة الملفات',
+        'secure_space' => 'إدارة الوثائق الإلكترونية.',
         'sign_in_failed' => 'فشل تسجيل الدخول',
         'error_hint' => 'تحقق من البريد الإلكتروني وكلمة المرور ثم حاول مرة أخرى.',
         'reset_password_link' => 'إعادة تعيين كلمة المرور',

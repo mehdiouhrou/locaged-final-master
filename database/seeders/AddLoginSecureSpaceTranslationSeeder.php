@@ -16,9 +16,9 @@ class AddLoginSecureSpaceTranslationSeeder extends Seeder
         UiTranslation::updateOrCreate(
             ['key' => 'auth.ui.secure_space'],
             [
-                'en_text' => 'Gestion éléctronique documentaire.',
-                'fr_text' => 'Gestion éléctronique documentaire.',
-                'ar_text' => 'إدارة إلكترونية للوثائق.',
+                'en_text' => 'Electronic document management.',
+                'fr_text' => 'Gestion électronique de documents.',
+                'ar_text' => 'إدارة الوثائق الإلكترونية.',
             ]
         );
 

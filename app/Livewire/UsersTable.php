@@ -68,9 +68,9 @@ class UsersTable extends Component
         
         $actor = auth()->user();
         
-        // Priority 1: Admin de departments - ALWAYS filter by sub-departments
-        // This must come FIRST to prevent them from seeing all users via broad permissions
-        if ($actor->can('view subdepartment scoped documents')) {
+        // Priority 1: périmètre sous-département — seulement si l’utilisateur n’a pas « view any user »
+        // (sinon le Master, qui a souvent aussi « view subdepartment scoped documents », se retrouvait avec 0 ligne)
+        if ($actor->cannot('view any user') && $actor->can('view subdepartment scoped documents')) {
             // Sub-Department level visibility: users from same sub-departments ONLY
             $subDeptIds = $actor->subDepartments->pluck('id')->toArray();
             
@@ -115,22 +115,29 @@ class UsersTable extends Component
         }
         // else: they have "view any user" permission - show all users (for Super Admin, Master, etc.)
         
-        // Enforce role hierarchy visibility: only same-or-lower roles
         $viewer = auth()->user();
         $allowedRoleNames = RoleHierarchy::allowedRoleNamesFor($viewer);
-        if (!empty($allowedRoleNames)) {
-            // Show users only if ALL their roles are within allowed set
-            // 1) They must have at least one allowed role
-            $usersQuery->whereHas('roles', function ($q) use ($allowedRoleNames) {
-                $q->whereIn('name', $allowedRoleNames);
-            });
-            // 2) And they must NOT have any role outside allowed set
-            $usersQuery->whereDoesntHave('roles', function ($q) use ($allowedRoleNames) {
-                $q->whereNotIn('name', $allowedRoleNames);
-            });
-        } else {
-            // If current user has no recognized role, show none
-            $usersQuery->whereRaw('1 = 0');
+
+        // Master / compte avec « view any role » : annuaire complet (y compris utilisateurs sans rôle Spatie).
+        // Sinon le whereHas('roles') excluait toute ligne sans rôle, et un master sans permission sync voyait 0 ligne.
+        $skipRoleScope = $viewer->can('view any role') || $viewer->hasRole('master');
+
+        if ($skipRoleScope) {
+            $allowedRoleNames = Role::query()->orderBy('name')->pluck('name')->all();
+        }
+
+        if (! $skipRoleScope) {
+            if (! empty($allowedRoleNames)) {
+                // Utilisateurs : au moins un rôle autorisé, et aucun rôle hors périmètre
+                $usersQuery->whereHas('roles', function ($q) use ($allowedRoleNames) {
+                    $q->whereIn('name', $allowedRoleNames);
+                });
+                $usersQuery->whereDoesntHave('roles', function ($q) use ($allowedRoleNames) {
+                    $q->whereNotIn('name', $allowedRoleNames);
+                });
+            } else {
+                $usersQuery->whereRaw('1 = 0');
+            }
         }
         
         $users = $usersQuery
