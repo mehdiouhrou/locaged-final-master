@@ -28,7 +28,6 @@ class DocumentsByCategoryTable extends Component
     public $dateTo = '';
     public $room = '';
     public $author = '';
-    public $keywords = '';
     public $tags = '';
     public $favoritesOnly = false;
 
@@ -60,7 +59,6 @@ class DocumentsByCategoryTable extends Component
         'dateTo' => ['except' => ''],
         'room' => ['except' => ''],
         'author' => ['except' => ''],
-        'keywords' => ['except' => ''],
         'tags' => ['except' => ''],
         'favoritesOnly' => ['except' => false],
         'ocrFilter' => ['except' => '', 'as' => 'ocr'],
@@ -86,7 +84,7 @@ class DocumentsByCategoryTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'keywords', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage', 'digitalOnly', 'physicalOnly'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage', 'digitalOnly', 'physicalOnly'])) {
             $this->resetPage();
         }
         if ($field === 'digitalOnly' && filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
@@ -106,7 +104,6 @@ class DocumentsByCategoryTable extends Component
         $this->dateTo = '';
         $this->room = '';
         $this->author = '';
-        $this->keywords = '';
         $this->tags = '';
         $this->boxId = '';
         $this->favoritesOnly = false;
@@ -328,30 +325,6 @@ class DocumentsByCategoryTable extends Component
                   });
             });
         }
-
-        // Keywords filter - searches in title and metadata->keywords JSON field
-        $documentsQuery->when($this->keywords, function ($q) {
-            $keywordsInput = trim($this->keywords);
-            if (empty($keywordsInput)) {
-                return;
-            }
-            
-            // Split by comma and clean up each keyword
-            $keywordsList = array_map('trim', explode(',', $keywordsInput));
-            $keywordsList = array_filter($keywordsList, fn($k) => !empty($k));
-            
-            if (empty($keywordsList)) {
-                return;
-            }
-            
-            $q->where(function ($sub) use ($keywordsList) {
-                foreach ($keywordsList as $keyword) {
-                    $pattern = '%' . strtolower($keyword) . '%';
-                    $sub->orWhereRaw('LOWER(title) LIKE ?', [$pattern])
-                        ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.keywords"))) LIKE ?', [$pattern]);
-                }
-            });
-        });
 
         // Tags filter - filters documents that have ANY of the specified tags
         $documentsQuery->when($this->tags, function ($q) {

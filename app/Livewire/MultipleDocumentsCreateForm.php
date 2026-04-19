@@ -512,7 +512,6 @@ class MultipleDocumentsCreateForm extends Component
             'created_at',
             'expire_at',
             'tags',
-            'new_tags',
             'physical_location_id',
             'box_id',
             'digital_only',
@@ -639,7 +638,6 @@ class MultipleDocumentsCreateForm extends Component
             'created_at',
             'expire_at',
             'tags',
-            'new_tags',
             'box_id',
             'digital_only',
         ];
@@ -840,7 +838,6 @@ class MultipleDocumentsCreateForm extends Component
             'currentInfo.expire_at' => 'required|date|after:currentInfo.created_at',
             'currentInfo.tags' => 'array',
             'currentInfo.tags.*' => 'exists:tags,id',
-            'currentInfo.new_tags' => 'nullable|string',
             'currentInfo.digital_only' => 'nullable|boolean',
             'currentInfo.box_id' => $isDigitalOnly ? 'nullable|exists:boxes,id' : 'required|exists:boxes,id',
             'currentInfo.author' => 'required|string|max:255',
@@ -1372,7 +1369,6 @@ class MultipleDocumentsCreateForm extends Component
                 'created_at',
                 'expire_at',
                 'tags',
-                'new_tags',
                 'physical_location_id',
                 'box_id',
                 'digital_only',
@@ -1470,25 +1466,7 @@ class MultipleDocumentsCreateForm extends Component
                 $metadata['box_id'] = null;
             }
 
-            // Prepare tags: combine selected tag IDs with any newly typed tags
-            $selectedTagIds = array_filter($metadata['tags'] ?? []);
-            $newTagsCsv = (string) ($metadata['new_tags'] ?? '');
-            $newTagNames = array_values(array_filter(array_map(function ($t) {
-                return trim(strtolower($t));
-            }, explode(',', $newTagsCsv))));
-
-            $createdTagIds = [];
-            if (! empty($newTagNames)) {
-                $uniqueNames = array_values(array_unique($newTagNames));
-                foreach ($uniqueNames as $tagName) {
-                    if ($tagName === '') {
-                        continue;
-                    }
-                    $tag = Tag::firstOrCreate(['name' => $tagName]);
-                    $createdTagIds[] = $tag->id;
-                }
-            }
-            $allTagIds = array_values(array_unique(array_merge($selectedTagIds, $createdTagIds)));
+            $allTagIds = array_values(array_unique(array_filter($metadata['tags'] ?? [])));
 
             $extension = $file->getClientOriginalExtension();
             $filename = $metadata['title'].'_'.now()->format('His').'.'.$extension;

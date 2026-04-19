@@ -849,7 +849,7 @@
                             <input type="text" name="tags" class="form-control" 
                                    value="${(metadata.tags || []).join(', ')}" 
                                    placeholder="{{ ui_t('pages.upload.enter_tags_comma') }}">
-                            <small class="text-muted">{{ ui_t('pages.upload.new_tags_hint') }}</small>
+                            <small class="text-muted">{{ ui_t('pages.upload.enter_tags_comma') }}</small>
                         </div>
                     </div>
                 </div>

@@ -25,7 +25,6 @@ class DocumentElasticSearch extends Component
         'modified_start' => '',
         'modified_end' => '',
         'author' => '',
-        'keywords' => '',
         'tags' => '',
     ];
 
@@ -33,7 +32,7 @@ class DocumentElasticSearch extends Component
     /**
      * React to changes on the search box and any filter field.
      *
-     * This ensures that Creation Date, Keywords, Tags and Author
+     * This ensures that Creation Date, Tags and Author
      * (as well as File Type) immediately affect the live results
      * dropdown under the header search bar.
      */
@@ -62,7 +61,6 @@ class DocumentElasticSearch extends Component
             'modified_start' => '',
             'modified_end' => '',
             'author' => '',
-            'keywords' => '',
             'tags' => '',
         ];
 
@@ -242,15 +240,6 @@ class DocumentElasticSearch extends Component
 
             $filterTags = array_filter(array_map('trim', explode(',', strtolower($this->filters['tags'] ?? ''))));
 
-            // FILTER: Keywords
-            if (!empty($this->filters['keywords'])) {
-                $filterKeywords = array_filter(array_map('trim', explode(',', strtolower($this->filters['keywords']))));
-                $haystack = strtolower(($doc->ocr_text ?? '') . ' ' . ($doc->document->title ?? ''));
-                foreach ($filterKeywords as $keyword) {
-                    if (stripos($haystack, $keyword) === false) { return false; }
-                }
-            }
-
             // FILTER: Tags
             if (!empty($filterTags)) {
                 $docTags = $doc->document->tags->pluck('name')->map(fn($t) => strtolower($t))->toArray();
@@ -343,7 +332,6 @@ class DocumentElasticSearch extends Component
             'dateFrom' => $this->filters['creation_start'] ?: null,
             'dateTo'   => $this->filters['creation_end'] ?: null,
             'author'   => $this->filters['author'] ?: null,
-            'keywords' => $this->filters['keywords'] ?: null,
             'tags'     => $this->filters['tags'] ?: null,
         ];
 

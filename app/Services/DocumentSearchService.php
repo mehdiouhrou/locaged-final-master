@@ -339,17 +339,6 @@ class DocumentSearchService
                 }
             }
 
-            // FILTER: Keywords
-            if (!empty($filters['keywords'])) {
-                $filterKeywords = array_filter(array_map('trim', explode(',', strtolower($filters['keywords']))));
-                $haystack = strtolower(($docVersion->ocr_text ?? '') . ' ' . ($docVersion->document->title ?? ''));
-                foreach ($filterKeywords as $keyword) {
-                    if (stripos($haystack, $keyword) === false) {
-                        return false;
-                    }
-                }
-            }
-
             // FILTER: Tags
             if (!empty($filters['tags'])) {
                 $filterTags = array_filter(array_map('trim', explode(',', strtolower($filters['tags']))));

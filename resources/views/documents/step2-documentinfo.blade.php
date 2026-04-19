@@ -174,17 +174,8 @@
                             @endif
                         </div>
 
-                        <!-- Add New Tags (free text) -->
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ __('pages.upload.add_new_tags') }}</label>
-                            <input type="text" class="form-control" placeholder="{{ __('pages.upload.new_tags_placeholder') }}"
-                                   wire:model.lazy="currentInfo.new_tags"
-                            />
-                            <small class="text-muted">{{ __('pages.upload.new_tags_hint') }}</small>
-                        </div>
-
                         <!-- Tags (multiple select, optional) -->
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
                             <label for="tags" class="form-label">{{ __('pages.upload.tags') }}</label>
                             <select multiple class="form-select @error('currentInfo.tags') is-invalid @enderror"
                                     wire:model="currentInfo.tags">

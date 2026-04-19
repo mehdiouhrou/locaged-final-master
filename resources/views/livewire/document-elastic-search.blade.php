@@ -111,17 +111,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Keywords & Tags -->
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ __('filters.keywords') }}</label>
-                                        <input
-                                            type="text"
-                                            name="keywords"
-                                            class="form-control"
-                                            placeholder="{{ __('filters.keywords_placeholder') }}"
-                                            wire:model="filters.keywords"
-                                        />
-                                    </div>
+                                    <!-- Tags (comma-separated tag names) -->
                                     <div class="col-12 col-md-6">
                                         <label class="form-label">{{ __('filters.tags') }}</label>
                                         <input

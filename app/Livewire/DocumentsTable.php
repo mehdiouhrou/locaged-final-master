@@ -29,7 +29,6 @@ class DocumentsTable extends Component
     public $dateTo = '';
     public $room = '';
     public $author = '';
-    public $keywords = '';
     public $tags = '';
     public $category = ''; // Category ID filter
     public $service = ''; // Service ID filter
@@ -72,7 +71,6 @@ class DocumentsTable extends Component
         'dateTo' => ['except' => ''],
         'room' => ['except' => ''],
         'author' => ['except' => ''],
-        'keywords' => ['except' => ''],
         'tags' => ['except' => ''],
         'category' => ['except' => ''],
         'service' => ['except' => ''],
@@ -93,7 +91,7 @@ class DocumentsTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'keywords', 'tags', 'category', 'service', 'boxId', 'favoritesOnly', 'perPage', 'hierarchy'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'tags', 'category', 'service', 'boxId', 'favoritesOnly', 'perPage', 'hierarchy'])) {
             $this->resetPage();
         }
 
@@ -114,7 +112,6 @@ class DocumentsTable extends Component
         $this->dateTo = '';
         $this->room = '';
         $this->author = '';
-        $this->keywords = '';
         $this->tags = '';
         $this->category = '';
         $this->service = '';
@@ -354,29 +351,6 @@ class DocumentsTable extends Component
             ->when($this->dateTo, fn($q) =>
                 $q->whereDate('created_at', '<=', $this->dateTo)
             )
-            // Keywords filter - searches in title and metadata->keywords JSON field
-            ->when($this->keywords, function ($q) {
-                $keywordsInput = trim($this->keywords);
-                if (empty($keywordsInput)) {
-                    return;
-                }
-                
-                // Split by comma and clean up each keyword
-                $keywordsList = array_map('trim', explode(',', $keywordsInput));
-                $keywordsList = array_filter($keywordsList, fn($k) => !empty($k));
-                
-                if (empty($keywordsList)) {
-                    return;
-                }
-                
-                $q->where(function ($sub) use ($keywordsList) {
-                    foreach ($keywordsList as $keyword) {
-                        $pattern = '%' . strtolower($keyword) . '%';
-                        $sub->orWhereRaw('LOWER(title) LIKE ?', [$pattern])
-                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.keywords"))) LIKE ?', [$pattern]);
-                    }
-                });
-            })
             // Tags filter - filters documents that have ANY of the specified tags
             ->when($this->tags, function ($q) {
                 $tagsInput = trim($this->tags);
