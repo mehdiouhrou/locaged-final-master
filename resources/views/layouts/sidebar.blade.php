@@ -71,7 +71,7 @@
         @endcan
 
         @if($showDocumentsNavGroup)
-        <li class="has-submenu {{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') || request()->routeIs('categories.*') || request()->routeIs('subcategories.*') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/document-text.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ ui_t('nav.documents') }}</span>
@@ -116,16 +116,16 @@
             </a>
         </li>
 
-        @if($canViewAnyDocument)
         @php
             $myCategories = $sidebarMyCategories['items'] ?? [];
             $myCategoriesTotal = (int) ($sidebarMyCategories['total'] ?? 0);
             $myFavoriteCategories = $sidebarMyCategories['favorites'] ?? [];
             $hasMyCategories = !empty($myCategories) || !empty($myFavoriteCategories);
         @endphp
+        {{-- Consultation : catégories du profil (distinct du lien « Catégories » sous Gestion) --}}
         <li class="has-submenu {{ request()->routeIs('documents.by-category') ? 'active' : '' }}">
-            <a href="#" class="menu-toggle">
-                <img src="{{ asset('assets/template/category.svg') }}" class="me-3" />
+            <a href="#" class="menu-toggle" title="{{ __('Catégories accessibles selon votre profil (consultation)') }}">
+                <img src="{{ asset('assets/template/category.svg') }}" class="me-3" alt="" />
                 <span class="sidebar-text">{{ __('Mes catégories') }}</span>
                 @if($myCategoriesTotal > 0)
                     <span class="badge rounded-pill lgv2-sidebar-pill ms-auto me-2">{{ $myCategoriesTotal }}</span>
@@ -158,11 +158,11 @@
                     @endforeach
                 @endif
 
-                @if($myCategoriesTotal > 5 && (auth()->user()->can('create category') || auth()->user()->can('update category')))
+                @if($myCategoriesTotal > 5 && $canViewAnyDocument)
                     <li class="mt-2">
-                        <a href="{{ route('categories.index') }}">
+                        <a href="{{ route('documents.all') }}">
                             <i class="fa-solid fa-ellipsis me-2"></i>
-                            <span class="sidebar-text">{{ __('Voir plus') }}</span>
+                            <span class="sidebar-text">{{ __('Voir tous les documents') }}</span>
                         </a>
                     </li>
                 @endif
@@ -174,7 +174,6 @@
                 @endif
             </ul>
         </li>
-        @endif
 
         @if($canViewAnyDocument)
         @php
@@ -278,8 +277,8 @@
             <ul class="submenu list-unstyled">
                 @if(auth()->user()->can('create category') || auth()->user()->can('update category'))
                 <li class="mt-2">
-                    <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/category.svg') }}" class="me-2" />
+                    <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') || request()->routeIs('subcategories.*') ? 'active' : '' }}" title="{{ __('Gestion des catégories (création, modification, suppression)') }}">
+                        <img src="{{ asset('assets/template/category.svg') }}" class="me-2" alt="" />
                         <span class="sidebar-text">{{ ui_t('nav.categories') }}</span>
                     </a>
                 </li>

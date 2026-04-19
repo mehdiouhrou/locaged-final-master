@@ -5,6 +5,7 @@ namespace App\View\Composers;
 use App\Http\Controllers\HomeController;
 use App\Models\Category;
 use App\Models\Department;
+use App\Models\Document;
 use App\Models\Service;
 use App\Models\SubDepartment;
 use App\Services\DashboardActivityFeedService;
@@ -28,10 +29,18 @@ class SidebarComposer
             'favorites' => [],
         ];
 
-        if (! $user || ! $user->can('viewAny', \App\Models\Document::class)) {
+        if (! $user) {
             $view->with('sidebarCategoryTree', []);
             $view->with('sidebarFavorites', $favoritesPayload);
             $view->with('sidebarMyCategories', $myCategoriesPayload);
+
+            return;
+        }
+
+        if (! $user->can('viewAny', Document::class)) {
+            $view->with('sidebarCategoryTree', []);
+            $view->with('sidebarFavorites', $favoritesPayload);
+            $view->with('sidebarMyCategories', $this->buildSidebarMyCategories($user));
 
             return;
         }
@@ -117,6 +126,17 @@ class SidebarComposer
             'recent' => $sidebarActivityFeed,
         ]);
 
+        $view->with('sidebarMyCategories', $this->buildSidebarMyCategories($user, $favoriteCategories));
+    }
+
+    /**
+     * Catégories « Mes catégories » (consultation / profil), indépendamment du droit de gestion CRUD.
+     *
+     * @param  array<int, array{id: int, name: string, count?: int}>  $favoriteCategoriesFromDocs
+     * @return array{items: list<array{id: int, name: string}>, total: int, favorites: list<array{id: int, name: string}>}
+     */
+    private function buildSidebarMyCategories(User $user, array $favoriteCategoriesFromDocs = []): array
+    {
         $accessibleCategoryIds = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
         $accessibleCategoriesQuery = Category::query()->orderBy('name');
         if ($accessibleCategoryIds !== null) {
@@ -132,17 +152,17 @@ class SidebarComposer
             ->map(fn ($cat) => ['id' => $cat->id, 'name' => $cat->name])
             ->values();
 
-        $favoriteCategoryIds = collect($favoriteCategories)->pluck('id')->filter()->values();
+        $favoriteCategoryIds = collect($favoriteCategoriesFromDocs)->pluck('id')->filter()->values();
         $favoriteAccessibleCategories = $accessibleCategories
             ->whereIn('id', $favoriteCategoryIds)
             ->take(5)
             ->values()
             ->all();
 
-        $view->with('sidebarMyCategories', [
+        return [
             'items' => $accessibleCategories->take(5)->all(),
             'total' => $accessibleCategories->count(),
             'favorites' => $favoriteAccessibleCategories,
-        ]);
+        ];
     }
 }
