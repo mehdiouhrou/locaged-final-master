@@ -39,6 +39,7 @@ class User extends Authenticatable
         // but the authoritative associations are the pivot tables sub_department_user and service_user.
         'sub_department_id',
         'service_id',
+        'active',
     ];
 
     /**
@@ -85,7 +86,7 @@ class User extends Authenticatable
         static::creating(function ($user) {
             $maxUsers = Branding::getMaxUsers();
             if ($maxUsers > 0) {
-                $currentUserCount = static::count();
+                $currentUserCount = static::query()->where('active', true)->count();
                 if ($currentUserCount >= $maxUsers) {
                     throw ValidationException::withMessages([
                         'email' => ["Cannot create user. Maximum number of users ({$maxUsers}) has been reached."],

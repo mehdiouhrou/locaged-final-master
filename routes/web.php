@@ -94,6 +94,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
         Route::get('/documents/export', [DocumentController::class, 'export'])->name('documents.export');
 
+        Route::post('/users/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
         Route::resource('users', UserController::class);
     });
 

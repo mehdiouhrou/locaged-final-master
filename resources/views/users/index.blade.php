@@ -2,7 +2,7 @@
 
 @section('content')
         @php
-            $currentUserCount = \App\Models\User::count();
+            $currentUserCount = \App\Models\User::query()->where('active', true)->count();
             $maxUsers = \App\Support\Branding::getMaxUsers();
             $usersHeroSubtitle = number_format($currentUserCount) . ' ' . ui_t('pages.users_page.users');
         @endphp

@@ -558,14 +558,41 @@ class UserController extends Controller
     }
 
 
-    // Delete a user
+    /**
+     * Désactivation logique (jamais de suppression physique de la ligne users).
+     */
     public function destroy(User $user)
     {
-        Gate::authorize('delete',$user);
+        Gate::authorize('delete', $user);
 
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', __('pages.users_page.cannot_deactivate_self'));
+        }
 
-        $user->delete();
+        if (! $user->active) {
+            return redirect()->back()->with('info', __('pages.users_page.already_inactive'));
+        }
 
-        return redirect()->back()->with('success', 'User deleted successfully.');
+        $user->active = false;
+        $user->save();
+
+        return redirect()->back()->with('success', __('pages.users_page.user_deactivated'));
+    }
+
+    /**
+     * Réactivation d’un compte désactivé (active = 1).
+     */
+    public function reactivate(User $user)
+    {
+        Gate::authorize('update', $user);
+
+        if ($user->active) {
+            return redirect()->back()->with('info', __('pages.users_page.already_active'));
+        }
+
+        $user->active = true;
+        $user->save();
+
+        return redirect()->back()->with('success', __('pages.users_page.user_reactivated'));
     }
 }

@@ -69,7 +69,12 @@
                                     onerror="this.onerror=null;this.src='{{ asset('assets/user.png') }}';"
                                 />
                             </div>
-                            <div>{{ $user->full_name }}</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span>{{ $user->full_name }}</span>
+                                @if(! $user->active)
+                                    <span class="badge rounded-pill bg-danger">{{ ui_t('pages.users_page.inactive_badge') }}</span>
+                                @endif
+                            </div>
                         </div>
                     </td>
                     <td>
@@ -112,7 +117,7 @@
                                         {{ ui_t('pages.users_page.edit') }}
                                     </button>
                                 @endcan
-                                @can('delete',$user)
+                                @can('delete', $user)
                             <button type="button"
                                     data-id="{{ $user->id }}"
                                     data-name="{{ $user->name }}"
@@ -121,10 +126,18 @@
                                     data-method="DELETE"
                                     data-button-text="{{ ui_t('pages.users_page.confirm') }}"
                                     data-title="{{ ui_t('pages.users_page.delete_user_title', ['name' => $user->full_name]) }}"
-                                    data-body="{{ ui_t('pages.documents.cannot_undo') }}">
+                                    data-body="{{ ui_t('pages.users_page.delete_user_body') }}">
                                 {{ ui_t('pages.users_page.delete') }}
                             </button>
-                                    @endcan
+                                @endcan
+                                @can('update', $user)
+                                    @if(! $user->active)
+                                        <form action="{{ route('users.reactivate', $user) }}" method="post" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-success btn-action">{{ ui_t('pages.users_page.reactivate') }}</button>
+                                        </form>
+                                    @endif
+                                @endcan
                         </div>
                     </td>
                 </tr>

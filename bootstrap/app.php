@@ -32,7 +32,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         // AUDIT FIX #6: Security headers (CSP, HSTS, X-Frame-Options, etc.)
         $middleware->web(prepend: \App\Http\Middleware\SecurityHeaders::class);
-        $middleware->web(append: \App\Http\Middleware\SetLocale::class);
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\EnsureUserAccountActive::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

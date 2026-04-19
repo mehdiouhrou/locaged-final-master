@@ -108,6 +108,14 @@ class UserPolicy
             return false;
         }
 
+        if ($user->id === $model->id) {
+            return false;
+        }
+
+        if (! $model->active) {
+            return false;
+        }
+
         if (! $user->can('view any role') && ! $user->can('view organization wide reports')) {
             return false;
         }
