@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\Service;
 use App\Models\SubDepartment;
+use App\Models\User;
 use App\Services\DashboardActivityFeedService;
 use App\Services\ProfileCategoryAccessService;
 use Illuminate\Support\Facades\Auth;
