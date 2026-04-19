@@ -628,6 +628,15 @@ return [
         'rejected' => 'Rejetés',
         'destroyed' => 'Détruits',
         'no_data' => 'Aucune donnée',
+        'days' => [
+            'sun' => 'Dim',
+            'mon' => 'Lun',
+            'tue' => 'Mar',
+            'wed' => 'Mer',
+            'thu' => 'Jeu',
+            'fri' => 'Ven',
+            'sat' => 'Sam',
+        ],
     ],
     'notifications' => [
         'all' => 'Tout',

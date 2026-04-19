@@ -644,6 +644,15 @@ return [
         'rejected' => 'Rejected',
         'destroyed' => 'Destroyed',
         'no_data' => 'No data',
+        'days' => [
+            'sun' => 'Sun',
+            'mon' => 'Mon',
+            'tue' => 'Tue',
+            'wed' => 'Wed',
+            'thu' => 'Thu',
+            'fri' => 'Fri',
+            'sat' => 'Sat',
+        ],
     ],
     'notifications' => [
         'all' => 'All',

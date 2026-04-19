@@ -16,7 +16,8 @@ class PhysicalLocationSnapshot
     {
         $document->loadMissing(['box.shelf.row.room']);
 
-        if ($document->isDigitalOnly() || ! $document->box_id) {
+        // Dès qu’une boîte est renseignée, l’emplacement physique prime (même si metadata.digital_only est resté à true).
+        if (! $document->box_id) {
             return ['type' => 'numerique'];
         }
 

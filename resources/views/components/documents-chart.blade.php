@@ -19,6 +19,7 @@
                     data-weekly='@json($weeklyData)'
                     data-monthly='@json($monthlyData)'
                     data-yearly='@json($yearlyData)'
+                    data-locale="{{ str_replace('_', '-', app()->getLocale()) }}"
                     data-approved-label="{{ ui_t('pages.chart.approved') }}"
                     data-pending-label="{{ ui_t('pages.chart.pending') }}"
                     data-expired-label="{{ ui_t('pages.chart.expired') }}"

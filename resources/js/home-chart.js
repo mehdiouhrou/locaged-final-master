@@ -13,7 +13,7 @@ if (chartEl) {
     const approvedLabel = chartEl.dataset.approvedLabel || 'Approved';
     const pendingLabel = chartEl.dataset.pendingLabel || 'Pending';
     const expiredLabel = chartEl.dataset.expiredLabel || 'Expired';
-
+    const chartLocale = chartEl.dataset.locale || document.documentElement.lang || 'en';
 
     const dayTranslations = chartEl.dataset.days ? JSON.parse(chartEl.dataset.days) : null;
     const labelsWeekly = weeklyData.map(item => {
@@ -21,9 +21,17 @@ if (chartEl) {
         return dayTranslations && dayTranslations[dayKey] ? dayTranslations[dayKey].toUpperCase() : item.day.substring(0, 3).toUpperCase();
     });
     const labelsMonthly = monthlyData.map(item => {
+        if (item && item.month_label) {
+            return String(item.month_label).toUpperCase();
+        }
         if (!item || !item.month) return '';
         const [year, month] = item.month.split('-');
-        return new Date(year, month - 1).toLocaleString('default', { month: 'short' }).toUpperCase();
+        const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+        try {
+            return d.toLocaleDateString(chartLocale, { month: 'short' }).toUpperCase();
+        } catch (e) {
+            return d.toLocaleDateString('en', { month: 'short' }).toUpperCase();
+        }
     });
     const labelsYearly = yearlyData.map(item => item.year);
 
@@ -33,15 +41,17 @@ if (chartEl) {
     }
 
 
+    const monthlyLen = Array.isArray(monthlyData) ? monthlyData.length : 0;
+
     // Initial chart config - will update data dynamically
     const config = {
         type: 'bar',
         data: {
             labels: labelsMonthly,
             datasets: [
-                { label: approvedLabel, data: getData(monthlyData, 'approved', 8), backgroundColor: '#cc2929', borderRadius: 6, barThickness: 12 },
-                { label: pendingLabel, data: getData(monthlyData, 'pending', 8), backgroundColor: '#f59e0b', borderRadius: 6, barThickness: 12 },
-                { label: expiredLabel, data: getData(monthlyData, 'expired', 8), backgroundColor: '#64748b', borderRadius: 6, barThickness: 12 }
+                { label: approvedLabel, data: getData(monthlyData, 'approved', monthlyLen), backgroundColor: '#cc2929', borderRadius: 6, barThickness: 12 },
+                { label: pendingLabel, data: getData(monthlyData, 'pending', monthlyLen), backgroundColor: '#f59e0b', borderRadius: 6, barThickness: 12 },
+                { label: expiredLabel, data: getData(monthlyData, 'expired', monthlyLen), backgroundColor: '#64748b', borderRadius: 6, barThickness: 12 }
             ]
         },
         options: {
@@ -129,17 +139,18 @@ if (chartEl) {
 
             if (period === 'weekly') {
                 labels = labelsWeekly;
-                dataLength = 7;
                 dataSource = weeklyData;
             } else if (period === 'monthly') {
                 labels = labelsMonthly;
-                dataLength = 10;
                 dataSource = monthlyData;
             } else if (period === 'yearly') {
                 labels = labelsYearly;
-                dataLength = 5;
                 dataSource = yearlyData;
+            } else {
+                return;
             }
+
+            dataLength = Array.isArray(dataSource) ? dataSource.length : 0;
 
             // Update chart data and labels
             chart.data.labels = labels;
