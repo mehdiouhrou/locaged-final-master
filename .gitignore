@@ -18,3 +18,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Exports de diff / comparaison de branches (locaux, ne pas versionner)
+/diff-*.patch
+/diff-fichiers*.txt
