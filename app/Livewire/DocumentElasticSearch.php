@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Enums\DocumentStatus;
 use App\Models\Category;
-use App\Models\DocumentVersion;
+use App\Models\Document;
 use App\Models\SavedSearch;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -135,34 +135,40 @@ class DocumentElasticSearch extends Component
 
     private function searchDocuments()
     {
-        // Use a simple database query against DocumentVersion + Document title
-        // so the header search works even when Scout is not configured.
         $term = trim((string) $this->query);
         if (strlen($term) < 2) {
             $this->results = [];
             return;
         }
 
-        $like = '%' . strtolower($term) . '%';
-
-        $searchResults = DocumentVersion::with(['uploadedBy', 'document.tags'])
-            ->where(function ($q) use ($like) {
-                // Search in document title
-                $q->whereHas('document', function ($docQ) use ($like) {
-                    $docQ->whereRaw('LOWER(title) LIKE ?', [$like]);
+        try {
+            $searchResults = Document::search($term)->take(50)->get();
+            $searchResults->loadMissing(['latestVersion', 'tags', 'createdBy']);
+        } catch (\Throwable $e) {
+            Log::warning('Header search: Scout failed, using SQL fallback', [
+                'query' => $term,
+                'error' => $e->getMessage(),
+            ]);
+            $like = '%'.strtolower($term).'%';
+            $searchResults = Document::with(['latestVersion', 'tags', 'createdBy'])
+                ->where(function ($q) use ($like) {
+                    $q->whereRaw('LOWER(title) LIKE ?', [$like])
+                        ->orWhereHas('latestVersion', function ($vq) use ($like) {
+                            $vq->whereRaw('LOWER(ocr_text) LIKE ?', [$like]);
+                        });
                 })
-                // Also search in OCR text
-                ->orWhereRaw('LOWER(ocr_text) LIKE ?', [$like]);
-            })
-            ->orderByDesc('updated_at')
-            ->limit(50)
-            ->get();
+                ->orderByDesc('updated_at')
+                ->limit(50)
+                ->get();
+        }
 
-        // Apply other filters manually
-        $this->results = $searchResults->filter(function ($doc) {
+        $searchResults->loadMissing(['latestVersion', 'tags', 'createdBy']);
+
+        $this->results = $searchResults->filter(function (Document $doc) {
             // FILTER: Type (based on file extension)
             if ($this->filters['type']) {
-                $ext = strtolower(pathinfo($doc->file_path, PATHINFO_EXTENSION));
+                $path = $doc->latestVersion?->file_path ?? '';
+                $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
                 $typeExtensions = [
                     'pdf' => ['pdf'],
@@ -173,26 +179,23 @@ class DocumentElasticSearch extends Component
                     'audio' => ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'],
                 ];
 
-                // If the extension is not in the list of extensions for this type, exclude
-                if (!isset($typeExtensions[$this->filters['type']]) || !in_array($ext, $typeExtensions[$this->filters['type']])) {
+                if (! isset($typeExtensions[$this->filters['type']]) || ! in_array($ext, $typeExtensions[$this->filters['type']])) {
                     return false;
                 }
             }
 
-            // FILTER: Category
             if (! empty($this->filters['category_id'])) {
-                $docCategoryId = (int) ($doc->document->category_id ?? 0);
+                $docCategoryId = (int) ($doc->category_id ?? 0);
                 if ($docCategoryId !== (int) $this->filters['category_id']) {
                     return false;
                 }
             }
 
-            // FILTER: Status
             if (! empty($this->filters['status'])) {
-                $docStatus = (string) ($doc->document->status ?? '');
+                $docStatus = (string) ($doc->status ?? '');
                 if ((string) $this->filters['status'] === 'expired') {
-                    $isExpired = (bool) ($doc->document->is_expired ?? false)
-                        || (optional($doc->document->expire_at)?->isPast() ?? false);
+                    $isExpired = (bool) ($doc->is_expired ?? false)
+                        || (optional($doc->expire_at)?->isPast() ?? false);
                     if (! $isExpired) {
                         return false;
                     }
@@ -201,38 +204,32 @@ class DocumentElasticSearch extends Component
                 }
             }
 
-            // FILTER: Creation Date (based on document.created_at)
-            if ($this->filters['creation_start'] && optional($doc->document->created_at)->lt($this->filters['creation_start'])) {
+            if ($this->filters['creation_start'] && optional($doc->created_at)->lt($this->filters['creation_start'])) {
                 return false;
             }
 
-            if ($this->filters['creation_end'] && optional($doc->document->created_at)->gt($this->filters['creation_end'])) {
+            if ($this->filters['creation_end'] && optional($doc->created_at)->gt($this->filters['creation_end'])) {
                 return false;
             }
 
-            // FILTER: Modified Date (uploaded_at in DocumentVersion)
-            if ($this->filters['modified_start'] && optional($doc->updated_at)->lt($this->filters['modified_start'])) {
+            if ($this->filters['modified_start'] && optional($doc->latestVersion?->updated_at)->lt($this->filters['modified_start'])) {
                 return false;
             }
 
-            if ($this->filters['modified_end'] && optional($doc->updated_at)->gt($this->filters['modified_end'])) {
+            if ($this->filters['modified_end'] && optional($doc->latestVersion?->updated_at)->gt($this->filters['modified_end'])) {
                 return false;
             }
 
-            // FILTER: Author
             if ($this->filters['author']) {
                 $authorFilter = strtolower($this->filters['author']);
-
-                // $username = strtolower($doc->uploadedBy->username ?? '');
-                $fullName = strtolower($doc->uploadedBy->full_name ?? '');
-                $email = strtolower($doc->uploadedBy->email ?? '');
+                $fullName = strtolower($doc->createdBy->full_name ?? '');
+                $email = strtolower($doc->createdBy->email ?? '');
                 $metadataAuthor = strtolower($doc->metadata['author'] ?? '');
 
                 if (
-                    // !str_contains($username, $authorFilter) &&
-                    !str_contains($fullName, $authorFilter) &&
-                    !str_contains($email, $authorFilter) &&
-                    !str_contains($metadataAuthor, $authorFilter)
+                    ! str_contains($fullName, $authorFilter) &&
+                    ! str_contains($email, $authorFilter) &&
+                    ! str_contains($metadataAuthor, $authorFilter)
                 ) {
                     return false;
                 }
@@ -240,10 +237,11 @@ class DocumentElasticSearch extends Component
 
             $filterTags = array_filter(array_map('trim', explode(',', strtolower($this->filters['tags'] ?? ''))));
 
-            // FILTER: Tags
-            if (!empty($filterTags)) {
-                $docTags = $doc->document->tags->pluck('name')->map(fn($t) => strtolower($t))->toArray();
-                if (!collect($filterTags)->every(fn($tag) => in_array($tag, $docTags))) { return false; }
+            if (! empty($filterTags)) {
+                $docTags = $doc->tags->pluck('name')->map(fn ($t) => strtolower($t))->toArray();
+                if (! collect($filterTags)->every(fn ($tag) => in_array($tag, $docTags))) {
+                    return false;
+                }
             }
 
             return true;

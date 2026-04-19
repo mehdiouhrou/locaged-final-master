@@ -7,13 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
-use Laravel\Scout\Searchable;
+use Laravel\Scout\ModelObserver;
 use App\Models\Service;
 use App\Models\SubDepartment;
 
 class DocumentVersion extends Model
 {
-    use Searchable;
     use SoftDeletes;
 
     protected $table = 'document_versions';
@@ -66,12 +65,28 @@ class DocumentVersion extends Model
             }
         });
 
-        // Remove from search index when document version is deleted (soft delete)
-        static::deleted(function ($documentVersion) {
+        static::saved(function (DocumentVersion $documentVersion) {
+            if (ModelObserver::syncingDisabledFor(Document::class)) {
+                return;
+            }
             try {
-                $documentVersion->unsearchable();
+                $documentVersion->document?->searchable();
             } catch (\Throwable $e) {
-                Log::warning('Failed to unsearchable DocumentVersion on delete', [
+                Log::warning('Failed to sync Document search index after version save', [
+                    'version_id' => $documentVersion->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
+        static::deleted(function (DocumentVersion $documentVersion) {
+            if (ModelObserver::syncingDisabledFor(Document::class)) {
+                return;
+            }
+            try {
+                $documentVersion->document?->searchable();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to sync Document search index after version delete', [
                     'version_id' => $documentVersion->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -177,53 +192,6 @@ class DocumentVersion extends Model
         'unlocked_at' => 'datetime',
         'uploaded_at' => 'datetime'
     ];
-
-    /**
-     * Determine if the model should be searchable.
-     */
-    public function shouldBeSearchable(): bool
-    {
-        // Only the latest approved version is searchable.
-        $latestVersion = $this->document->latestVersion;
-        if (!$latestVersion || $latestVersion->id !== $this->id) {
-            return false;
-        }
-        if (($this->document->status ?? null) !== 'approved') {
-            return false;
-        }
-        if (trim((string) $this->ocr_text) === '') {
-            return false;
-        }
-
-        return true;
-    }
-
-
-
-    public function toSearchableArray(): array
-    {
-        $documentDate = $this->document->created_at
-            ? $this->document->created_at->getTimestamp()
-            : null;
-        // Always int for Typesense default_sorting_field (non-optional in scout.php).
-        $uploadedAt = $this->uploaded_at?->getTimestamp()
-            ?? $this->created_at?->getTimestamp()
-            ?? 0;
-
-        return [
-            'id' => (string) $this->id,
-            'document_id' => $this->document_id,
-            'title' => (string) ($this->document->title ?? ''),
-            'content' => (string) ($this->ocr_text ?? ''),
-            'category_name' => (string) ($this->document->category?->name ?? ''),
-            'status' => (string) ($this->document->status ?? ''),
-            'created_by_name' => (string) ($this->document->createdBy?->full_name ?? ''),
-            'document_date' => $documentDate,
-            'tags' => $this->document->tags->pluck('name')->toArray(),
-            'service_name' => (string) ($this->document->service?->name ?? ''),
-            'uploaded_at' => $uploadedAt,
-        ];
-    }
 
     public function ocrJob(): \Illuminate\Database\Eloquent\Relations\HasOne
     {

@@ -150,12 +150,12 @@
                     <div class="position-absolute top-100 start-0 search-results-overlay mt-2">
                         <div class="card shadow border-0 rounded-3">
                             <ul class="list-group list-group-flush">
-                                @forelse($results as $version)
+                                @forelse($results as $document)
                                     <li class="list-group-item">
-                                        <a href="{{ route('document-versions.preview',['id' => $version->id]) }}" class="text-decoration-none d-block">
-                                            <div class="fw-semibold">{!! $this->highlightedTitle($version->document?->title) !!}</div>
-                                            @if(!empty($version->ocr_text))
-                                                <small class="text-muted d-block mt-1">{!! $this->highlightedSnippet($version->ocr_text) !!}</small>
+                                        <a href="{{ route('document-versions.preview',['id' => $document->latestVersion?->id]) }}" class="text-decoration-none d-block">
+                                            <div class="fw-semibold">{!! $this->highlightedTitle($document->title) !!}</div>
+                                            @if(!empty($document->latestVersion?->ocr_text))
+                                                <small class="text-muted d-block mt-1">{!! $this->highlightedSnippet($document->latestVersion->ocr_text) !!}</small>
                                             @endif
                                         </a>
                                     </li>

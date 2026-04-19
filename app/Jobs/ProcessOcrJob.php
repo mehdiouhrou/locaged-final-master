@@ -61,7 +61,7 @@ class ProcessOcrJob implements ShouldQueue
             $docVersion->update(['ocr_text' => $ocrText]);
 
             try {
-                $docVersion->searchable();
+                $docVersion->document?->searchable();
             } catch (Throwable $e) {
                 Log::warning('OCR finished but search index sync failed (document text was saved)', [
                     'ocr_job_id' => $this->ocrJob->id,

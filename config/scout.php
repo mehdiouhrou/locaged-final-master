@@ -181,28 +181,25 @@ return [
         ],
         // 'max_total_results' => env('TYPESENSE_MAX_TOTAL_RESULTS', 1000),
         'model-settings' => [
-            \App\Models\DocumentVersion::class => [
+            \App\Models\Document::class => [
                 'collection-schema' => [
                     'name' => 'documents',
                     'fields' => [
                         ['name' => 'id', 'type' => 'string'],
-                        ['name' => 'document_id', 'type' => 'int64'],
                         ['name' => 'title', 'type' => 'string'],
                         ['name' => 'content', 'type' => 'string', 'optional' => true],
                         ['name' => 'category_name', 'type' => 'string', 'optional' => true],
                         ['name' => 'status', 'type' => 'string'],
                         ['name' => 'created_by_name', 'type' => 'string', 'optional' => true],
-                        ['name' => 'document_date', 'type' => 'int64', 'optional' => true],
                         ['name' => 'tags', 'type' => 'string[]', 'optional' => true],
-                        ['name' => 'service_name', 'type' => 'string', 'optional' => true],
                         // Typesense: default_sorting_field cannot be optional (see Typesense docs).
                         ['name' => 'uploaded_at', 'type' => 'int64', 'optional' => false],
                     ],
                     'default_sorting_field' => 'uploaded_at',
                 ],
                 'search-parameters' => [
-                    'query_by' => 'title,content',
-                    'query_by_weights' => '5,1',
+                    'query_by' => 'title,content,tags,category_name,created_by_name',
+                    'query_by_weights' => '5,1,2,2,1',
                 ],
             ],
         ],

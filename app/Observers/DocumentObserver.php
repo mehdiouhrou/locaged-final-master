@@ -28,15 +28,6 @@ class DocumentObserver
 
         foreach ($versions as $version) {
             try {
-                $version->unsearchable();
-            } catch (\Throwable $e) {
-                Log::warning('DocumentObserver: unsearchable version failed', [
-                    'version_id' => $version->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            try {
                 OcrJob::query()->where('document_version_id', $version->id)->delete();
             } catch (\Throwable $e) {
                 Log::warning('DocumentObserver: OCR job delete failed', [

@@ -15,11 +15,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\ValidationException;
+use Laravel\Scout\Builder as ScoutBuilder;
+use Laravel\Scout\Searchable;
 
 class Document extends Model
 {
     // SoftDeletes = scope global whereNull(deleted_at) sauf withTrashed()/onlyTrashed() (corbeille / destruction).
     use SoftDeletes;
+    use Searchable;
 
     protected $fillable = [
         'uid',
@@ -111,18 +114,18 @@ class Document extends Model
             }
         });
 
-        // Remove all document versions from search index and delete OCR jobs when document is soft deleted
+        // Remove document from Typesense and delete OCR jobs when document is soft deleted
         static::deleted(function ($document) {
-            foreach ($document->documentVersions as $version) {
-                try {
-                    $version->unsearchable();
-                } catch (\Throwable $e) {
-                    \Log::warning('Failed to unsearchable DocumentVersion on document soft delete', [
-                        'version_id' => $version->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            try {
+                $document->unsearchable();
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to unsearchable Document on document soft delete', [
+                    'document_id' => $document->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
+            foreach ($document->documentVersions as $version) {
                 // Delete associated OCR jobs
                 try {
                     \App\Models\OcrJob::where('document_version_id', $version->id)->delete();
@@ -131,17 +134,6 @@ class Document extends Model
                         'version_id' => $version->id,
                         'error' => $e->getMessage(),
                     ]);
-                }
-            }
-        });
-
-        // Re-index document versions when document title changes
-        static::updated(function ($document) {
-            if ($document->isDirty('title')) {
-                foreach ($document->documentVersions as $version) {
-                    if ($version->shouldBeSearchable()) {
-                        $version->searchable();
-                    }
                 }
             }
         });
@@ -558,6 +550,10 @@ class Document extends Model
 
     public function isDigitalOnly(): bool
     {
+        if ($this->box_id) {
+            return false;
+        }
+
         return filter_var(data_get($this->metadata, 'digital_only'), FILTER_VALIDATE_BOOLEAN);
     }
 
@@ -617,6 +613,86 @@ class Document extends Model
             }
         }
 
+    }
+
+    public function searchableAs(): string
+    {
+        return 'documents';
+    }
+
+    /**
+     * Load documents returned by the search engine without the visibility scope;
+     * {@see DocumentSearchService::applyPermissionFilter()} enforces access rules.
+     */
+    public function queryScoutModelsByIds(ScoutBuilder $builder, array $ids)
+    {
+        $query = static::usesSoftDelete()
+            ? $this->withTrashed()
+            : $this->newQuery();
+
+        $query->withoutGlobalScope('department_service');
+
+        if ($builder->queryCallback) {
+            call_user_func($builder->queryCallback, $query);
+        }
+
+        $whereIn = in_array($this->getScoutKeyType(), ['int', 'integer']) ?
+            'whereIntegerInRaw' :
+            'whereIn';
+
+        return $query->{$whereIn}(
+            $this->qualifyColumn($this->getScoutKeyName()),
+            $ids
+        );
+    }
+
+    /**
+     * @param  Builder<\App\Models\Document>  $query
+     * @return Builder<\App\Models\Document>
+     */
+    protected static function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('department_service')
+            ->with(['latestVersion', 'category', 'createdBy', 'tags']);
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        $status = $this->status instanceof DocumentStatus
+            ? $this->status->value
+            : (string) ($this->status ?? '');
+
+        return $status === DocumentStatus::Approved->value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        $latest = $this->relationLoaded('latestVersion')
+            ? $this->latestVersion
+            : $this->latestVersion()->first();
+
+        $status = $this->status instanceof DocumentStatus
+            ? $this->status->value
+            : (string) ($this->status ?? '');
+
+        $uploadedAt = $latest?->uploaded_at?->getTimestamp()
+            ?? $latest?->created_at?->getTimestamp()
+            ?? $this->updated_at?->getTimestamp()
+            ?? 0;
+
+        return [
+            'id' => (string) $this->id,
+            'title' => (string) ($this->title ?? ''),
+            'content' => (string) ($latest?->ocr_text ?? ''),
+            'category_name' => (string) ($this->category?->name ?? ''),
+            'status' => $status,
+            'created_by_name' => (string) ($this->createdBy?->full_name ?? ''),
+            'tags' => $this->tags->pluck('name')->toArray(),
+            'uploaded_at' => $uploadedAt,
+        ];
     }
 
     /**

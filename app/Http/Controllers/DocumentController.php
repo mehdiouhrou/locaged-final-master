@@ -426,35 +426,31 @@ class DocumentController extends Controller
             }
         }
 
-        // Remove from search index and delete all document versions and their files
-        foreach ($document->documentVersions as $version) {
-            // Remove from search index first, but ignore search backend issues
-            try {
-                $version->unsearchable();
-            } catch (\Throwable $e) {
-                Log::warning('Failed to remove version from search index during permanent delete', [
-                    'version_id' => $version->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        try {
+            $document->unsearchable();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to remove document from search index during permanent delete', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
-            if ($version->file_path && Storage::exists($version->file_path)) {
-                Storage::delete($version->file_path);
-            }
+        // Delete all document versions and their files (disable Document Scout observer + version hooks)
+        Document::withoutSyncingToSearch(function () use ($document) {
+            foreach ($document->documentVersions as $version) {
+                if ($version->file_path && Storage::exists($version->file_path)) {
+                    Storage::delete($version->file_path);
+                }
 
-            // Prevent Scout from trying to sync in this destructive loop.
-            // We already tried unsearchable() manually above with error handling
-            \App\Models\DocumentVersion::withoutSyncingToSearch(function () use ($version) {
-                // Delete associated OCR job if it exists
                 if ($version->ocrJob) {
                     $version->ocrJob->delete();
                 }
-                $version->delete();
-            });
-        }
 
-        // Delete the document itself
-        $document->delete();
+                $version->delete();
+            }
+
+            $document->delete();
+        });
 
         return redirect()->back()->with('success', ui_t('pages.documents.delete_success'));
     }

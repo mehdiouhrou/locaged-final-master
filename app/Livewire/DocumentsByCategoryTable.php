@@ -436,20 +436,22 @@ class DocumentsByCategoryTable extends Component
                     // Log the action before deletion (same as individual delete)
                     $document->logAction('permanently_deleted');
 
-                    // Remove from search index and delete all document versions and their files
-                    foreach ($document->documentVersions as $version) {
-                        // Remove from search index first
-                        $version->unsearchable();
-
-                        // Delete the file if it exists
-                        if ($version->file_path && Storage::exists($version->file_path)) {
-                            Storage::delete($version->file_path);
-                        }
-                        $version->delete();
+                    try {
+                        $document->unsearchable();
+                    } catch (\Exception $e) {
+                        $errors[] = "Search index: {$document->title}: ".$e->getMessage();
                     }
 
-                    // Delete the document itself
-                    $document->delete();
+                    Document::withoutSyncingToSearch(function () use ($document) {
+                        foreach ($document->documentVersions as $version) {
+                            if ($version->file_path && Storage::exists($version->file_path)) {
+                                Storage::delete($version->file_path);
+                            }
+                            $version->delete();
+                        }
+
+                        $document->delete();
+                    });
                     $deletedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Failed to delete document '{$document->title}': " . $e->getMessage();
