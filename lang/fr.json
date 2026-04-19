@@ -390,6 +390,7 @@
     "filters.tags": "Étiquettes",
     "filters.tags_placeholder": "étiquette1, étiquette2",
     "filters.to": "Au",
+    "filters.without_category": "Sans catégorie",
     "filters.types.audio": "Audio",
     "filters.types.excel": "Excel",
     "filters.types.image": "Image",

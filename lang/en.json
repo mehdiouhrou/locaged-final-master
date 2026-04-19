@@ -386,6 +386,7 @@
     "filters.tags": "Tags",
     "filters.tags_placeholder": "tag1, tag2",
     "filters.to": "To",
+    "filters.without_category": "Without category",
     "filters.types.audio": "Audio",
     "filters.types.excel": "Excel",
     "filters.types.image": "Image",

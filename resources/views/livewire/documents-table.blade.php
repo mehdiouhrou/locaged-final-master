@@ -312,6 +312,15 @@
                         </div>
                     </div>
                 @endunless
+
+                <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
+                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
+                    @foreach($filterCategories ?? [] as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                    @endforeach
+                </select>
+
                 <div class="d-flex align-items-center gap-1">
                     <label>{{ ui_t('filters.from') }}: </label>
                     <input type="date" class="form-control" wire:model.change="dateFrom" placeholder="{{ ui_t('filters.from') }}" />
@@ -838,7 +847,7 @@
                             <span class="text-muted">—</span>
                         </td>
                         <td>
-                            <div class="file-actions d-flex justify-content-center">
+                            <div class="file-actions doc-list-actions">
                                 @can('approve', \App\Models\Document::class)
                                     <a class="btn-table btn-table-approve trigger-action"
                                        data-id="{{ $folder->id }}"
@@ -854,7 +863,7 @@
                                     </a>
                                 @endcan
                                 @can('decline', \App\Models\Document::class)
-                                    <a class="btn-table btn-table-reject trigger-action ms-1"
+                                    <a class="btn-table btn-table-reject trigger-action"
                                        data-id="{{ $folder->id }}"
                                        data-name="{{ $folder->name }}"
                                        data-url="{{ route('folders.decline', $folder) }}"
@@ -965,7 +974,7 @@
                         </div>
                     </td>
                     <td>
-                        <div class="file-actions d-flex justify-content-center">
+                        <div class="file-actions doc-list-actions">
                             @if($this->showOnlyPendingApprovals)
                                 {{-- Approvals view: only approve, decline, preview --}}
                                 @if($doc->status === 'pending')
@@ -1017,7 +1026,7 @@
                                             ];
                                         @endphp
                                         <a href="{{ route('document-versions.preview', $previewParams) }}"
-                                           class="btn-table btn-table-preview ms-1" title="{{ ui_t('actions.preview') }}" aria-label="{{ ui_t('actions.preview') }}">
+                                           class="btn-table btn-table-preview" title="{{ ui_t('actions.preview') }}" aria-label="{{ ui_t('actions.preview') }}">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
                                     @endif
@@ -1028,7 +1037,7 @@
                                     $isFavorite = auth()->check() && auth()->user()->favoriteDocuments()->where('document_id', $doc->id)->exists();
                                 @endphp
                                 <button type="button"
-                                        class="btn-table btn-table-favorite me-1"
+                                        class="btn-table btn-table-favorite"
                                         title="{{ $isFavorite ? ui_t('pages.documents.favorite.remove') : ui_t('pages.documents.favorite.add') }}"
                                         aria-label="{{ ui_t('pages.documents.favorite.label') }}"
                                         wire:click="toggleFavorite({{ $doc->id }})">
@@ -1053,14 +1062,16 @@
                                     @endif
                                 @endcan
                                 @can('viewAny', \App\Models\User::class)
-                                <button type="button" class="btn-table btn-table-logs toggle-log ms-1" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
+                                <button type="button" class="btn-table btn-table-logs toggle-log" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                 </button>
                                 @endcan
                                 <div class="dropdown">
-                                    <button class="btn text-black" style="background: #e6e6e6" type="button"
-                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                        ⋮
+                                    <button class="btn-table btn-table-more" type="button"
+                                            data-bs-toggle="dropdown" aria-expanded="false"
+                                            title="{{ ui_t('tables.actions') }}"
+                                            aria-label="{{ ui_t('tables.actions') }}">
+                                        <i class="fa-solid fa-ellipsis-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu">
                                         @can('update',$doc)

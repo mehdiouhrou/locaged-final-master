@@ -6,6 +6,7 @@ use App\Enums\DocumentStatus;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
+use App\Models\Category;
 use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\Service;
@@ -96,7 +97,7 @@ class DocumentsTable extends Component
         }
 
         // Keep search suggestions in sync as the user types or changes filters
-        if ($field === 'search' || $field === 'hierarchy' || $field === 'status') {
+        if ($field === 'search' || $field === 'hierarchy' || $field === 'status' || $field === 'category') {
             $this->updateSearchSuggestions();
         }
     }
@@ -466,6 +467,7 @@ class DocumentsTable extends Component
             'rooms'     => $rooms,
             'hierarchyDepartments' => $hierarchyDepartments,
             'documentsIds' => $this->documentsIds,
+            'filterCategories' => Category::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -515,6 +517,12 @@ class DocumentsTable extends Component
             if (! $canViewAny && ! $canViewDepartment && ! $canViewService && $canViewOwn) {
                 $query->where('created_by', $user->id);
             }
+        }
+
+        if ($this->category === 'uncategorized') {
+            $query->whereNull('category_id');
+        } elseif ($this->category !== '' && $this->category !== null) {
+            $query->where('category_id', $this->category);
         }
 
         // Full-text search: title AND OCR content

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Category;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
@@ -31,8 +32,8 @@ class DocumentsByCategoryTable extends Component
     public $tags = '';
     public $favoritesOnly = false;
 
-    /** OCR job status on latest version: '', none, queued, processing, completed, failed */
-    public string $ocrFilter = '';
+    /** Category id, "uncategorized", or "" (route scope / all accessible) */
+    public string $category = '';
 
     public $documentId = null; // Filter by specific document ID
     public $boxId = ''; // Filter by box ID (physical location)
@@ -61,7 +62,7 @@ class DocumentsByCategoryTable extends Component
         'author' => ['except' => ''],
         'tags' => ['except' => ''],
         'favoritesOnly' => ['except' => false],
-        'ocrFilter' => ['except' => '', 'as' => 'ocr'],
+        'category' => ['except' => ''],
         'perPage' => ['except' => 10],
         'boxId' => ['except' => '', 'as' => 'box_id'],
         'documentId' => ['except' => null, 'as' => 'document_id'],
@@ -79,12 +80,19 @@ class DocumentsByCategoryTable extends Component
         $this->filterId = $filterId;
         $this->isCategory = $isCategory;
         $this->contextLabel = $contextLabel;
+
+        $defaultCategory = ($filterId && $isCategory) ? (string) $filterId : '';
+        if (request()->query('category') !== null) {
+            $this->category = (string) request()->query('category');
+        } else {
+            $this->category = $defaultCategory;
+        }
     }
 
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'tags', 'boxId', 'favoritesOnly', 'ocrFilter', 'perPage', 'digitalOnly', 'physicalOnly'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'tags', 'boxId', 'favoritesOnly', 'category', 'perPage', 'digitalOnly', 'physicalOnly'])) {
             $this->resetPage();
         }
         if ($field === 'digitalOnly' && filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
@@ -107,7 +115,7 @@ class DocumentsByCategoryTable extends Component
         $this->tags = '';
         $this->boxId = '';
         $this->favoritesOnly = false;
-        $this->ocrFilter = '';
+        $this->category = ($this->filterId && $this->isCategory) ? (string) $this->filterId : '';
         $this->physicalOnly = false;
         $this->digitalOnly = false;
         $this->onLoanOnly = false;
@@ -179,7 +187,7 @@ class DocumentsByCategoryTable extends Component
         // This makes search/filtering always work even if the search engine
         // is not configured.
         $documentsQuery = Document::with([
-            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion.ocrJob', 'auditLogs.user',
+            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion', 'auditLogs.user',
         ]);
 
         // By default, hide expired documents (is_expired = 1/true)
@@ -224,18 +232,19 @@ class DocumentsByCategoryTable extends Component
             }
         }
 
-        // Handle category/subcategory filter
-        if ($this->filterId) {
-            $documentsQuery->when($this->filterId, function ($q) {
-                if ($this->isCategory) {
-                    // Filter directly by category_id so documents linked only to the category
-                    // (without a subcategory) are also included.
-                    $q->where('category_id', $this->filterId);
-                } else {
-                    // If it's a subcategory, filter directly
-                    $q->where('subcategory_id', $this->filterId);
-                }
-            });
+        // Category (dropdown) and/or route scope (Mes catégories → une catégorie / sous-catégorie)
+        if ($this->category !== '') {
+            if ($this->category === 'uncategorized') {
+                $documentsQuery->whereNull('category_id');
+            } else {
+                $documentsQuery->where('category_id', $this->category);
+            }
+        } elseif ($this->filterId && $this->isCategory) {
+            $documentsQuery->where('category_id', $this->filterId);
+        }
+
+        if ($this->filterId && ! $this->isCategory) {
+            $documentsQuery->where('subcategory_id', $this->filterId);
         }
 
         // Box filter (physical location)
@@ -266,20 +275,6 @@ class DocumentsByCategoryTable extends Component
                 $sub->where('file_type', $this->fileType);
             });
         });
-
-        // OCR pipeline filter (latest version job)
-        if ($this->ocrFilter === 'none') {
-            $documentsQuery->where(function ($q) {
-                $q->whereDoesntHave('latestVersion')
-                    ->orWhereHas('latestVersion', function ($vq) {
-                        $vq->doesntHave('ocrJob');
-                    });
-            });
-        } elseif (in_array($this->ocrFilter, ['queued', 'processing', 'completed', 'failed'], true)) {
-            $documentsQuery->whereHas('latestVersion.ocrJob', function ($q) {
-                $q->where('status', $this->ocrFilter);
-            });
-        }
 
         // Room filter (convert to box_ids)
         if ($this->room) {
@@ -385,6 +380,7 @@ class DocumentsByCategoryTable extends Component
             'movements' => $movements,
             'rooms' => $rooms,
             'documentsIds' => $this->documentsIds,
+            'filterCategories' => Category::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

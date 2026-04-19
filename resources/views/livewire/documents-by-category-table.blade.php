@@ -7,7 +7,7 @@
             || $dateFrom 
             || $dateTo 
             || $fileType 
-            || ($ocrFilter ?? '') !== ''
+            || (($category ?? '') !== '' && ! ($isCategory && $filterId && (string) $filterId === (string) $category))
             || $favoritesOnly
             || $physicalOnly
             || $digitalOnly
@@ -148,13 +148,12 @@
                     <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                 </select>
 
-                <select class="form-select w-100" wire:model.change="ocrFilter" title="{{ __('Filtrer selon le traitement OCR de la dernière version') }}">
-                    <option value="">{{ __('OCR (tous)') }}</option>
-                    <option value="none">{{ __('Sans job OCR') }}</option>
-                    <option value="queued">{{ __('OCR en file') }}</option>
-                    <option value="processing">{{ __('OCR en cours') }}</option>
-                    <option value="completed">{{ __('OCR terminé') }}</option>
-                    <option value="failed">{{ __('OCR en échec') }}</option>
+                <select class="form-select w-100" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
+                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
+                    @foreach($filterCategories ?? [] as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                    @endforeach
                 </select>
 
                 <div class="d-flex flex-column gap-1">
@@ -359,12 +358,12 @@
                         </div>
                     </td>
                     <td>
-                        <div class="file-actions d-flex justify-content-center">
+                        <div class="file-actions doc-list-actions">
                             @php
                                 $isFavorite = auth()->check() && auth()->user()->favoriteDocuments()->where('document_id', $doc->id)->exists();
                             @endphp
                             <button type="button"
-                                    class="btn-table btn-table-favorite me-1"
+                                    class="btn-table btn-table-favorite"
                                     title="{{ $isFavorite ? ui_t('pages.documents.favorite.remove') : ui_t('pages.documents.favorite.add') }}"
                                     aria-label="{{ ui_t('pages.documents.favorite.label') }}"
                                     wire:click="toggleFavorite({{ $doc->id }})">
@@ -388,14 +387,16 @@
                                 @endif
                             @endcan
                             @can('viewAny', \App\Models\User::class)
-                            <button type="button" class="btn-table btn-table-logs toggle-log ms-1" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
+                            <button type="button" class="btn-table btn-table-logs toggle-log" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
                                 <i class="fa-solid fa-clock-rotate-left"></i>
                             </button>
                             @endcan
                             <div class="dropdown">
-                                <button class="btn text-black" style="background: #e6e6e6" type="button"
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                    ⋮
+                                <button class="btn-table btn-table-more" type="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false"
+                                        title="{{ ui_t('tables.actions') }}"
+                                        aria-label="{{ ui_t('tables.actions') }}">
+                                    <i class="fa-solid fa-ellipsis-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu">
                                     @can('update',$doc)

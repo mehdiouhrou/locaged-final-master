@@ -383,6 +383,7 @@
     "filters.tags": "الوسوم",
     "filters.tags_placeholder": "وسم1، وسم2",
     "filters.to": "إلى",
+    "filters.without_category": "بدون فئة",
     "filters.types.audio": "صوت",
     "filters.types.excel": "Excel",
     "filters.types.image": "صورة",
