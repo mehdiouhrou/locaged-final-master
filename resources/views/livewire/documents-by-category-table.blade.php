@@ -120,8 +120,8 @@
             </div>
         @endif
         <div class="row g-4 align-items-start lgv2-documents-split mb-4">
-            <aside class="col-12 col-lg-3">
-                <div class="lgv2-filter-panel card border-0 shadow-sm p-3 mb-0">
+            <aside class="col-12 col-lg-auto flex-shrink-0 lgv2-documents-filter-column">
+                <div class="lgv2-filter-panel card border-0 shadow-sm p-2 mb-0">
                     <div class="lgv2-filter-panel-title text-uppercase text-muted small fw-bold mb-3">{{ __('Filtres') }}</div>
                     <div class="d-flex flex-column gap-3">
             <div class="search-files w-100">
@@ -249,7 +249,7 @@
                     </div>
                 </div>
             </aside>
-            <div class="col-12 col-lg-9">
+            <div class="col-12 col-lg min-w-0">
         <div class="recent-files-section mb-0">
         <table class="files-table">
             <thead>

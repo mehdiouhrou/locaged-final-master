@@ -1508,7 +1508,7 @@ class MultipleDocumentsCreateForm extends Component
                 $versionNumber = 1.0;
 
                 // Create document version without touching the search index (search backend may be down)
-                $docVersion = DocumentVersion::withoutSyncingToSearch(function () use ($document, $versionNumber, $filePath, $extension) {
+                $docVersion = Document::withoutSyncingToSearch(function () use ($document, $versionNumber, $filePath, $extension) {
                     return DocumentVersion::create([
                         'document_id' => $document->id,
                         'uploaded_by' => auth()->id(),

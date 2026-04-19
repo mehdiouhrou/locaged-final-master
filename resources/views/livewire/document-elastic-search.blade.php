@@ -170,19 +170,18 @@
             <div class="d-inline-flex align-items-center gap-2 flex-wrap header-saved-search-row">
                 <input
                     type="text"
-                    class="form-control form-control-sm"
-                    style="max-width: 190px;"
+                    class="form-control lgv2-saved-search-name-input"
                     placeholder="{{ __('pages.search.save_placeholder') }}"
                     wire:model.defer="savedSearchName"
                 />
                 <button
                     type="button"
-                    class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                    class="btn border-0 shadow-none d-inline-flex align-items-center justify-content-center lgv2-save-search-btn"
                     wire:click="saveCurrentSearch"
                     title="{{ __('pages.search.save_tooltip') }}"
+                    aria-label="{{ __('pages.search.save_tooltip') }}"
                 >
-                    <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
-                    <span>{{ __('pages.search.save') }}</span>
+                    <i class="bi bi-bookmark" aria-hidden="true"></i>
                 </button>
                 @error('savedSearchName')
                     <small class="text-danger">{{ $message }}</small>
@@ -239,6 +238,33 @@
             border-color: #cc2929 !important;
             box-shadow: 0 0 0 4px rgba(204, 41, 41, 0.18) !important;
             background: #ffffff !important;
+        }
+        .lgv2-saved-search-name-input {
+            max-width: 190px;
+            min-height: 42px;
+            padding: 0.45rem 0.65rem;
+            font-size: 0.875rem;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+        }
+        .lgv2-save-search-btn {
+            min-width: 42px;
+            height: 42px;
+            padding: 0 0.5rem;
+            color: #6b7280;
+            background: transparent;
+            border-radius: 10px;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+        .lgv2-save-search-btn:hover,
+        .lgv2-save-search-btn:focus-visible {
+            color: #cc2929;
+            background: rgba(204, 41, 41, 0.06);
+        }
+        .lgv2-save-search-btn .bi-bookmark {
+            font-size: 1.15rem;
+            line-height: 1;
         }
         .header-search-filter-btn {
             right: 8px;

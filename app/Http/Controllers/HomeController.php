@@ -1074,9 +1074,10 @@ class HomeController extends Controller
             $monthKey = $startOfYear->copy()->addMonths($i)->format('Y-m');
             $monthly[$monthKey] = array_fill_keys($statuses, 0);
             $monthly[$monthKey]['month'] = $monthKey;
+            // Libellé court unique (évite doublons côté affichage Chart.js / ICU)
             $monthly[$monthKey]['month_label'] = Carbon::parse($monthKey.'-01')
                 ->locale($locale)
-                ->translatedFormat('MMM');
+                ->isoFormat('MMM');
         }
 
         foreach ($rawMonthly as $row) {

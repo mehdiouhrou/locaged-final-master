@@ -16,32 +16,93 @@ if (chartEl) {
     const chartLocale = chartEl.dataset.locale || document.documentElement.lang || 'en';
 
     const dayTranslations = chartEl.dataset.days ? JSON.parse(chartEl.dataset.days) : null;
-    const labelsWeekly = weeklyData.map(item => {
-        const dayKey = item.day.substring(0, 3).toLowerCase();
-        return dayTranslations && dayTranslations[dayKey] ? dayTranslations[dayKey].toUpperCase() : item.day.substring(0, 3).toUpperCase();
-    });
-    const labelsMonthly = monthlyData.map(item => {
-        if (item && item.month_label) {
-            return String(item.month_label).toUpperCase();
+
+    const dayKeyByEnglish = {
+        Monday: 'mon',
+        Tuesday: 'tue',
+        Wednesday: 'wed',
+        Thursday: 'thu',
+        Friday: 'fri',
+        Saturday: 'sat',
+        Sunday: 'sun',
+    };
+
+    /** Évite libellés dupliqués type "JANVIERJANVIER1" (Intl / locales). */
+    function normalizeAxisLabel(s) {
+        let t = String(s ?? '').trim();
+        t = t.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+        if (t.length >= 6) {
+            const mid = Math.floor(t.length / 2);
+            if (mid >= 3) {
+                const a = t.slice(0, mid).toLowerCase();
+                const b = t.slice(mid).toLowerCase();
+                if (a === b) {
+                    return t.slice(0, mid);
+                }
+            }
         }
+        return t;
+    }
+
+    /** Libellé jour : une seule chaîne, sans duplication (traductions DB / JSON). */
+    function labelForWeeklyItem(item) {
+        if (!item || !item.day) return '';
+        const key = dayKeyByEnglish[item.day];
+        let raw;
+        if (key && dayTranslations && typeof dayTranslations[key] === 'string') {
+            raw = dayTranslations[key].trim();
+        } else {
+            raw = String(item.day).slice(0, 3);
+        }
+        return normalizeAxisLabel(raw);
+    }
+
+    /** Mois : nom uniquement, sans numéro — calculé une fois depuis YYYY-MM. */
+    function labelForMonthlyItem(item) {
         if (!item || !item.month) return '';
-        const [year, month] = item.month.split('-');
-        const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+        const parts = String(item.month).split('-');
+        if (parts.length < 2) return '';
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        if (Number.isNaN(y) || Number.isNaN(m)) return '';
+        const d = new Date(y, m, 1);
         try {
-            return d.toLocaleDateString(chartLocale, { month: 'short' }).toUpperCase();
+            let s = new Intl.DateTimeFormat(chartLocale, { month: 'long' }).format(d);
+            return normalizeAxisLabel(s);
         } catch (e) {
-            return d.toLocaleDateString('en', { month: 'short' }).toUpperCase();
+            return normalizeAxisLabel(d.toLocaleDateString('en', { month: 'long' }));
         }
-    });
-    const labelsYearly = yearlyData.map(item => item.year);
+    }
+
+    function labelForYearlyItem(item) {
+        if (!item || item.year == null) return '';
+        return String(item.year);
+    }
+
+    const labelsWeekly = Array.isArray(weeklyData) ? weeklyData.map(labelForWeeklyItem) : [];
+    const labelsMonthly = Array.isArray(monthlyData) ? monthlyData.map(labelForMonthlyItem) : [];
+    const labelsYearly = Array.isArray(yearlyData) ? yearlyData.map(labelForYearlyItem) : [];
 
     function getData(dataArray, statusKey, length) {
         if (!Array.isArray(dataArray)) return Array(length).fill(0);
         return dataArray.map(item => item[statusKey] ?? 0);
     }
 
-
     const monthlyLen = Array.isArray(monthlyData) ? monthlyData.length : 0;
+
+    function applyXAxisTicksForPeriod(chart, period) {
+        const ticks = chart.options.scales.x.ticks;
+        ticks.autoSkip = true;
+        ticks.maxRotation = 45;
+        ticks.minRotation = 0;
+        if (period === 'weekly') {
+            ticks.maxTicksLimit = 7;
+        } else if (period === 'monthly') {
+            ticks.maxTicksLimit = 12;
+        } else if (period === 'yearly') {
+            ticks.maxTicksLimit = 12;
+        }
+    }
 
     // Initial chart config - will update data dynamically
     const config = {
@@ -95,7 +156,7 @@ if (chartEl) {
                         autoSkip: true,
                         maxRotation: 45,
                         minRotation: 0,
-                        maxTicksLimit: 6
+                        maxTicksLimit: 12
                     }
                 },
                 y: {
@@ -126,6 +187,7 @@ if (chartEl) {
     };
 
     const chart = new Chart(ctx, config);
+    applyXAxisTicksForPeriod(chart, 'monthly');
 
     // Button group handler for switching data/timeframe
     const buttons = document.querySelectorAll('.button-timeframe');
@@ -136,7 +198,8 @@ if (chartEl) {
             button.classList.add('button-active');
 
             const period = button.getAttribute('data-period');
-            let labels, dataLength, dataSource;
+            let labels;
+            let dataSource;
 
             if (period === 'weekly') {
                 labels = labelsWeekly;
@@ -151,7 +214,9 @@ if (chartEl) {
                 return;
             }
 
-            dataLength = Array.isArray(dataSource) ? dataSource.length : 0;
+            const dataLength = Array.isArray(dataSource) ? dataSource.length : 0;
+
+            applyXAxisTicksForPeriod(chart, period);
 
             // Update chart data and labels
             chart.data.labels = labels;
@@ -370,5 +435,4 @@ if (donutEl) {
     // Initial render
     applyDonutState(currentDonutState);
 }
-
 

@@ -98,16 +98,16 @@ class VerifyOcrDeletion extends Command
             // Reload document to get relations
             $document = Document::with('documentVersions.ocrJob')->find($document->id);
 
-            foreach ($document->documentVersions as $v) {
-                \App\Models\DocumentVersion::withoutSyncingToSearch(function () use ($v) {
+            Document::withoutSyncingToSearch(function () use ($document) {
+                foreach ($document->documentVersions as $v) {
                     if ($v->ocrJob) {
                         $this->info('Deleting OCR Job for version ' . $v->id);
                         $v->ocrJob->delete();
                     }
                     $v->delete();
-                });
-            }
-            $document->delete();
+                }
+                $document->delete();
+            });
 
             // 3. Verify Deletion
             $jobCheck = OcrJob::find($ocrJob->id);

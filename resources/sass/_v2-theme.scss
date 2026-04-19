@@ -791,8 +791,73 @@ body.locaged-v2 .lgv2-filter-panel {
   z-index: 2;
 }
 
+body.locaged-v2 .lgv2-documents-filter-column {
+  min-width: 200px;
+  max-width: 220px;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 992px) {
+  body.locaged-v2 .lgv2-documents-filter-column {
+    width: min(220px, 100%);
+    flex: 0 0 auto;
+  }
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .lgv2-filter-panel.card {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 body.locaged-v2 .lgv2-documents-split .lgv2-filter-panel .table-filters {
   align-items: stretch;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .lgv2-filter-panel {
+  font-size: 13px;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .lgv2-filter-panel-title {
+  font-size: 11px !important;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.65rem !important;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .form-select,
+body.locaged-v2 .lgv2-documents-filter-column .form-control {
+  font-size: 13px;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  padding-left: 0.5rem;
+  padding-right: 1.75rem;
+  min-height: 0;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .form-select {
+  background-position: right 0.4rem center;
+  background-size: 14px 10px;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column label.small,
+body.locaged-v2 .lgv2-documents-filter-column .small {
+  font-size: 12px !important;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .search-files input {
+  font-size: 13px;
+  padding: 0.4rem 0.5rem 0.4rem 2rem;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .btn-sm {
+  font-size: 12px;
+  padding: 0.35rem 0.5rem;
+}
+
+body.locaged-v2 .lgv2-documents-filter-column .fav-toggle {
+  font-size: 12px;
+  padding: 5px 10px;
 }
 
 body.locaged-v2 .lgv2-dashboard-card .list-group-item {

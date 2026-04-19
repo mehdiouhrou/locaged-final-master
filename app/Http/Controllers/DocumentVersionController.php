@@ -103,7 +103,7 @@ class DocumentVersionController extends Controller
     {
         Gate::authorize('delete', $documentVersion->document);
 
-        \App\Models\DocumentVersion::withoutSyncingToSearch(function () use ($documentVersion) {
+        Document::withoutSyncingToSearch(function () use ($documentVersion) {
             $documentVersion->delete();
         });
 
