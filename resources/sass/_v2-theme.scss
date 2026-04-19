@@ -71,6 +71,29 @@ body.locaged-v2 .sidebar.collapsed .sidebar-brand-sub {
   display: none;
 }
 
+/* Même traitement V2 : le filtre brightness(0) des icônes de menu ne doit pas toucher le logo */
+body.locaged-v2 .sidebar-brand img,
+body.locaged-v2 img.sidebar-logo,
+body.locaged-v2 .sidebar-brand a img {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal;
+}
+
+body.locaged-v2 .sidebar-brand a:hover,
+body.locaged-v2 .sidebar-brand a:focus {
+  background: transparent !important;
+}
+
+/* Logo client dans le header (upload marque) */
+body.locaged-v2 .header img[alt='Logo client'],
+body.locaged-v2 .header-right img {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+}
+
 body.locaged-v2 .sidebar.collapsed .sidebar-section-label {
   display: none;
 }

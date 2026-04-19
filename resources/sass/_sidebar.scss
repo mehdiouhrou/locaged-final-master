@@ -128,6 +128,15 @@ body[dir="rtl"] .layout-with-sidebar .main-content { padding-right: clamp(12px, 
 
 }
 
+/* Logo LocaGed (zone .sidebar-brand, hors .sidebar-menu) : jamais de filtre monochrome */
+.sidebar-brand img,
+img.sidebar-logo {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal;
+}
+
 .sidebar-menu > li > a:hover,
 .sidebar-menu > li > a.active {
   color: white;
