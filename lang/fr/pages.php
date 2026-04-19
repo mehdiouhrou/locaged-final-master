@@ -568,7 +568,7 @@ return [
         'welcome' => 'Bienvenue',
         'overview' => 'Vue d’ensemble',
         'pending_documents' => 'Documents en attente',
-        'approvals' => 'Documents en Attente',
+        'approvals' => 'En attente d\'approbation',
         'donut' => [
             'departments_title' => 'Documents par structure',
             'departments_empty' => 'Aucun document trouvé dans les structures',

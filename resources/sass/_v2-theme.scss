@@ -699,6 +699,74 @@ body.locaged-v2 .files-table tbody tr:hover td {
   background: rgba(204, 41, 41, 0.035);
 }
 
+/* Liste documents : pas de scroll horizontal page, colonnes ellipsées */
+body.locaged-v2 .lgv2-documents-recent-section {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+body.locaged-v2 .lgv2-documents-table-wrap.files-table-container,
+body.locaged-v2 .lgv2-documents-table-wrap {
+  max-width: 100%;
+  overflow-x: hidden !important;
+  min-width: 0;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table th:nth-child(1),
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(1) {
+  width: 2.5rem;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table th:nth-child(2),
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(2) {
+  width: 26%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table th:nth-child(3),
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(3) {
+  width: 16%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(2) .file-item,
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(2) .min-w-0 {
+  min-width: 0;
+}
+
+body.locaged-v2 table.lgv2-documents-files-table td:nth-child(2) .file-name {
+  max-width: 100% !important;
+}
+
+/* Dashboard : deux colonnes même hauteur, scroll interne */
+body.locaged-v2 .lgv2-dashboard-activity-pair .lgv2-dashboard-card {
+  max-height: min(520px, 72vh);
+  min-height: 260px;
+}
+
+body.locaged-v2 .lgv2-dashboard-activity-pair .lgv2-dashboard-card-body {
+  min-height: 0;
+}
+
+body.locaged-v2 .lgv2-dashboard-activity-pair .lgv2-dashboard-scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
 body.locaged-v2 .file-name {
   color: #111827;
 }
@@ -849,6 +917,28 @@ body.locaged-v2 .pagination .page-link {
   margin: 0 2px;
   color: #374151;
   border-color: #e5e7eb;
+}
+
+/* Console Master : pagination (évite flèches / SVG surdimensionnés) */
+body.locaged-v2 .master-console-pagination .pagination {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem;
+  margin-bottom: 0;
+}
+
+body.locaged-v2 .master-console-pagination .pagination .page-link {
+  font-size: 0.875rem;
+  padding: 0.35rem 0.65rem;
+  line-height: 1.25;
+  min-width: 2.25rem;
+  text-align: center;
+}
+
+body.locaged-v2 .master-console-pagination .pagination svg {
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  vertical-align: -0.125em;
 }
 
 body.locaged-v2 .pagination .page-item.active .page-link {

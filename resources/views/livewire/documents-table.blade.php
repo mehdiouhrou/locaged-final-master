@@ -125,7 +125,7 @@
         </div>
     </div>
 
-    <div class="recent-files-section">
+    <div class="recent-files-section lgv2-documents-recent-section">
 
 
         <div class="table-controls">
@@ -770,7 +770,8 @@
             </div>
         </div>
 
-        <table class="files-table">
+        <div class="files-table-container lgv2-documents-table-wrap">
+        <table class="files-table lgv2-documents-files-table">
             <thead>
             <tr>
                 <th>
@@ -1156,7 +1157,7 @@
                 </tr>
                 @can('viewAny', \App\Models\User::class)
                 <tr class="log-row d-none" data-doc-id="{{ $doc->id }}">
-                <td colspan="8">
+                <td colspan="9">
                         @php
                             $currentUser = auth()->user();
                             $isSuperAdmin = $currentUser->can('view organization wide reports') && ! $currentUser->can('view any role');
@@ -1276,6 +1277,7 @@
 
             </tbody>
         </table>
+        </div>
 
 
 

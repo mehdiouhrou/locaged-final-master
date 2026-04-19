@@ -55,6 +55,6 @@
         </tbody>
     </table>
 </div>
-<div class="d-flex justify-content-center mt-3">
-    {{ $ocrJobs->links() }}
+<div class="d-flex justify-content-center mt-3 master-console-pagination">
+    {{ $ocrJobs->links('pagination::bootstrap-5') }}
 </div>

@@ -57,6 +57,6 @@
         </tbody>
     </table>
 </div>
-<div class="d-flex justify-content-center mt-3">
-    {{ $roles->links() }}
+<div class="d-flex justify-content-center mt-3 master-console-pagination">
+    {{ $roles->links('pagination::bootstrap-5') }}
 </div>

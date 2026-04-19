@@ -568,7 +568,10 @@ return [
         'delete' => 'حذف',
     ],
     'dashboard' => [
+        'welcome' => 'مرحباً',
         'overview' => 'نظرة عامة',
+        'pending_documents' => 'مستندات قيد الانتظار',
+        'approvals' => 'في انتظار الموافقة',
         'donut' => [
             'departments_title' => 'الوثائق حسب الهيكل',
             'departments_empty' => 'لا توجد وثائق في الهياكل',

@@ -21,9 +21,9 @@ class AddPendingDocumentsHeadingTranslationSeeder extends Seeder
             ],
             [
                 'key' => 'pages.dashboard.approvals',
-                'en_text' => 'Approvals',
-                'fr_text' => 'Approbations',
-                'ar_text' => 'الموافقات',
+                'en_text' => 'Pending approval',
+                'fr_text' => 'En attente d\'approbation',
+                'ar_text' => 'في انتظار الموافقة',
             ],
         ];
 

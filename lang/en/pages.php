@@ -585,6 +585,8 @@ return [
     'dashboard' => [
         'welcome' => 'Welcome',
         'overview' => 'Overview',
+        'pending_documents' => 'Pending documents',
+        'approvals' => 'Pending approval',
         'donut' => [
             'departments_title' => 'Documents by Structure',
             'departments_empty' => 'No documents found in structures',

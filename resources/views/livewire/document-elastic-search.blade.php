@@ -175,8 +175,14 @@
                     placeholder="{{ __('pages.search.save_placeholder') }}"
                     wire:model.defer="savedSearchName"
                 />
-                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveCurrentSearch">
-                    {{ __('pages.search.save') }}
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                    wire:click="saveCurrentSearch"
+                    title="{{ __('pages.search.save_tooltip') }}"
+                >
+                    <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
+                    <span>{{ __('pages.search.save') }}</span>
                 </button>
                 @error('savedSearchName')
                     <small class="text-danger">{{ $message }}</small>

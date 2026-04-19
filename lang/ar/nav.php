@@ -9,7 +9,7 @@ return [
     'categories'        => 'التصنيفات',
     'versions'          => 'الإصدارات',
     'destruction'       => 'الإتلاف',
-    'approvals'         => 'الموافقات',
+    'approvals'         => 'في انتظار الموافقة',
     'notifications'     => 'الإشعارات',
     'settings'          => 'الإعدادات',
     'structures'        => 'الهياكل',

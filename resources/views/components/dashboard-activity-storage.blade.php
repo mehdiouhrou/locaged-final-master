@@ -2,30 +2,20 @@
 @php
     $feed = isset($dashboardActivityFeed) ? collect($dashboardActivityFeed) : collect();
     $tasks = isset($pendingApprovalTasks) ? collect($pendingApprovalTasks) : collect();
-
-    $feedIcon = function (string $kind): array {
-        return match ($kind) {
-            'upload' => ['icon' => 'fa-cloud-arrow-up', 'class' => 'bg-primary-subtle text-primary'],
-            'pending' => ['icon' => 'fa-hourglass-half', 'class' => 'bg-warning-subtle text-warning-emphasis'],
-            'approved' => ['icon' => 'fa-circle-check', 'class' => 'bg-success-subtle text-success-emphasis'],
-            'declined' => ['icon' => 'fa-circle-xmark', 'class' => 'bg-danger-subtle text-danger-emphasis'],
-            default => ['icon' => 'fa-file-lines', 'class' => 'bg-secondary-subtle text-secondary-emphasis'],
-        };
-    };
 @endphp
 
-<div class="row g-4 mt-1 mb-4">
-    <div class="col-lg-8 col-12">
-        <div class="card border-0 shadow-sm lgv2-dashboard-card">
-            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between">
-                <h3 class="h6 mb-0 fw-semibold text-dark">{{ __('En attente de mon approbation') }}</h3>
+<div class="row g-4 mt-1 mb-4 align-items-stretch lgv2-dashboard-activity-pair">
+    <div class="col-lg-8 col-12 d-flex">
+        <div class="card border-0 shadow-sm lgv2-dashboard-card flex-grow-1 w-100 d-flex flex-column">
+            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between flex-shrink-0">
+                <h3 class="h6 mb-0 fw-semibold text-dark">{{ ui_t('pages.dashboard.approvals') }}</h3>
                 <a href="{{ route('documents.status') }}" class="small text-decoration-none">{{ __('Tout voir') }} →</a>
             </div>
-            <div class="card-body pt-0">
+            <div class="card-body pt-0 flex-grow-1 d-flex flex-column lgv2-dashboard-card-body">
                 @if($tasks->isEmpty())
                     <p class="text-muted small mb-0">{{ __('Aucune tâche en attente.') }}</p>
                 @else
-                    <ul class="list-group list-group-flush">
+                    <ul class="list-group list-group-flush lgv2-dashboard-scroll flex-grow-1">
                         @foreach($tasks->take(6) as $doc)
                             @php
                                 $path = strtolower((string) optional($doc->latestVersion)->file_path);
@@ -80,9 +70,9 @@
         </div>
     </div>
 
-    <div class="col-lg-4 col-12">
-        <div class="card border-0 shadow-sm lgv2-dashboard-card">
-            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="col-lg-4 col-12 d-flex">
+        <div class="card border-0 shadow-sm lgv2-dashboard-card flex-grow-1 w-100 d-flex flex-column">
+            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2 flex-shrink-0">
                 <h3 class="h6 mb-0 fw-semibold text-dark">{{ __('Activité récente') }}</h3>
                 <div class="d-flex align-items-center gap-2 small">
                     <a href="{{ route('notifications') }}" class="text-decoration-none">{{ __('Tout voir') }} →</a>
@@ -92,36 +82,25 @@
                     @endcan
                 </div>
             </div>
-            <div class="card-body pt-0">
+            <div class="card-body pt-0 flex-grow-1 d-flex flex-column lgv2-dashboard-card-body">
                 @if($feed->isEmpty())
                     <p class="text-muted small mb-0">{{ __('Aucune activité récente dans votre périmètre.') }}</p>
                 @else
-                    <ul class="list-group list-group-flush lgv2-activity-feed-list">
+                    <ul class="list-group list-group-flush lgv2-activity-feed-list lgv2-dashboard-scroll flex-grow-1">
                         @foreach($feed->take(6) as $row)
-                            @php
-                                $ic = $feedIcon($row['kind'] ?? '');
-                            @endphp
                             <li class="list-group-item px-0 py-3 border-0 border-bottom">
-                                <div class="d-flex gap-3 align-items-start">
-                                    <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center lgv2-activity-feed-icon {{ $ic['class'] }}" aria-hidden="true">
-                                        <i class="fa-solid {{ $ic['icon'] }}"></i>
+                                <div class="min-w-0">
+                                    @if(!empty($row['url']))
+                                        <a href="{{ $row['url'] }}" class="fw-semibold text-dark text-decoration-none d-block text-truncate" title="{{ $row['title'] }}">{{ $row['title'] }}</a>
+                                    @else
+                                        <span class="fw-semibold d-block text-truncate">{{ $row['title'] }}</span>
+                                    @endif
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                        <span class="badge rounded-pill bg-light text-dark border">{{ $row['status_label'] ?? '' }}</span>
+                                        <span class="text-muted small">{{ $row['at']?->diffForHumans() }}</span>
                                     </div>
-                                    <div class="min-w-0 flex-grow-1">
-                                        @if(!empty($row['url']))
-                                            <a href="{{ $row['url'] }}" class="fw-semibold text-dark text-decoration-none d-block text-truncate" title="{{ $row['title'] }}">{{ $row['title'] }}</a>
-                                        @else
-                                            <span class="fw-semibold d-block text-truncate">{{ $row['title'] }}</span>
-                                        @endif
-                                        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-                                            <span class="badge rounded-pill bg-light text-dark border">{{ $row['status_label'] ?? '' }}</span>
-                                            <span class="text-muted small">{{ $row['at']?->diffForHumans() }}</span>
-                                        </div>
-                                        @if(!empty($row['secondary_line']))
-                                            <div class="small text-muted mt-1">{{ $row['secondary_line'] }}</div>
-                                        @endif
-                                    </div>
-                                    @if(!empty($row['actor_avatar']))
-                                        <img src="{{ $row['actor_avatar'] }}" alt="" class="rounded-circle flex-shrink-0 lgv2-activity-feed-avatar" width="36" height="36" loading="lazy" />
+                                    @if(!empty($row['secondary_line']))
+                                        <div class="small text-muted mt-1">{{ $row['secondary_line'] }}</div>
                                     @endif
                                 </div>
                             </li>

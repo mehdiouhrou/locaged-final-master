@@ -9,7 +9,7 @@ return [
     'categories'        => 'Categories',
     'versions'          => 'Versions',
     'destruction'       => 'Destruction',
-    'approvals'         => 'Approvals',
+    'approvals'         => 'Pending approval',
     'notifications'     => 'Notifications',
     'settings'          => 'Settings',
     'structures'        => 'Structures',

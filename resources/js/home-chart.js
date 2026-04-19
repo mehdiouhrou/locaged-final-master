@@ -92,9 +92,10 @@ if (chartEl) {
                             size: 12
                         },
                         color: '#6c757d',
-                        autoSkip: false,
-                        maxRotation: 0,
-                        minRotation: 0
+                        autoSkip: true,
+                        maxRotation: 45,
+                        minRotation: 0,
+                        maxTicksLimit: 6
                     }
                 },
                 y: {
