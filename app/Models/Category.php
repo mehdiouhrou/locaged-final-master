@@ -83,4 +83,28 @@ class Category extends Model
         return $this->belongsToMany(Service::class, 'category_service')
             ->withTimestamps();
     }
+
+    /**
+     * Libellé de conservation pour PV / exports (ex. « 5 ans »).
+     */
+    public function retentionSummary(): string
+    {
+        if ($this->expiry_value === null) {
+            return '—';
+        }
+
+        $u = strtolower((string) $this->expiry_unit);
+        $n = (int) $this->expiry_value;
+        if (in_array($u, ['year', 'years', 'y'], true)) {
+            return $n.' '.($n > 1 ? 'ans' : 'an');
+        }
+        if (in_array($u, ['month', 'months', 'm'], true)) {
+            return $n.' mois';
+        }
+        if (in_array($u, ['day', 'days', 'd'], true)) {
+            return $n.' jour'.($n > 1 ? 's' : '');
+        }
+
+        return trim((string) $this->expiry_value).' '.(string) $this->expiry_unit;
+    }
 }

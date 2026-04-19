@@ -88,6 +88,56 @@ class Branding
         return (string) (self::get('header_logo', 'assets/Logo 3.svg') ?? self::safePublicAssetUrl('assets/Logo 3.svg'));
     }
 
+    /**
+     * Chemin absolu d’un fichier logo lisible par mPDF (console Master / branding.json).
+     */
+    public static function clientLogoAbsolutePathForPdf(): ?string
+    {
+        $data = self::read();
+        $val = $data['header_logo'] ?? null;
+        if (! $val) {
+            $fallback = public_path('assets/Logo 3.svg');
+
+            return is_file($fallback) ? $fallback : null;
+        }
+
+        $val = ltrim((string) $val, '/');
+        if (Str::startsWith($val, ['http://', 'https://'])) {
+            return null;
+        }
+
+        if (Str::startsWith($val, 'assets/')) {
+            $p = public_path($val);
+
+            return is_file($p) ? $p : null;
+        }
+
+        if (Storage::disk('public')->exists($val)) {
+            return Storage::disk('public')->path($val);
+        }
+
+        return null;
+    }
+
+    /**
+     * Data-URI pour intégration fiable dans un PDF (sans requête HTTP).
+     */
+    public static function clientLogoDataUriForPdf(): ?string
+    {
+        $path = self::clientLogoAbsolutePathForPdf();
+        if (! $path || ! is_readable($path)) {
+            return null;
+        }
+
+        $mime = @mime_content_type($path) ?: 'image/png';
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            return null;
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($raw);
+    }
+
     public static function loginImageUrl(): string
     {
         return self::resolveLoginCoverUrl();

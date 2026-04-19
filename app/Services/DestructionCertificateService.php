@@ -6,6 +6,7 @@ use App\Models\DestructionCertificate;
 use App\Models\Document;
 use App\Models\DocumentDestructionRequest;
 use App\Models\User;
+use App\Support\Branding;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mpdf\Mpdf;
@@ -23,7 +24,9 @@ class DestructionCertificateService
             return null;
         }
 
-        $document->loadMissing(['department', 'service', 'latestVersion']);
+        $document->loadMissing(['department', 'service', 'latestVersion', 'category', 'box.shelf.row.room']);
+
+        $physicalSnapshot = PhysicalLocationSnapshot::forDocument($document);
 
         $publicId = (string) Str::uuid();
         $manifest = [
@@ -37,6 +40,7 @@ class DestructionCertificateService
             'approved_by' => $approvedBy->full_name ?? $approvedBy->name,
             'permanent_deletion' => false,
             'retention_note' => 'Conserver ce procès-verbal et les métadonnées associées conformément à la politique de conservation (réf. cycle de vie / archivage).',
+            'physical_location_snapshot' => $physicalSnapshot,
         ];
 
         $certificate = DestructionCertificate::create([
@@ -45,6 +49,7 @@ class DestructionCertificateService
             'document_destruction_request_id' => $request->id,
             'approved_by' => $approvedBy->id,
             'manifest' => $manifest,
+            'physical_location_snapshot' => $physicalSnapshot,
         ]);
 
         $this->generatePdfAndProofPackage($certificate, $document, $manifest, $approvedBy);
@@ -64,7 +69,9 @@ class DestructionCertificateService
             return null;
         }
 
-        $document->loadMissing(['department', 'service', 'latestVersion']);
+        $document->loadMissing(['department', 'service', 'latestVersion', 'category', 'box.shelf.row.room']);
+
+        $physicalSnapshot = PhysicalLocationSnapshot::forDocument($document);
 
         $publicId = (string) Str::uuid();
         $manifest = [
@@ -78,6 +85,7 @@ class DestructionCertificateService
             'approved_by' => $actor->full_name ?? $actor->name,
             'permanent_deletion' => true,
             'retention_note' => 'Suppression définitive des fichiers dans le GED — conserver ce procès-verbal conformément à la politique de conservation.',
+            'physical_location_snapshot' => $physicalSnapshot,
         ];
 
         $certificate = DestructionCertificate::create([
@@ -86,6 +94,7 @@ class DestructionCertificateService
             'document_destruction_request_id' => null,
             'approved_by' => $actor->id,
             'manifest' => $manifest,
+            'physical_location_snapshot' => $physicalSnapshot,
         ]);
 
         $this->generatePdfAndProofPackage($certificate, $document, $manifest, $actor);
@@ -101,10 +110,13 @@ class DestructionCertificateService
         $relativePath = 'destruction-certificates/'.$certificate->public_id.'.pdf';
 
         try {
+            $document->loadMissing(['category', 'latestVersion', 'box.shelf.row.room']);
+
             $html = view('pdf.destruction-certificate', [
                 'certificate' => $certificate,
                 'document' => $document,
                 'manifest' => $manifest,
+                'clientLogoDataUri' => Branding::clientLogoDataUriForPdf(),
             ])->render();
 
             $tmpDir = storage_path('app/tmp/mpdf');

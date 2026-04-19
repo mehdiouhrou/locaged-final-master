@@ -58,6 +58,65 @@ class AuditService
         });
     }
 
+    /**
+     * Trace après suppression définitive (forceDelete) : sans FK document/version (lignes cibles supprimées).
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function logPermanentDocumentDestruction(
+        int $documentId,
+        ?string $title,
+        ?string $filePath,
+        ?int $userId = null
+    ): void {
+        DB::transaction(function () use ($documentId, $title, $filePath, $userId): void {
+            $metadata = [
+                'document_id' => $documentId,
+                'title' => $title,
+                'file_path' => $filePath,
+                'destroyed_at' => now()->toIso8601String(),
+            ];
+
+            $actor = $userId ? \App\Models\User::query()->find($userId) : null;
+
+            $row = [
+                'user_id' => $userId,
+                'user_name' => $actor?->full_name,
+                'document_id' => null,
+                'version_id' => null,
+                'action' => 'document_permanently_destroyed',
+                'ip_address' => request()->ip(),
+                'occurred_at' => now(),
+            ];
+
+            if (Schema::hasColumn('audit_logs', 'user_agent')) {
+                $row['user_agent'] = request()->userAgent();
+            }
+            if (Schema::hasColumn('audit_logs', 'metadata')) {
+                $row['metadata'] = $metadata;
+            }
+
+            if (
+                Schema::hasColumn('audit_logs', 'entry_hash')
+                && Schema::hasColumn('audit_logs', 'previous_hash')
+                && Schema::hasColumn('audit_logs', 'hash_version')
+                && Schema::hasColumn('audit_logs', 'sealed_at')
+            ) {
+                $previousHash = AuditLog::withoutGlobalScopes()
+                    ->lockForUpdate()
+                    ->orderByDesc('id')
+                    ->value('entry_hash');
+
+                $row['hash_version'] = 'hmac-sha256-v1';
+                $row['previous_hash'] = $previousHash ?: null;
+                $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
+                $row['sealed_at'] = now();
+            }
+
+            AuditLog::withoutGlobalScopes()->create($row);
+        });
+    }
+
     public static function computeEntryHash(array $row, ?string $previousHash): string
     {
         $payload = [

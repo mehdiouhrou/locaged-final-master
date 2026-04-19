@@ -26,10 +26,12 @@ class DestructionCertificate extends Model
         'proof_signature',
         'proof_archive',
         'proof_generated_at',
+        'physical_location_snapshot',
     ];
 
     protected $casts = [
         'manifest' => 'array',
+        'physical_location_snapshot' => 'array',
         'proof_manifest' => 'array',
         'proof_signature' => 'array',
         'proof_archive' => 'array',
