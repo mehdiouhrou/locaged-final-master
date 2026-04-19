@@ -57,28 +57,17 @@ body.locaged-v2 .card.lgv2-document-side .card-header {
   color: var(--lgv2-muted);
 }
 
-/* ----- Marque (logo + sous-titre) ----- */
-body.locaged-v2 .sidebar-brand-sub {
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--lgv2-muted);
-  margin-top: 0.15rem;
-  line-height: 1.2;
+/* ----- Marque (logo textuel — sidebar claire V2) ----- */
+body.locaged-v2 .sidebar-brand .logo-name {
+  color: var(--lgv2-ink) !important;
 }
 
-body.locaged-v2 .sidebar.collapsed .sidebar-brand-sub {
-  display: none;
+body.locaged-v2 .sidebar-brand .logo-name span {
+  color: #e8351a !important;
 }
 
-/* Même traitement V2 : le filtre brightness(0) des icônes de menu ne doit pas toucher le logo */
-body.locaged-v2 .sidebar-brand img,
-body.locaged-v2 img.sidebar-logo,
-body.locaged-v2 .sidebar-brand a img {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal;
+body.locaged-v2 .sidebar-brand .logo-sub {
+  color: rgba(26, 26, 26, 0.55) !important;
 }
 
 body.locaged-v2 .sidebar-brand a:hover,

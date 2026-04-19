@@ -128,13 +128,48 @@ body[dir="rtl"] .layout-with-sidebar .main-content { padding-right: clamp(12px, 
 
 }
 
-/* Logo LocaGed (zone .sidebar-brand, hors .sidebar-menu) : jamais de filtre monochrome */
-.sidebar-brand img,
-img.sidebar-logo {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal;
+/* Logo textuel LocaGed (identique au site locaged.com — 100 % CSS, pas d’image) */
+.sidebar-brand .logo-name {
+  font-family:
+    'Trebuchet MS',
+    'Lucida Sans Unicode',
+    'Lucida Grande',
+    'Lucida Sans',
+    sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.sidebar-brand .logo-name span {
+  color: #e8351a;
+}
+
+.sidebar-brand .logo-sub {
+  font-family:
+    'Trebuchet MS',
+    'Lucida Sans Unicode',
+    'Lucida Grande',
+    'Lucida Sans',
+    sans-serif;
+  font-size: 11px;
+  color: rgba(26, 26, 26, 0.6);
+  letter-spacing: 0;
+  margin-top: 2px;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.sidebar.collapsed .sidebar-brand .logo-sub {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-brand .logo-name {
+  font-size: 16px;
 }
 
 .sidebar-menu > li > a:hover,

@@ -32,12 +32,11 @@
 <nav id="sidebar" class="sidebar">
     <div class="sidebar-brand text-center px-2 mb-1">
         <div class="d-flex justify-content-center">
-            <a href="{{ route('home') }}" class="text-decoration-none d-inline-flex flex-column align-items-center">
-                <img src="{{ asset('assets/template/Logo 1.svg') }}" alt="LocaGed" class="sidebar-logo mb-1 mt-3 expanded-only pointer" />
-                <img src="{{ asset('assets/template/Frame 2078547825 1.svg') }}" alt="" class="collapsed-only mb-1 mt-3 pointer" />
+            <a href="{{ route('home') }}" class="sidebar-brand-logo-link text-decoration-none d-inline-flex flex-column align-items-center mt-3 mb-1">
+                <div class="logo-name">Loca<span>Ged</span></div>
+                <div class="logo-sub">{{ __('branding.logo_sub') }}</div>
             </a>
         </div>
-        <div class="sidebar-brand-sub">{{ __('Par Locarchives Group') }}</div>
     </div>
 
     <ul class="sidebar-menu mt-1 flex-grow-1">
