@@ -79,7 +79,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     // Debug route removed for security - see audit report
     // Original route /debug-service/{id} exposed internal database structure
 
-    Route::group(['middleware' => ['permission:view system activity log|view organization wide reports|view any user|view any physical location']], function () {
+    Route::group(['middleware' => ['permission:view audit log|view system activity log|view organization wide reports|view any user|view any physical location']], function () {
         Route::get('/users/audit', [UserController::class, 'audit'])->name('users.audit');
         Route::get('/users/logs', [UserController::class, 'logs'])->name('users.logs');
         Route::get('/users/logs/legal-export', [AuditEvidenceController::class, 'export'])->name('users.logs.legal-export');

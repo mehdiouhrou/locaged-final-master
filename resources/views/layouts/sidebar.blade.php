@@ -1,3 +1,34 @@
+@php
+    $u = auth()->user();
+    $canViewAnyDocument = $u && (
+        $u->can('view any document')
+        || $u->can('view department document')
+        || $u->can('view service document')
+        || $u->can('view own document')
+    );
+    /** Sous-menu « Documents » : uniquement si au moins un lien (ex. tous les documents) est affichable */
+    $showDocumentsNavGroup = $canViewAnyDocument;
+    $showGestionSection = $u && (
+        $u->can('create category')
+        || $u->can('update category')
+        || $u->can('manage structures')
+        || $u->can('view any department')
+        || $u->can('view any profile')
+        || $u->can('view any tag')
+        || $u->can('view any physical location')
+        || $canViewAnyDocument
+    );
+    $showAdminSection = $u && (
+        $u->hasRole('master')
+        || $u->can('view any user')
+        || $u->can('view audit log')
+        || $u->can('view system activity log')
+        || $u->can('access document expiration management')
+        || $u->can('view organization wide reports')
+        || $u->can('view any role')
+        || $u->can('viewHorizon')
+    );
+@endphp
 <nav id="sidebar" class="sidebar">
     <div class="sidebar-brand text-center px-2 mb-1">
         <div class="d-flex justify-content-center">
@@ -10,11 +41,6 @@
     </div>
 
     <ul class="sidebar-menu mt-1 flex-grow-1">
-        @php
-            $u = auth()->user();
-            $canOpenMasterConsole = $u && ($u->can('view any role') || $u->hasRole('master'));
-        @endphp
-
         <li class="sidebar-section-label" aria-hidden="true">
             <span class="sidebar-section-label-text">{{ __('Principal') }}</span>
         </li>
@@ -26,14 +52,14 @@
             </a>
         </li>
 
-        @if($canOpenMasterConsole)
+        @role('master')
         <li class="mt-1">
             <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" alt="" />
                 <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
             </a>
         </li>
-        @endif
+        @endrole
 
         @can('create', \App\Models\Document::class)
         <li class="mt-1">
@@ -44,16 +70,7 @@
         </li>
         @endcan
 
-        @php
-            $u = auth()->user();
-            $canDocumentsMenu = $u && (
-                $u->can('viewAny', \App\Models\Document::class)
-                || $u->can('viewAny', \App\Models\Category::class)
-                || $u->can('viewAny', \App\Models\DocumentVersion::class)
-                || $u->can('viewAny', \App\Models\DocumentDestructionRequest::class)
-            );
-        @endphp
-        @if($canDocumentsMenu)
+        @if($showDocumentsNavGroup)
         <li class="has-submenu {{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') || request()->routeIs('categories.*') || request()->routeIs('subcategories.*') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/document-text.svg') }}" class="me-3" />
@@ -91,7 +108,7 @@
             </a>
         </li>
         @endcanany
-        
+
         <li class="{{ request()->routeIs('notifications') || request()->routeIs('activity.feed') ? 'active' : '' }}">
             <a href="{{ route('notifications') }}">
                 <img src="{{ asset('assets/template/notification.svg') }}" class="me-3" />
@@ -99,17 +116,7 @@
             </a>
         </li>
 
-        @can('viewAny', \App\Models\PhysicalLocation::class)
-            @if(! $u->can('access management sidebar'))
-                <li class="mt-1">
-                    <a href="{{ route('physical-locations.index') }}" class="{{ request()->routeIs('physical-locations.*') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/Flags.svg') }}" class="me-3" />
-                        <span class="sidebar-text">{{ ui_t('nav.physical_location') }}</span>
-                    </a>
-                </li>
-            @endif
-        @endcan
-
+        @if($canViewAnyDocument)
         @php
             $myCategories = $sidebarMyCategories['items'] ?? [];
             $myCategoriesTotal = (int) ($sidebarMyCategories['total'] ?? 0);
@@ -151,7 +158,7 @@
                     @endforeach
                 @endif
 
-                @if($myCategoriesTotal > 5)
+                @if($myCategoriesTotal > 5 && (auth()->user()->can('create category') || auth()->user()->can('update category')))
                     <li class="mt-2">
                         <a href="{{ route('categories.index') }}">
                             <i class="fa-solid fa-ellipsis me-2"></i>
@@ -167,7 +174,9 @@
                 @endif
             </ul>
         </li>
+        @endif
 
+        @if($canViewAnyDocument)
         @php
             $favoriteCategories = $sidebarFavorites['categories'] ?? [];
             $favoriteDocuments = $sidebarFavorites['documents'] ?? [];
@@ -253,22 +262,13 @@
                 @endif
             </ul>
         </li>
+        @endif
 
+        @if($showGestionSection)
         <li class="sidebar-section-label" aria-hidden="true">
             <span class="sidebar-section-label-text">{{ __('Gestion') }}</span>
         </li>
 
-        @php
-            $canManageCategories = $u && $u->can('viewAny', \App\Models\Category::class);
-            $canManageStructures = $u && ($u->can('manage structures') || $u->can('view any department') || $u->can('view any role') || $u->can('view organization wide reports'));
-            $canManageProfiles = $u && $u->can('viewAny', \App\Models\Profile::class);
-            $canManageTags = $u && $u->can('viewAny', \App\Models\Tag::class);
-            $canManageLocations = $u && $u->can('access management sidebar');
-            $canManageReports = $u && $u->can('access management sidebar') && ! $u->can('filter audit logs by assigned services') && ! $u->can('view subdepartment scoped documents');
-
-            $canGestionAccordion = $canManageCategories || $canManageStructures || $canManageProfiles || $canManageTags || $canManageLocations || $canManageReports;
-        @endphp
-        @if($canGestionAccordion)
         <li class="has-submenu {{ request()->routeIs('categories.*') || request()->routeIs('departments.*') || request()->routeIs('tags.*') || request()->routeIs('physical-locations.*') || request()->routeIs('reports.*') || request()->routeIs('access-profiles.*') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/setting-2.svg') }}" class="me-3" />
@@ -276,74 +276,65 @@
                 <i class="fa-solid fa-chevron-down submenu-chevron ms-auto small opacity-50" aria-hidden="true"></i>
             </a>
             <ul class="submenu list-unstyled">
-                @if($canManageCategories)
-                    <li class="mt-2">
-                        <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/category.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.categories') }}</span>
-                        </a>
-                    </li>
+                @if(auth()->user()->can('create category') || auth()->user()->can('update category'))
+                <li class="mt-2">
+                    <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/category.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.categories') }}</span>
+                    </a>
+                </li>
                 @endif
-                @if($canManageStructures)
-                    <li class="mt-2">
-                        <a href="{{ route('departments.index') }}" class="{{ request()->routeIs('departments.index') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/brifecase-tick.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.structures') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canManageProfiles)
-                    <li class="mt-2">
-                        <a href="{{ route('access-profiles.index') }}" class="{{ request()->routeIs('access-profiles.*') ? 'active' : '' }} d-flex align-items-center flex-wrap gap-1">
-                            <img src="{{ asset('assets/template/brifecase-tick.svg') }}" class="me-2" alt="" />
-                            <span class="sidebar-text">{{ __('Profils d’accès') }}</span>
-                            <span class="badge rounded-pill lgv2-sidebar-pill ms-auto">V2</span>
-                        </a>
-                    </li>
-                @endif
+                @canany(['manage structures', 'view any department'])
+                <li class="mt-2">
+                    <a href="{{ route('departments.index') }}" class="{{ request()->routeIs('departments.index') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/brifecase-tick.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.structures') }}</span>
+                    </a>
+                </li>
+                @endcanany
+                @can('view any profile')
+                <li class="mt-2">
+                    <a href="{{ route('access-profiles.index') }}" class="{{ request()->routeIs('access-profiles.*') ? 'active' : '' }} d-flex align-items-center flex-wrap gap-1">
+                        <img src="{{ asset('assets/template/brifecase-tick.svg') }}" class="me-2" alt="" />
+                        <span class="sidebar-text">{{ __('Profils d’accès') }}</span>
+                        <span class="badge rounded-pill lgv2-sidebar-pill ms-auto">V2</span>
+                    </a>
+                </li>
+                @endcan
 
-                @if($canManageTags)
-                    <li class="mt-2">
-                        <a href="{{ route('tags.index') }}" class="{{ request()->routeIs('tags.index') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/star.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.tags') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canManageLocations)
-                    <li class="mt-2">
-                        <a href="{{ route('physical-locations.index') }}" class="{{ request()->routeIs('physical-locations.index') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/Flags.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.physical_location') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canManageReports)
-                    <li class="mt-2">
-                        <a href="{{ route('reports.index') }}" class="{{ request()->routeIs('reports.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/document-favorite.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.reports') }}</span>
-                        </a>
-                    </li>
-                @endif
+                @can('view any tag')
+                <li class="mt-2">
+                    <a href="{{ route('tags.index') }}" class="{{ request()->routeIs('tags.index') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/star.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.tags') }}</span>
+                    </a>
+                </li>
+                @endcan
+                @can('view any physical location')
+                <li class="mt-2">
+                    <a href="{{ route('physical-locations.index') }}" class="{{ request()->routeIs('physical-locations.index') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/Flags.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.physical_location') }}</span>
+                    </a>
+                </li>
+                @endcan
+                @canany(['view any document', 'view department document', 'view service document', 'view own document'])
+                <li class="mt-2">
+                    <a href="{{ route('reports.index') }}" class="{{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/document-favorite.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.reports') }}</span>
+                    </a>
+                </li>
+                @endcanany
             </ul>
         </li>
         @endif
 
+        @if($showAdminSection)
         <li class="sidebar-section-label" aria-hidden="true">
             <span class="sidebar-section-label-text">{{ __('Administration') }}</span>
         </li>
 
-        @php
-            $canViewUsers = $u && $u->can('access management sidebar');
-            $canViewAuditLogs = $u && $u->can('view system activity log');
-            $canViewDestruction = $u && $u->can('access document expiration management');
-            $canViewStorage = $u && ($u->can('view any role') || $u->can('view organization wide reports'));
-            $canViewHorizon = $u && $u->can('viewHorizon');
-
-            $canAdministrationAccordion = $canViewUsers || $canOpenMasterConsole || $canViewAuditLogs || $canViewDestruction || $canViewStorage || $canViewHorizon;
-        @endphp
-        @if($canAdministrationAccordion)
         <li class="has-submenu {{ request()->routeIs('users.*') || request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('users.logs') || request()->routeIs('documents.destructions') || request()->routeIs('destruction-certificates.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') || request()->routeIs('storage.overview') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" />
@@ -351,60 +342,68 @@
                 <i class="fa-solid fa-chevron-down submenu-chevron ms-auto small opacity-50" aria-hidden="true"></i>
             </a>
             <ul class="submenu list-unstyled">
-                @if($canOpenMasterConsole)
-                    <li class="mt-2">
-                        <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" alt="" />
-                            <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
-                        </a>
-                    </li>
+                @role('master')
+                <li class="mt-2">
+                    <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" alt="" />
+                        <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
+                    </a>
+                </li>
+                @endrole
+                @can('view any role')
+                <li class="mt-2">
+                    <a href="{{ route('roles.index') }}" class="{{ request()->routeIs('roles.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" alt="" />
+                        <span class="sidebar-text">{{ __('Rôles') }}</span>
+                    </a>
+                </li>
+                @endcan
+                @can('view any user')
+                <li class="mt-2">
+                    <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.index') || request()->routeIs('users.create') || request()->routeIs('users.edit') || request()->routeIs('users.show') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/user.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.users') }}</span>
+                    </a>
+                </li>
+                @endcan
+                @if(auth()->user()->can('view audit log') || auth()->user()->can('view system activity log'))
+                <li class="mt-2">
+                    <a href="{{ route('users.logs') }}" class="{{ request()->routeIs('users.logs') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('pages.activity_log.activity_log') ?? 'User Logs' }}</span>
+                    </a>
+                </li>
                 @endif
-                @if($canViewUsers)
-                    <li class="mt-2">
-                        <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/user.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.users') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewAuditLogs)
-                    <li class="mt-2">
-                        <a href="{{ route('users.logs') }}" class="{{ request()->routeIs('users.logs') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('pages.activity_log.activity_log') ?? 'User Logs' }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewDestruction)
-                    <li class="mt-2">
-                        <a href="{{ route('documents.destructions') }}" class="{{ request()->routeIs('documents.destructions') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
-                            <span class="sidebar-text">{{ ui_t('nav.destruction') }}</span>
-                        </a>
-                    </li>
-                    <li class="mt-2">
-                        <a href="{{ route('destruction-certificates.index') }}" class="{{ request()->routeIs('destruction-certificates.*') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/document-text.svg') }}" class="me-2" style="width: 1.1rem; height: 1.1rem; opacity: .85;" alt="" />
-                            <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewStorage)
-                    <li class="mt-2">
-                        <a href="{{ route('storage.overview') }}" class="{{ request()->routeIs('storage.overview') ? 'active' : '' }}">
-                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
-                            <span class="sidebar-text">Storage &amp; Server Space</span>
-                        </a>
-                    </li>
-                @endif
-                @if($canViewHorizon)
-                    <li class="mt-2">
-                        <a href="{{ url('/horizon') }}" target="_blank" rel="noopener noreferrer">
-                            <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
-                            <span class="sidebar-text">Horizon</span>
-                        </a>
-                    </li>
-                @endif
+                @can('access document expiration management')
+                <li class="mt-2">
+                    <a href="{{ route('documents.destructions') }}" class="{{ request()->routeIs('documents.destructions') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ ui_t('nav.destruction') }}</span>
+                    </a>
+                </li>
+                <li class="mt-2">
+                    <a href="{{ route('destruction-certificates.index') }}" class="{{ request()->routeIs('destruction-certificates.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/document-text.svg') }}" class="me-2" style="width: 1.1rem; height: 1.1rem; opacity: .85;" alt="" />
+                        <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
+                    </a>
+                </li>
+                @endcan
+                @canany(['view organization wide reports', 'view any role'])
+                <li class="mt-2">
+                    <a href="{{ route('storage.overview') }}" class="{{ request()->routeIs('storage.overview') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
+                        <span class="sidebar-text">Storage &amp; Server Space</span>
+                    </a>
+                </li>
+                @endcanany
+                @can('viewHorizon')
+                <li class="mt-2">
+                    <a href="{{ url('/horizon') }}" target="_blank" rel="noopener noreferrer">
+                        <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" />
+                        <span class="sidebar-text">Horizon</span>
+                    </a>
+                </li>
+                @endcan
             </ul>
         </li>
         @endif

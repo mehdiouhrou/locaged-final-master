@@ -270,7 +270,11 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny',User::class);
 
-        abort_unless(auth()->user()?->can('view system activity log'), 403);
+        abort_unless(
+            auth()->user()?->can('view audit log')
+            || auth()->user()?->can('view system activity log'),
+            403
+        );
 
         return view('users.logs');
     }

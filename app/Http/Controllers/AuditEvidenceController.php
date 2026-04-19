@@ -12,7 +12,11 @@ class AuditEvidenceController extends Controller
     public function export(Request $request, AuditEvidenceService $service)
     {
         Gate::authorize('viewAny', User::class);
-        abort_unless(auth()->user()?->can('view system activity log'), 403);
+        abort_unless(
+            auth()->user()?->can('view audit log')
+            || auth()->user()?->can('view system activity log'),
+            403
+        );
 
         $filters = [
             'log_type' => $request->query('logType', $request->query('log_type', 'all')),
