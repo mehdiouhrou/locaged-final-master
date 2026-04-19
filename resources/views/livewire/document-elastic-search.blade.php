@@ -5,7 +5,7 @@
                 <input
                     type="text"
                     name="search"
-                    placeholder="{{ ui_t('actions.search') }}"
+                    placeholder="{{ __('actions.search') }}"
                     wire:model.live.debounce="query"
                     class="form-control pe-5 header-search-input"
                     autocomplete="off"
@@ -45,48 +45,48 @@
                     <div class="card shadow border-0 rounded-3 mt-2">
                         <div class="card-body p-3 p-md-4" style="max-height: 70vh; overflow: auto;">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="mb-0 fw-bold">{{ ui_t('filters.filters') }}</h6>
-                                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#filterOverlay" aria-label="{{ ui_t('actions.close') }}">{{ ui_t('actions.close') }}</button>
+                                <h6 class="mb-0 fw-bold">{{ __('filters.filters') }}</h6>
+                                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#filterOverlay" aria-label="{{ __('actions.close') }}">{{ __('actions.close') }}</button>
                             </div>
 
                             <form wire:submit.prevent="applyFilters">
                                 <div class="row g-3">
                                     <!-- Document Type -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('filters.file_type') }}</label>
+                                        <label class="form-label">{{ __('filters.file_type') }}</label>
                                         <select class="form-select" name="type" wire:model="filters.type">
-                                            <option value="">{{ ui_t('filters.select_type') }}</option>
-                                            <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
-                                            <option value="doc">{{ ui_t('filters.types.word') }}</option>
-                                            <option value="image">{{ ui_t('filters.types.image') }}</option>
-                                            <option value="excel">{{ ui_t('filters.types.excel') }}</option>
-                                            <option value="video">{{ ui_t('filters.types.video') }}</option>
-                                            <option value="audio">{{ ui_t('filters.types.audio') }}</option>
+                                            <option value="">{{ __('filters.select_type') }}</option>
+                                            <option value="pdf">{{ __('filters.types.pdf') }}</option>
+                                            <option value="doc">{{ __('filters.types.word') }}</option>
+                                            <option value="image">{{ __('filters.types.image') }}</option>
+                                            <option value="excel">{{ __('filters.types.excel') }}</option>
+                                            <option value="video">{{ __('filters.types.video') }}</option>
+                                            <option value="audio">{{ __('filters.types.audio') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('pages.upload.category') }}</label>
+                                        <label class="form-label">{{ __('pages.upload.category') }}</label>
                                         <select class="form-select" name="category_id" wire:model="filters.category_id">
-                                            <option value="">{{ ui_t('filters.all') }}</option>
+                                            <option value="">{{ __('filters.all') }}</option>
                                             @foreach($categories as $category)
                                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('filters.status') }}</label>
+                                        <label class="form-label">{{ __('filters.status') }}</label>
                                         <select class="form-select" name="status" wire:model="filters.status">
-                                            <option value="">{{ ui_t('filters.all') }}</option>
+                                            <option value="">{{ __('filters.all') }}</option>
                                             @foreach($statuses as $status)
-                                                <option value="{{ $status }}">{{ ui_t('pages.documents.status.' . $status) }}</option>
+                                                <option value="{{ $status }}">{{ __('pages.documents.status.' . $status) }}</option>
                                             @endforeach
-                                            <option value="expired">{{ ui_t('pages.documents.status.expired') }}</option>
+                                            <option value="expired">{{ __('pages.documents.status.expired') }}</option>
                                         </select>
                                     </div>
 
                                     <!-- Creation Date Range -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('pages.versions.creation_date') }}</label>
+                                        <label class="form-label">{{ __('pages.versions.creation_date') }}</label>
                                         <div class="row g-2">
                                             <div class="col-6">
                                                 <input
@@ -94,7 +94,7 @@
                                                     id="creationStartDate"
                                                     name="creation_start"
                                                     class="form-control"
-                                                    placeholder="{{ ui_t('filters.from') }}"
+                                                    placeholder="{{ __('filters.from') }}"
                                                     wire:model="filters.creation_start"
                                                 >
                                             </div>
@@ -104,7 +104,7 @@
                                                     id="creationEndDate"
                                                     name="creation_end"
                                                     class="form-control"
-                                                    placeholder="{{ ui_t('filters.to') }}"
+                                                    placeholder="{{ __('filters.to') }}"
                                                     wire:model="filters.creation_end"
                                                 >
                                             </div>
@@ -113,42 +113,42 @@
 
                                     <!-- Keywords & Tags -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('filters.keywords') }}</label>
+                                        <label class="form-label">{{ __('filters.keywords') }}</label>
                                         <input
                                             type="text"
                                             name="keywords"
                                             class="form-control"
-                                            placeholder="{{ ui_t('filters.keywords_placeholder') }}"
+                                            placeholder="{{ __('filters.keywords_placeholder') }}"
                                             wire:model="filters.keywords"
                                         />
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('filters.tags') }}</label>
+                                        <label class="form-label">{{ __('filters.tags') }}</label>
                                         <input
                                             type="text"
                                             name="tags"
                                             class="form-control"
-                                            placeholder="{{ ui_t('filters.tags_placeholder') }}"
+                                            placeholder="{{ __('filters.tags_placeholder') }}"
                                             wire:model="filters.tags"
                                         />
                                     </div>
 
                                     <!-- Author -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ ui_t('filters.author') }}</label>
+                                        <label class="form-label">{{ __('filters.author') }}</label>
                                         <input
                                             type="text"
                                             name="author"
                                             class="form-control"
-                                            placeholder="{{ ui_t('filters.author_placeholder') }}"
+                                            placeholder="{{ __('filters.author_placeholder') }}"
                                             wire:model="filters.author"
                                         >
                                     </div>
                                 </div>
 
                                 <div class="d-flex justify-content-end gap-2 mt-3">
-                                    <button type="button" wire:click="resetFilters" class="btn btn-outline-secondary">{{ ui_t('filters.reset_filters') }}</button>
-                                    <button type="submit" class="btn btn-dark">{{ ui_t('pages.reports.apply') }}</button>
+                                    <button type="button" wire:click="resetFilters" class="btn btn-outline-secondary">{{ __('filters.reset_filters') }}</button>
+                                    <button type="submit" class="btn btn-dark">{{ __('pages.reports.apply') }}</button>
                                 </div>
                             </form>
                         </div>
@@ -170,7 +170,7 @@
                                         </a>
                                     </li>
                                 @empty
-                                    <li class="list-group-item text-muted">{{ ui_t('pages.messages.no_results') }}</li>
+                                    <li class="list-group-item text-muted">{{ __('pages.messages.no_results') }}</li>
                                 @endforelse
                             </ul>
                         </div>
@@ -182,11 +182,11 @@
                     type="text"
                     class="form-control form-control-sm"
                     style="max-width: 190px;"
-                    placeholder="Save this search"
+                    placeholder="{{ __('pages.search.save_placeholder') }}"
                     wire:model.defer="savedSearchName"
                 />
                 <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveCurrentSearch">
-                    Save
+                    {{ __('pages.search.save') }}
                 </button>
                 @error('savedSearchName')
                     <small class="text-danger">{{ $message }}</small>

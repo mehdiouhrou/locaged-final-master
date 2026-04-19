@@ -3,9 +3,9 @@
 @section('content')
     <div class="addlocation w-75 mt-5 position-relative">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3>{{ ui_t('pages.physical.title') }}</h3>
+            <h3>{{ __('pages.physical.title') }}</h3>
             @can('viewAny', \App\Models\PhysicalLocation::class)
-                <a href="{{ route('physical-locations.export') }}" class="btn btn-outline-dark">{{ ui_t('pages.physical.export_report') }}</a>
+                <a href="{{ route('physical-locations.export') }}" class="btn btn-outline-dark">{{ __('pages.physical.export_report') }}</a>
             @endcan
         </div>
 
@@ -13,7 +13,7 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-3">
-                        <div class="text-muted small">{{ __('Salles') }}</div>
+                        <div class="text-muted small">{{ __('pages.physical.kpi.rooms') }}</div>
                         <div class="fs-5 fw-bold">{{ $kpis['rooms'] ?? 0 }}</div>
                     </div>
                 </div>
@@ -21,7 +21,7 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-3">
-                        <div class="text-muted small">{{ __('Boîtes') }}</div>
+                        <div class="text-muted small">{{ __('pages.physical.kpi.boxes') }}</div>
                         <div class="fs-5 fw-bold">{{ $kpis['boxes'] ?? 0 }}</div>
                     </div>
                 </div>
@@ -29,7 +29,7 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-3">
-                        <div class="text-muted small">{{ __('Documents') }}</div>
+                        <div class="text-muted small">{{ __('pages.physical.kpi.documents') }}</div>
                         <div class="fs-5 fw-bold">{{ $kpis['documents'] ?? 0 }}</div>
                     </div>
                 </div>
@@ -37,7 +37,7 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-3">
-                        <div class="text-muted small">{{ __('Empruntés') }}</div>
+                        <div class="text-muted small">{{ __('pages.physical.kpi.borrowed') }}</div>
                         <div class="fs-5 fw-bold text-warning">{{ $kpis['borrowed'] ?? 0 }}</div>
                     </div>
                 </div>
@@ -45,7 +45,7 @@
             <div class="col-6 col-md-3 col-xl-2">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body py-3">
-                        <div class="text-muted small">{{ __('En retard') }}</div>
+                        <div class="text-muted small">{{ __('pages.physical.kpi.overdue') }}</div>
                         <div class="fs-5 fw-bold text-danger">{{ $kpis['overdue'] ?? 0 }}</div>
                     </div>
                 </div>
@@ -56,30 +56,30 @@
             <div class="card-body">
                 <div class="row g-2">
                     <div class="col-12 col-md-4">
-                        <label class="form-label small text-muted mb-1">{{ __('Recherche') }}</label>
-                        <input type="text" id="locationFilterSearch" class="form-control form-control-sm" placeholder="{{ __('Salle, rangée, étagère, boîte, document') }}">
+                        <label class="form-label small text-muted mb-1">{{ __('pages.physical.filter.search_label') }}</label>
+                        <input type="text" id="locationFilterSearch" class="form-control form-control-sm" placeholder="{{ __('pages.physical.filter.search_placeholder') }}">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label small text-muted mb-1">{{ __('Salle') }}</label>
+                        <label class="form-label small text-muted mb-1">{{ __('pages.physical.filter.room') }}</label>
                         <select id="locationFilterRoom" class="form-select form-select-sm">
-                            <option value="all">{{ __('Toutes') }}</option>
+                            <option value="all">{{ __('pages.physical.filter.all_rooms') }}</option>
                             @foreach($rooms as $room)
                                 <option value="{{ $room->id }}">{{ $room->name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label small text-muted mb-1">{{ __('Statut boîte') }}</label>
+                        <label class="form-label small text-muted mb-1">{{ __('pages.physical.filter.box_status') }}</label>
                         <select id="locationFilterStatus" class="form-select form-select-sm">
-                            <option value="all">{{ __('Tous') }}</option>
-                            <option value="available">{{ __('Disponible') }}</option>
-                            <option value="borrowed">{{ __('Emprunté') }}</option>
-                            <option value="overdue">{{ __('En retard') }}</option>
-                            <option value="empty">{{ __('Vide') }}</option>
+                            <option value="all">{{ __('pages.physical.filter.all_statuses') }}</option>
+                            <option value="available">{{ __('pages.physical.status.available') }}</option>
+                            <option value="borrowed">{{ __('pages.physical.status.borrowed') }}</option>
+                            <option value="overdue">{{ __('pages.physical.status.overdue') }}</option>
+                            <option value="empty">{{ __('pages.physical.status.empty') }}</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-2 d-flex align-items-end">
-                        <button id="locationFilterReset" type="button" class="btn btn-sm btn-outline-secondary w-100">{{ __('Réinitialiser') }}</button>
+                        <button id="locationFilterReset" type="button" class="btn btn-sm btn-outline-secondary w-100">{{ __('pages.physical.filter.reset') }}</button>
                     </div>
                 </div>
             </div>
@@ -92,10 +92,10 @@
                 {{-- Quick Create Form hidden as per requirements
             <div class="card mb-4">
                 <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> {{ ui_t('pages.physical.quick_create') }}</h5>
+                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> {{ __('pages.physical.quick_create') }}</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">{{ ui_t('pages.physical.quick_create_help') }}</p>
+                    <p class="text-muted mb-3">{{ __('pages.physical.quick_create_help') }}</p>
                     <form method="post" action="{{ route('physical-locations.store') }}">
                         @csrf
                         <!-- original quick-create fields removed -->
@@ -110,22 +110,22 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header bg-secondary text-white">
-                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_new_room') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_new_room') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.add-room') }}">
                                 @csrf
                                 <div class="mb-3">
-                                    <label for="add_room_name" class="form-label">{{ ui_t('pages.physical.actions.room_name') }} <span class="text-danger">*</span></label>
+                                    <label for="add_room_name" class="form-label">{{ __('pages.physical.actions.room_name') }} <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_room_name" name="name" 
-                                           placeholder="{{ ui_t('pages.physical.placeholders.room_example') }}" required>
+                                           placeholder="{{ __('pages.physical.placeholders.room_example') }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_room_description" class="form-label">{{ ui_t('pages.physical.fields.description_optional') }}</label>
+                                    <label for="add_room_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                     <textarea class="form-control" id="add_room_description" name="description" rows="2"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-secondary btn-sm">
-                                    <i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_room') }}
+                                    <i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_room') }}
                                 </button>
                             </form>
                         </div>
@@ -136,31 +136,31 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_row_to_room') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_row_to_room') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.add-row') }}">
                                 @csrf
                                 <div class="mb-3">
-                                    <label for="add_row_room_id" class="form-label">{{ ui_t('pages.physical.actions.select_room') }} <span class="text-danger">*</span></label>
+                                    <label for="add_row_room_id" class="form-label">{{ __('pages.physical.actions.select_room') }} <span class="text-danger">*</span></label>
                                     <select class="form-select" id="add_row_room_id" name="room_id" required>
-                                        <option value="">{{ ui_t('pages.physical.selects.select_room') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.select_room') }}</option>
                                         @foreach($rooms as $room)
                                             <option value="{{ $room->id }}">{{ $room->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_row_name" class="form-label">{{ ui_t('pages.physical.actions.row_name') }} <span class="text-danger">*</span></label>
+                                    <label for="add_row_name" class="form-label">{{ __('pages.physical.actions.row_name') }} <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_row_name" name="name" 
-                                           placeholder="{{ ui_t('pages.physical.placeholders.row_example') }}" required>
+                                           placeholder="{{ __('pages.physical.placeholders.row_example') }}" required>
                                 </div>
                                 <div class="mb-3">
-                                                <label for="add_row_description" class="form-label">{{ ui_t('pages.physical.fields.description_optional') }}</label>
+                                                <label for="add_row_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                     <textarea class="form-control" id="add_row_description" name="description" rows="2"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_row') }}
+                                    <i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_row') }}
                                 </button>
                             </form>
                         </div>
@@ -171,37 +171,37 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header bg-info text-white">
-                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_shelf_to_row') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_shelf_to_row') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.add-shelf') }}">
                                 @csrf
                                 <div class="mb-3">
-                                    <label for="add_shelf_room_id" class="form-label">{{ ui_t('pages.physical.actions.select_room') }}</label>
+                                    <label for="add_shelf_room_id" class="form-label">{{ __('pages.physical.actions.select_room') }}</label>
                                     <select class="form-select" id="add_shelf_room_id" name="room_id">
-                                        <option value="">{{ ui_t('pages.physical.selects.select_room') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.select_room') }}</option>
                                         @foreach($rooms as $room)
                                             <option value="{{ $room->id }}">{{ $room->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_shelf_row_id" class="form-label">{{ ui_t('pages.physical.actions.select_row') }} <span class="text-danger">*</span></label>
+                                    <label for="add_shelf_row_id" class="form-label">{{ __('pages.physical.actions.select_row') }} <span class="text-danger">*</span></label>
                                     <select class="form-select" id="add_shelf_row_id" name="row_id" required>
-                                        <option value="">{{ ui_t('pages.physical.selects.first_select_room') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.first_select_room') }}</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_shelf_name" class="form-label">{{ ui_t('pages.physical.actions.shelf_name') }} <span class="text-danger">*</span></label>
+                                    <label for="add_shelf_name" class="form-label">{{ __('pages.physical.actions.shelf_name') }} <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_shelf_name" name="name" 
-                                           placeholder="{{ ui_t('pages.physical.placeholders.shelf_example') }}" required>
+                                           placeholder="{{ __('pages.physical.placeholders.shelf_example') }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_shelf_description" class="form-label">{{ ui_t('pages.physical.fields.description_optional') }}</label>
+                                    <label for="add_shelf_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                     <textarea class="form-control" id="add_shelf_description" name="description" rows="2"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-info btn-sm">
-                                    <i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_shelf') }}
+                                    <i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_shelf') }}
                                 </button>
                             </form>
                         </div>
@@ -212,7 +212,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_box_to_shelf') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_box_to_shelf') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.add-box') }}">
@@ -228,7 +228,7 @@
                                     <small class="text-muted d-block">{{ __('pages.physical.service_optional_help') }}</small>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_service_id" class="form-label">{{ ui_t('pages.physical.fields.service') }}</label>
+                                    <label for="add_box_service_id" class="form-label">{{ __('pages.physical.fields.service') }}</label>
                                     <select class="form-select" id="add_box_service_id" name="service_id">
                                         <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                         @php
@@ -246,41 +246,41 @@
                                             <option value="{{ $service->id }}">{{ $service->name }}</option>
                                         @endforeach
                                     </select>
-                                    <small class="text-muted">{{ ui_t('pages.physical.service_link_help') }}</small>
+                                    <small class="text-muted">{{ __('pages.physical.service_link_help') }}</small>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="add_box_room_id" class="form-label">{{ ui_t('pages.physical.actions.select_room') }}</label>
+                                    <label for="add_box_room_id" class="form-label">{{ __('pages.physical.actions.select_room') }}</label>
                                     <select class="form-select" id="add_box_room_id" name="room_id">
-                                        <option value="">{{ ui_t('pages.physical.selects.select_room') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.select_room') }}</option>
                                         @foreach($rooms as $room)
                                             <option value="{{ $room->id }}">{{ $room->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_row_id" class="form-label">{{ ui_t('pages.physical.actions.select_row') }}</label>
+                                    <label for="add_box_row_id" class="form-label">{{ __('pages.physical.actions.select_row') }}</label>
                                     <select class="form-select" id="add_box_row_id" name="row_id">
-                                        <option value="">{{ ui_t('pages.physical.selects.first_select_room') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.first_select_room') }}</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_shelf_id" class="form-label">{{ ui_t('pages.physical.selects.select_shelf') }} <span class="text-danger">*</span></label>
+                                    <label for="add_box_shelf_id" class="form-label">{{ __('pages.physical.selects.select_shelf') }} <span class="text-danger">*</span></label>
                                     <select class="form-select" id="add_box_shelf_id" name="shelf_id" required>
-                                        <option value="">{{ ui_t('pages.physical.selects.first_select_row') }}</option>
+                                        <option value="">{{ __('pages.physical.selects.first_select_row') }}</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_name" class="form-label">{{ ui_t('pages.physical.actions.box_name') }} <span class="text-danger">*</span></label>
+                                    <label for="add_box_name" class="form-label">{{ __('pages.physical.actions.box_name') }} <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_box_name" name="name" 
-                                           placeholder="{{ ui_t('pages.physical.placeholders.box_example') }}" required>
+                                           placeholder="{{ __('pages.physical.placeholders.box_example') }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_description" class="form-label">{{ ui_t('pages.physical.fields.description_optional') }}</label>
+                                    <label for="add_box_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                     <textarea class="form-control" id="add_box_description" name="description" rows="2"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-success btn-sm">
-                                    <i class="fas fa-plus"></i> {{ ui_t('pages.physical.actions.add_box') }}
+                                    <i class="fas fa-plus"></i> {{ __('pages.physical.actions.add_box') }}
                                 </button>
                             </form>
                         </div>
@@ -293,7 +293,7 @@
                 <div class="col-md-6">
                     <div class="card h-100 border-0 shadow-sm">
                         <div class="card-header bg-dark text-white">
-                            <h6 class="mb-0"><i class="fas fa-layer-group me-1"></i> {{ __('Création en lot (plage)') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-layer-group me-1"></i> {{ __('pages.physical.bulk_range_title') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.bulk-add-boxes') }}">
@@ -304,7 +304,7 @@
                                                data-target-select="bulk_box_service_id">
                                         <label class="form-check-label small" for="bulk_box_no_service">{{ __('pages.physical.service_optional_checkbox') }}</label>
                                     </div>
-                                    <label class="form-label">{{ __('Service') }}</label>
+                                    <label class="form-label">{{ __('pages.physical.fields.service') }}</label>
                                     <select class="form-select form-select-sm" id="bulk_box_service_id" name="service_id">
                                         <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                         @php
@@ -323,52 +323,52 @@
                                 </div>
                                 <div class="row g-2">
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label">{{ __('Salle') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.filter.room') }}</label>
                                         <select class="form-select form-select-sm" id="bulk_box_room_id">
-                                            <option value="">{{ __('Sélectionner') }}</option>
+                                            <option value="">{{ __('pages.physical.bulk.select') }}</option>
                                             @foreach($rooms as $room)
                                                 <option value="{{ $room->id }}">{{ $room->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label">{{ __('Rangée') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.fields.row') }}</label>
                                         <select class="form-select form-select-sm" id="bulk_box_row_id">
-                                            <option value="">{{ __('D’abord salle') }}</option>
+                                            <option value="">{{ __('pages.physical.bulk.first_pick_room') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label">{{ __('Étagère') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.fields.shelf') }}</label>
                                         <select class="form-select form-select-sm" id="bulk_box_shelf_id" name="shelf_id" required>
-                                            <option value="">{{ __('D’abord rangée') }}</option>
+                                            <option value="">{{ __('pages.physical.bulk.first_pick_row') }}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="row g-2 mt-1">
                                     <div class="col-6 col-md-4">
-                                        <label class="form-label">{{ __('Préfixe') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.bulk.prefix') }}</label>
                                         <input type="text" name="prefix" class="form-control form-control-sm" placeholder="ARCH" value="BOX">
                                     </div>
                                     <div class="col-6 col-md-2">
-                                        <label class="form-label">{{ __('De') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.bulk.from') }}</label>
                                         <input type="number" min="0" name="start_number" class="form-control form-control-sm" value="1" required>
                                     </div>
                                     <div class="col-6 col-md-2">
-                                        <label class="form-label">{{ __('À') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.bulk.to') }}</label>
                                         <input type="number" min="0" name="end_number" class="form-control form-control-sm" value="100" required>
                                     </div>
                                     <div class="col-6 col-md-2">
-                                        <label class="form-label">{{ __('Padding') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.bulk.padding') }}</label>
                                         <input type="number" min="1" max="8" name="padding" class="form-control form-control-sm" value="3">
                                     </div>
                                     <div class="col-6 col-md-2">
-                                        <label class="form-label">{{ __('Séparateur') }}</label>
+                                        <label class="form-label">{{ __('pages.physical.bulk.separator') }}</label>
                                         <input type="text" name="separator" class="form-control form-control-sm" value="-">
                                     </div>
                                 </div>
-                                <small class="text-muted d-block mt-2">{{ __('Les noms générés suivent la nomenclature fournie par l’équipe d’archivage.') }}</small>
+                                <small class="text-muted d-block mt-2">{{ __('pages.physical.bulk.naming_help') }}</small>
                                 <div class="mt-3 d-flex justify-content-end">
-                                    <button type="submit" class="btn btn-sm btn-dark">{{ __('Créer la plage') }}</button>
+                                    <button type="submit" class="btn btn-sm btn-dark">{{ __('pages.physical.bulk.create_range') }}</button>
                                 </div>
                             </form>
                         </div>
@@ -377,19 +377,19 @@
                 <div class="col-md-6">
                     <div class="card h-100 border-0 shadow-sm">
                         <div class="card-header bg-secondary text-white">
-                            <h6 class="mb-0"><i class="fas fa-file-csv me-1"></i> {{ __('Import CSV avec preview') }}</h6>
+                            <h6 class="mb-0"><i class="fas fa-file-csv me-1"></i> {{ __('pages.physical.csv_import_title') }}</h6>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{{ route('physical-locations.import-boxes.preview') }}" enctype="multipart/form-data" class="mb-3">
                                 @csrf
                                 <div class="mb-2">
-                                    <label class="form-label">{{ __('Fichier CSV') }}</label>
+                                    <label class="form-label">{{ __('pages.physical.csv_file') }}</label>
                                     <input type="file" name="csv_file" class="form-control form-control-sm" accept=".csv,.txt" required>
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label">{{ __('Service par défaut (si colonne service vide)') }}</label>
+                                    <label class="form-label">{{ __('pages.physical.csv_default_service') }}</label>
                                     <select class="form-select form-select-sm" name="default_service_id">
-                                        <option value="">{{ __('Aucun') }}</option>
+                                        <option value="">{{ __('pages.physical.csv_none') }}</option>
                                         @foreach($bulkServices as $service)
                                             <option value="{{ $service->id }}">{{ $service->name }}</option>
                                         @endforeach
@@ -397,17 +397,17 @@
                                 </div>
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="checkbox" id="csvHasHeader" name="has_header" value="1" checked>
-                                    <label class="form-check-label" for="csvHasHeader">{{ __('Le fichier contient une ligne d’entête') }}</label>
+                                    <label class="form-check-label" for="csvHasHeader">{{ __('pages.physical.csv_has_header') }}</label>
                                 </div>
-                                <small class="text-muted d-block mb-2">{{ __('Colonnes: room,row,shelf,box_name — service et description optionnels (ou service par défaut ci-dessus).') }}</small>
-                                <button type="submit" class="btn btn-sm btn-secondary">{{ __('Générer le preview') }}</button>
+                                <small class="text-muted d-block mb-2">{{ __('pages.physical.csv_columns_hint') }}</small>
+                                <button type="submit" class="btn btn-sm btn-secondary">{{ __('pages.physical.csv_preview_generate') }}</button>
                             </form>
 
                             @if(!empty($boxImportPreview))
                                 <div class="border rounded-3 p-2">
                                     <div class="small mb-1">
-                                        <strong>{{ __('Preview') }}</strong>:
-                                        {{ __(':ok lignes valides / :ko erreurs', ['ok' => $boxImportPreview['count_rows'] ?? 0, 'ko' => $boxImportPreview['count_errors'] ?? 0]) }}
+                                        <strong>{{ __('pages.physical.csv_preview_label') }}</strong>:
+                                        {{ __('pages.physical.csv_line_stats', ['ok' => $boxImportPreview['count_rows'] ?? 0, 'ko' => $boxImportPreview['count_errors'] ?? 0]) }}
                                     </div>
                                     @if(!empty($boxImportPreview['errors']))
                                         <ul class="small text-danger mb-2">
@@ -421,9 +421,9 @@
                                             <table class="table table-sm mb-0">
                                                 <thead>
                                                 <tr>
-                                                    <th>{{ __('Ligne') }}</th>
-                                                    <th>{{ __('Chemin') }}</th>
-                                                    <th>{{ __('Boîte') }}</th>
+                                                    <th>{{ __('pages.physical.csv_th_line') }}</th>
+                                                    <th>{{ __('pages.physical.csv_th_path') }}</th>
+                                                    <th>{{ __('pages.physical.csv_th_box') }}</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
@@ -441,7 +441,7 @@
                                     <form method="post" action="{{ route('physical-locations.import-boxes.commit') }}">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-success" {{ !empty($boxImportPreview['count_errors']) ? 'disabled' : '' }}>
-                                            {{ __('Valider import (transaction + rollback)') }}
+                                            {{ __('pages.physical.csv_validate_import') }}
                                         </button>
                                     </form>
                                 </div>
@@ -454,7 +454,7 @@
 
         <!-- Hierarchical Tree View -->
         <div class="mt-4">
-            <h5 class="mb-3">{{ ui_t('pages.physical.actions.location_structure') }}</h5>
+            <h5 class="mb-3">{{ __('pages.physical.actions.location_structure') }}</h5>
             
             @if(isset($rooms) && $rooms->count() > 0)
                 <div class="accordion" id="roomsAccordion">
@@ -462,16 +462,16 @@
                     <div class="card mb-3 location-room-card" data-room-id="{{ $room->id }}" data-filter-text="{{ strtolower($room->name.' '.$room->description) }}">
                         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                             <button class="btn btn-link text-white text-decoration-none p-0 fw-semibold d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#roomCollapse{{ $room->id }}" aria-expanded="false" aria-controls="roomCollapse{{ $room->id }}">
-                                <span>📍 {{ ui_t('pages.physical.fields.room') }}: {{ $room->name }}</span>
-                                <span class="badge bg-light text-dark">{{ $room->rows->count() }} {{ ui_t('pages.physical.fields.row') }}(s)</span>
+                                <span>📍 {{ __('pages.physical.fields.room') }}: {{ $room->name }}</span>
+                                <span class="badge bg-light text-dark">{{ $room->rows->count() }} {{ __('pages.physical.fields.row') }}(s)</span>
                             </button>
                             <div class="d-flex align-items-center">
                                 @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
                                     <form method="POST" action="{{ route('physical-locations.destroy-room', $room->id) }}" 
-                                          class="d-inline" onsubmit="return confirm('{{ ui_t('pages.activity_log.are_you_sure') }}');">
+                                          class="d-inline" onsubmit="return confirm('{{ __('pages.activity_log.are_you_sure') }}');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="{{ ui_t('pages.physical.actions.delete') }}">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="{{ __('pages.physical.actions.delete') }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -489,13 +489,13 @@
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <div>
                                                 <button class="btn btn-link text-decoration-none p-0 fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#rowCollapse{{ $row->id }}" aria-expanded="false" aria-controls="rowCollapse{{ $row->id }}">
-                                                    📐 {{ ui_t('pages.physical.fields.row') }}: {{ $row->name }}
+                                                    📐 {{ __('pages.physical.fields.row') }}: {{ $row->name }}
                                                 </button>
                                                 @if($row->description)
                                                     <small class="text-muted d-block">{{ $row->description }}</small>
                                                 @endif
                                             </div>
-                                            <span class="badge bg-secondary">{{ $row->shelves->count() }} {{ ui_t('pages.physical.fields.shelf') }}(s)</span>
+                                            <span class="badge bg-secondary">{{ $row->shelves->count() }} {{ __('pages.physical.fields.shelf') }}(s)</span>
                                         </div>
                                         <div id="rowCollapse{{ $row->id }}" class="collapse location-row-collapse">
                                         @if($row->shelves->count() > 0)
@@ -503,12 +503,12 @@
                                                 <div class="ms-3 mt-2 mb-2 border-start border-2 border-info ps-3">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <div>
-                                                            <strong>📚 {{ ui_t('pages.physical.fields.shelf') }}: {{ $shelf->name }}</strong>
+                                                            <strong>📚 {{ __('pages.physical.fields.shelf') }}: {{ $shelf->name }}</strong>
                                                             @if($shelf->description)
                                                                 <small class="text-muted d-block">{{ $shelf->description }}</small>
                                                             @endif
                                                         </div>
-                                                        <span class="badge bg-info text-dark">{{ $shelf->boxes->count() }} {{ ui_t('pages.physical.fields.box') }}(es)</span>
+                                                        <span class="badge bg-info text-dark">{{ $shelf->boxes->count() }} {{ __('pages.physical.fields.box') }}(es)</span>
                                                     </div>
                                                     
                                                     <ul class="list-unstyled ms-3 mt-2">
@@ -528,10 +528,10 @@
                                                                         $boxStatus = 'borrowed';
                                                                     }
                                                                     $boxStatusLabel = match ($boxStatus) {
-                                                                        'empty' => __('Vide'),
-                                                                        'overdue' => __('En retard'),
-                                                                        'borrowed' => __('Emprunté'),
-                                                                        default => __('Disponible'),
+                                                                        'empty' => __('pages.physical.status.empty'),
+                                                                        'overdue' => __('pages.physical.status.overdue'),
+                                                                        'borrowed' => __('pages.physical.status.borrowed'),
+                                                                        default => __('pages.physical.status.available'),
                                                                     };
                                                                     $boxStatusClass = match ($boxStatus) {
                                                                         'empty' => 'bg-secondary-subtle text-secondary-emphasis',
@@ -553,7 +553,7 @@
                                                                             <small class="text-muted d-block">{{ $box->description }}</small>
                                                                         @endif
                                                                         <small class="text-muted">
-                                                                            {{ ui_t('pages.physical.actions.full_path') }} <code>{{ $box->__toString() }}</code>
+                                                                            {{ __('pages.physical.actions.full_path') }} <code>{{ $box->__toString() }}</code>
                                                                         </small>
                                                                         @if($box->documents->count() > 0)
                                                                             <a href="{{ route('documents.all', ['box_id' => $box->id]) }}" 
@@ -577,11 +577,11 @@
                                                                                     <div class="d-flex flex-wrap align-items-center gap-2">
                                                                                         <span class="small text-muted text-truncate" style="max-width: 240px;" title="{{ $doc->title }}">{{ $doc->title }}</span>
                                                                                         @if($docLoan)
-                                                                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('Emprunt en cours') }}</span>
+                                                                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('pages.physical.loan_active') }}</span>
                                                                                             @can('create', \App\Models\DocumentMovement::class)
                                                                                                 <form method="POST" action="{{ route('documents.return', $doc) }}" class="d-inline">
                                                                                                     @csrf
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-success px-2 py-0">{{ __('Retour') }}</button>
+                                                                                                    <button type="submit" class="btn btn-xs btn-outline-success px-2 py-0">{{ __('pages.physical.return_document') }}</button>
                                                                                                 </form>
                                                                                             @endcan
                                                                                         @else
@@ -589,7 +589,7 @@
                                                                                                 <form method="POST" action="{{ route('documents.borrow', $doc) }}" class="d-inline">
                                                                                                     @csrf
                                                                                                     <input type="hidden" name="borrower_name" value="{{ auth()->user()->full_name }}">
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-warning px-2 py-0">{{ __('Emprunter') }}</button>
+                                                                                                    <button type="submit" class="btn btn-xs btn-outline-warning px-2 py-0">{{ __('pages.physical.borrow_document') }}</button>
                                                                                                 </form>
                                                                                             @endcan
                                                                                         @endif
@@ -602,16 +602,16 @@
                                                                         @can('create', \App\Models\PhysicalLocation::class)
                                                                             <button class="btn btn-sm btn-outline-primary" type="button" 
                                                                                     data-bs-toggle="modal" data-bs-target="#editBoxModal{{ $box->id }}">
-                                                                                <i class="fas fa-edit"></i> {{ ui_t('pages.physical.actions.edit') }}
+                                                                                <i class="fas fa-edit"></i> {{ __('pages.physical.actions.edit') }}
                                                                             </button>
                                                                         @endcan
                                                                         @can('delete physical location')
                                                                             <form method="POST" action="{{ route('physical-locations.destroy-box', $box->id) }}" 
-                                                                                  class="d-inline" onsubmit="return confirm('{{ ui_t('pages.activity_log.are_you_sure') }}');">
+                                                                                  class="d-inline" onsubmit="return confirm('{{ __('pages.activity_log.are_you_sure') }}');">
                                                                                 @csrf
                                                                                 @method('DELETE')
                                                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                                    <i class="fas fa-trash"></i> {{ ui_t('pages.physical.actions.delete') }}
+                                                                                    <i class="fas fa-trash"></i> {{ __('pages.physical.actions.delete') }}
                                                                                 </button>
                                                                             </form>
                                                                         @endcan
@@ -622,12 +622,12 @@
                                                 </div>
                                             @endforeach
                                         @else
-                                            <p class="text-muted small ms-3"><em>{{ ui_t('pages.physical.actions.no_shelves') }}</em></p>
+                                            <p class="text-muted small ms-3"><em>{{ __('pages.physical.actions.no_shelves') }}</em></p>
                                         @endif
                                     </div>
                                 @endforeach
                             @else
-                                <p class="text-muted ms-3"><em>{{ ui_t('pages.physical.actions.no_rows') }}</em></p>
+                                <p class="text-muted ms-3"><em>{{ __('pages.physical.actions.no_rows') }}</em></p>
                             @endif
                         </div>
                         </div>
@@ -637,7 +637,7 @@
             @else
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 
-                    <strong>{{ ui_t('pages.physical.actions.no_locations') }}</strong> {{ ui_t('pages.physical.actions.use_forms') }}
+                    <strong>{{ __('pages.physical.actions.no_locations') }}</strong> {{ __('pages.physical.actions.use_forms') }}
                 </div>
             @endif
         </div>
@@ -657,12 +657,12 @@
                                         @csrf
                                         @method('PUT')
                                         <div class="modal-header">
-                                            <h5 class="modal-title">{{ ui_t('pages.physical.actions.edit') }} {{ ui_t('pages.physical.fields.box') }}: {{ $box->name }}</h5>
+                                            <h5 class="modal-title">{{ __('pages.physical.actions.edit') }} {{ __('pages.physical.fields.box') }}: {{ $box->name }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
                                             <div class="mb-3">
-                                                <label for="edit_room_name_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.room') }}</label>
+                                                <label for="edit_room_name_{{ $box->id }}" class="form-label">{{ __('pages.physical.fields.room') }}</label>
                                                 <input type="text" class="form-control edit-box-room-name"
                                                        id="edit_room_name_{{ $box->id }}"
                                                        data-box-id="{{ $box->id }}"
@@ -670,7 +670,7 @@
                                                        value="{{ $room->name }}" required>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="edit_row_name_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.row') }}</label>
+                                                <label for="edit_row_name_{{ $box->id }}" class="form-label">{{ __('pages.physical.fields.row') }}</label>
                                                 <input type="text" class="form-control edit-box-row-name"
                                                        id="edit_row_name_{{ $box->id }}"
                                                        data-box-id="{{ $box->id }}"
@@ -678,7 +678,7 @@
                                                        value="{{ $row->name }}" required>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="edit_shelf_name_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.shelf') }}</label>
+                                                <label for="edit_shelf_name_{{ $box->id }}" class="form-label">{{ __('pages.physical.fields.shelf') }}</label>
                                                 <input type="text" class="form-control edit-box-shelf-name"
                                                        id="edit_shelf_name_{{ $box->id }}"
                                                        data-box-id="{{ $box->id }}"
@@ -686,7 +686,7 @@
                                                        value="{{ $shelf->name }}" required>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="box_name_edit{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.actions.box_name') }}</label>
+                                                <label for="box_name_edit{{ $box->id }}" class="form-label">{{ __('pages.physical.actions.box_name') }}</label>
                                                 <input type="text" class="form-control" id="box_name_edit{{ $box->id }}" 
                                                        name="name" value="{{ $box->name }}" required>
                                             </div>
@@ -702,7 +702,7 @@
                                                 </div>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="edit_service_id_{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.service') }}</label>
+                                                <label for="edit_service_id_{{ $box->id }}" class="form-label">{{ __('pages.physical.fields.service') }}</label>
                                                 <select class="form-select" id="edit_service_id_{{ $box->id }}" name="service_id">
                                                     <option value="">{{ __('pages.physical.select_service_optional') }}</option>
                                                     @php
@@ -725,18 +725,18 @@
                                             </div>
 
                                             <div class="mb-3">
-                                                <label for="box_description_edit{{ $box->id }}" class="form-label">{{ ui_t('pages.physical.fields.description_optional') }}</label>
+                                                <label for="box_description_edit{{ $box->id }}" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                                 <textarea class="form-control" id="box_description_edit{{ $box->id }}" 
                                                           name="description" rows="2">{{ $box->description }}</textarea>
                                             </div>
                                             <p class="text-muted small">
-                                                <strong>{{ ui_t('pages.physical.actions.full_path') }}</strong>
+                                                <strong>{{ __('pages.physical.actions.full_path') }}</strong>
                                                 <span id="edit_box_full_path_{{ $box->id }}">{{ $box->__toString() }}</span>
                                             </p>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ ui_t('pages.physical.actions.cancel') }}</button>
-                                            <button type="submit" class="btn btn-primary">{{ ui_t('pages.physical.actions.update') }}</button>
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('pages.physical.actions.cancel') }}</button>
+                                            <button type="submit" class="btn btn-primary">{{ __('pages.physical.actions.update') }}</button>
                                         </div>
                                     </form>
                                 </div>
@@ -751,10 +751,10 @@
     <script>
         const rooms = @json($rooms);
         const translations = {
-            selectRow: @json(ui_t('pages.physical.selects.select_row')),
-            firstSelectRow: @json(ui_t('pages.physical.selects.first_select_row')),
-            selectShelf: @json(ui_t('pages.physical.selects.select_shelf')),
-            firstSelectShelf: @json(ui_t('pages.physical.selects.first_select_shelf')),
+            selectRow: @json(__('pages.physical.selects.select_row')),
+            firstSelectRow: @json(__('pages.physical.selects.first_select_row')),
+            selectShelf: @json(__('pages.physical.selects.select_shelf')),
+            firstSelectShelf: @json(__('pages.physical.selects.first_select_shelf')),
         };
 
         // Helper to update full path text inside edit modal
