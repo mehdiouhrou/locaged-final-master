@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class Document extends Model
 {
+    // SoftDeletes = scope global whereNull(deleted_at) sauf withTrashed()/onlyTrashed() (corbeille / destruction).
     use SoftDeletes;
 
     protected $fillable = [

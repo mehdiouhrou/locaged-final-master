@@ -232,6 +232,11 @@ class DocumentsTable extends Component
             'createdBy', 'latestVersion'
         ]);
 
+        // Ne jamais lister les documents soft-deleted dans la vue principale (corbeille / destruction ailleurs).
+        if (Schema::hasColumn('documents', 'deleted_at')) {
+            $documentsQuery->whereNull('documents.deleted_at');
+        }
+
         // Hide expired documents by default (unless explicitly filtered for "expired")
         // Only show expired documents when user selects the "expired" status filter
         if ($this->status !== 'expired' && Schema::hasColumn('documents', 'is_expired')) {
@@ -492,6 +497,10 @@ class DocumentsTable extends Component
         }
 
         $query = Document::with('latestVersion');
+
+        if (Schema::hasColumn('documents', 'deleted_at')) {
+            $query->whereNull('documents.deleted_at');
+        }
 
         // Only documents that actually have a version
         $query->whereHas('latestVersion');

@@ -190,6 +190,10 @@ class DocumentsByCategoryTable extends Component
             'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion', 'auditLogs.user',
         ]);
 
+        if (Schema::hasColumn('documents', 'deleted_at')) {
+            $documentsQuery->whereNull('documents.deleted_at');
+        }
+
         // By default, hide expired documents (is_expired = 1/true)
         // They are shown when:
         // 1. The 'expired' status filter is selected, OR
