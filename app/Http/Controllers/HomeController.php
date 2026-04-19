@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\Service;
 use App\Models\SubDepartment;
+use App\Services\DashboardActivityFeedService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -25,12 +26,9 @@ class HomeController extends Controller
         // Base query for all dashboard statistics: only documents the current user can actually see
         $visibleDocumentsQuery = $this->getVisibleDocumentsQuery();
 
-        // Paginated list of visible documents (with creator for dashboard activity strip)
-        $documents = (clone $visibleDocumentsQuery)
-            ->with(['createdBy:id,full_name,email'])
-            ->latest()
-            ->paginate(10);
-        $totalDocuments = $documents->total();
+        $totalDocuments = (clone $visibleDocumentsQuery)->count();
+        $dashboardActivityFeed = app(DashboardActivityFeedService::class)
+            ->feed($visibleDocumentsQuery, $user, 24);
         $categories = $this->getCategories();
         $statusSummary = $this->getStatusSummary();
 
@@ -101,7 +99,7 @@ class HomeController extends Controller
         $physicalStorageCards = $this->buildPhysicalStorageStatusCards($visibleDocumentsQuery);
 
         return view('home.index', compact(
-            'totalDocuments', 'documents', 'categories',
+            'totalDocuments', 'dashboardActivityFeed', 'categories',
             'weeklyData', 'monthlyData', 'yearlyData', 'statusSummary',
             'documentTypeStats', 'physicalStorageCards', 'donutChartData', 'pendingApprovalTasks'
         ));

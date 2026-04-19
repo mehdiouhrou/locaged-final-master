@@ -743,6 +743,16 @@ body.locaged-v2 .lgv2-dashboard-card .list-group-item {
   padding-bottom: 0.65rem;
 }
 
+body.locaged-v2 .lgv2-activity-feed-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 0.95rem;
+}
+
+body.locaged-v2 .lgv2-activity-feed-avatar {
+  object-fit: cover;
+}
+
 body.locaged-v2 .search-files input,
 body.locaged-v2 .search-files.doc input {
   border: 1px solid #e5e7eb !important;

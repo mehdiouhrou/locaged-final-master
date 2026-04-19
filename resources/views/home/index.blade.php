@@ -23,8 +23,8 @@
                         <i class="fa-solid fa-clipboard-check me-1 opacity-75" aria-hidden="true"></i>{{ ui_t('nav.approvals') }}
                     </a>
                 @endcanany
-                <a href="{{ route('activity.feed') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
-                    <i class="fa-solid fa-list-ul me-1 opacity-75" aria-hidden="true"></i>{{ __('Fil d’événements') }}
+                <a href="{{ route('notifications') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                    <i class="fa-solid fa-list-ul me-1 opacity-75" aria-hidden="true"></i>{{ __('Activité documentaire') }}
                 </a>
                 @can('create', \App\Models\Document::class)
                     <a href="{{ route('documents.create') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
@@ -44,7 +44,7 @@
 
         <!-- Activité + stockage (remonté sous les KPI) -->
         @include('components.dashboard-activity-storage', [
-            'documents' => $documents,
+            'dashboardActivityFeed' => $dashboardActivityFeed ?? collect(),
             'pendingApprovalTasks' => $pendingApprovalTasks ?? collect(),
         ])
 

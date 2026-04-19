@@ -1,8 +1,17 @@
-{{-- Dashboard tasks + recent activity --}}
+{{-- Dashboard tasks + activité documentaire (périmètre utilisateur, pas journal d’audit) --}}
 @php
-    /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator|\Illuminate\Support\Collection|null $documents */
-    $recent = isset($documents) && $documents ? collect($documents->items()) : collect();
+    $feed = isset($dashboardActivityFeed) ? collect($dashboardActivityFeed) : collect();
     $tasks = isset($pendingApprovalTasks) ? collect($pendingApprovalTasks) : collect();
+
+    $feedIcon = function (string $kind): array {
+        return match ($kind) {
+            'upload' => ['icon' => 'fa-cloud-arrow-up', 'class' => 'bg-primary-subtle text-primary'],
+            'pending' => ['icon' => 'fa-hourglass-half', 'class' => 'bg-warning-subtle text-warning-emphasis'],
+            'approved' => ['icon' => 'fa-circle-check', 'class' => 'bg-success-subtle text-success-emphasis'],
+            'declined' => ['icon' => 'fa-circle-xmark', 'class' => 'bg-danger-subtle text-danger-emphasis'],
+            default => ['icon' => 'fa-file-lines', 'class' => 'bg-secondary-subtle text-secondary-emphasis'],
+        };
+    };
 @endphp
 
 <div class="row g-4 mt-1 mb-4">
@@ -73,38 +82,47 @@
 
     <div class="col-lg-4 col-12">
         <div class="card border-0 shadow-sm lgv2-dashboard-card">
-            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between">
+            <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <h3 class="h6 mb-0 fw-semibold text-dark">{{ __('Activité récente') }}</h3>
-                <a href="{{ route('activity.feed') }}" class="small text-decoration-none">{{ __('Audit complet') }} →</a>
+                <div class="d-flex align-items-center gap-2 small">
+                    <a href="{{ route('notifications') }}" class="text-decoration-none">{{ __('Tout voir') }} →</a>
+                    @can('view system activity log')
+                        <span class="text-muted" aria-hidden="true">·</span>
+                        <a href="{{ route('users.logs') }}" class="text-decoration-none text-muted">{{ __('Journal système') }}</a>
+                    @endcan
+                </div>
             </div>
             <div class="card-body pt-0">
-                @if($recent->isEmpty())
-                    <p class="text-muted small mb-0">{{ __('Aucune activité récente à afficher.') }}</p>
+                @if($feed->isEmpty())
+                    <p class="text-muted small mb-0">{{ __('Aucune activité récente dans votre périmètre.') }}</p>
                 @else
-                    <ul class="list-group list-group-flush">
-                        @foreach($recent->take(5) as $doc)
+                    <ul class="list-group list-group-flush lgv2-activity-feed-list">
+                        @foreach($feed->take(6) as $row)
                             @php
-                                $dotClass = match ((string) $doc->status) {
-                                    'approved' => 'text-success',
-                                    'pending' => 'text-warning',
-                                    'declined' => 'text-danger',
-                                    default => 'text-primary',
-                                };
+                                $ic = $feedIcon($row['kind'] ?? '');
                             @endphp
-                            <li class="list-group-item px-0 py-2 d-flex align-items-start gap-2 border-0 border-bottom">
-                                <i class="fa-solid fa-circle fa-2xs mt-2 {{ $dotClass }}"></i>
-                                <div class="small">
-                                    <span class="fw-semibold">{{ $doc->createdBy?->full_name ?? $doc->createdBy?->name ?? __('Utilisateur') }}</span>
-                                    {{ __('a') }}
-                                    @if((string) $doc->status === 'approved')
-                                        {{ __('approuvé') }}
-                                    @elseif((string) $doc->status === 'declined')
-                                        {{ __('refusé') }}
-                                    @else
-                                        {{ __('mis à jour') }}
+                            <li class="list-group-item px-0 py-3 border-0 border-bottom">
+                                <div class="d-flex gap-3 align-items-start">
+                                    <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center lgv2-activity-feed-icon {{ $ic['class'] }}" aria-hidden="true">
+                                        <i class="fa-solid {{ $ic['icon'] }}"></i>
+                                    </div>
+                                    <div class="min-w-0 flex-grow-1">
+                                        @if(!empty($row['url']))
+                                            <a href="{{ $row['url'] }}" class="fw-semibold text-dark text-decoration-none d-block text-truncate" title="{{ $row['title'] }}">{{ $row['title'] }}</a>
+                                        @else
+                                            <span class="fw-semibold d-block text-truncate">{{ $row['title'] }}</span>
+                                        @endif
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                            <span class="badge rounded-pill bg-light text-dark border">{{ $row['status_label'] ?? '' }}</span>
+                                            <span class="text-muted small">{{ $row['at']?->diffForHumans() }}</span>
+                                        </div>
+                                        @if(!empty($row['secondary_line']))
+                                            <div class="small text-muted mt-1">{{ $row['secondary_line'] }}</div>
+                                        @endif
+                                    </div>
+                                    @if(!empty($row['actor_avatar']))
+                                        <img src="{{ $row['actor_avatar'] }}" alt="" class="rounded-circle flex-shrink-0 lgv2-activity-feed-avatar" width="36" height="36" loading="lazy" />
                                     @endif
-                                    <span class="fw-semibold">{{ $doc->title }}</span>
-                                    <div class="text-muted">{{ optional($doc->updated_at)->diffForHumans() }}</div>
                                 </div>
                             </li>
                         @endforeach

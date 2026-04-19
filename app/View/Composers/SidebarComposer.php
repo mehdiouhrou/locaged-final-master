@@ -3,11 +3,11 @@
 namespace App\View\Composers;
 
 use App\Http\Controllers\HomeController;
-use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Service;
 use App\Models\SubDepartment;
+use App\Services\DashboardActivityFeedService;
 use App\Services\ProfileCategoryAccessService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -107,35 +107,14 @@ class SidebarComposer
             ->values()
             ->all();
 
-        $recentDocIds = AuditLog::withoutGlobalScopes()
-            ->where('user_id', $user->id)
-            ->whereNotNull('document_id')
-            ->whereIn('action', ['viewed', 'downloaded', 'viewed_ocr'])
-            ->latest('occurred_at')
-            ->limit(60)
-            ->pluck('document_id')
-            ->unique()
-            ->take(5)
-            ->values();
-
-        $recentDocuments = collect();
-        if ($recentDocIds->isNotEmpty()) {
-            $recentMap = (clone $base)
-                ->with('latestVersion')
-                ->whereIn('documents.id', $recentDocIds->all())
-                ->get()
-                ->keyBy('id');
-
-            $recentDocuments = $recentDocIds
-                ->map(fn ($id) => $recentMap->get($id))
-                ->filter()
-                ->values();
-        }
+        $sidebarActivityFeed = app(DashboardActivityFeedService::class)
+            ->feed($home->getVisibleDocumentsQuery(), $user, 6)
+            ->all();
 
         $view->with('sidebarFavorites', [
             'categories' => $favoriteCategories,
             'documents' => $favoriteDocuments->values()->all(),
-            'recent' => $recentDocuments->all(),
+            'recent' => $sidebarActivityFeed,
         ]);
 
         $accessibleCategoryIds = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);

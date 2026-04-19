@@ -171,8 +171,8 @@
         @php
             $favoriteCategories = $sidebarFavorites['categories'] ?? [];
             $favoriteDocuments = $sidebarFavorites['documents'] ?? [];
-            $recentDocuments = $sidebarFavorites['recent'] ?? [];
-            $hasFavoritesContent = !empty($favoriteCategories) || !empty($favoriteDocuments) || !empty($recentDocuments);
+            $recentActivity = $sidebarFavorites['recent'] ?? [];
+            $hasFavoritesContent = !empty($favoriteCategories) || !empty($favoriteDocuments) || !empty($recentActivity);
         @endphp
         <li class="sidebar-section-label" aria-hidden="true">
             <span class="sidebar-section-label-text">{{ __('Favoris') }}</span>
@@ -220,15 +220,27 @@
                     @endforeach
                 @endif
 
-                @if(!empty($recentDocuments))
+                @if(!empty($recentActivity))
                     <li class="mt-2">
-                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Derniers consultés') }}</span>
+                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Activité récente') }}</span>
                     </li>
-                    @foreach($recentDocuments as $recentDocument)
+                    @foreach($recentActivity as $row)
+                        @php
+                            $actIcon = match ($row['kind'] ?? '') {
+                                'upload' => 'fa-cloud-arrow-up',
+                                'pending' => 'fa-hourglass-half',
+                                'approved' => 'fa-circle-check',
+                                'declined' => 'fa-circle-xmark',
+                                default => 'fa-file-lines',
+                            };
+                        @endphp
                         <li class="mt-1">
-                            <a href="{{ $recentDocument->latestVersion ? route('document-versions.preview', ['id' => $recentDocument->latestVersion->id]) : route('documents.all') }}">
-                                <i class="fa-solid fa-clock-rotate-left me-2"></i>
-                                <span class="sidebar-text">{{ \Illuminate\Support\Str::limit($recentDocument->title, 26) }}</span>
+                            <a href="{{ !empty($row['url']) ? $row['url'] : route('documents.all') }}" class="d-flex align-items-start gap-2">
+                                <i class="fa-solid {{ $actIcon }} me-1 mt-1 opacity-75 flex-shrink-0"></i>
+                                <span class="sidebar-text">
+                                    <span class="d-block">{{ \Illuminate\Support\Str::limit($row['title'] ?? '', 28) }}</span>
+                                    <span class="small text-muted">{{ $row['status_label'] ?? '' }} · {{ isset($row['at']) ? $row['at']->diffForHumans() : '' }}</span>
+                                </span>
                             </a>
                         </li>
                     @endforeach

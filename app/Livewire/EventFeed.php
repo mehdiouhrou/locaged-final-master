@@ -2,18 +2,23 @@
 
 namespace App\Livewire;
 
-use App\Models\AuditLog;
+use App\Http\Controllers\HomeController;
 use App\Models\Category;
 use App\Models\Document;
+use App\Services\DashboardActivityFeedService;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 class EventFeed extends Component
 {
-    /** all | approval | ocr | movement | status */
+    /** all | upload | pending | decision */
     public string $filterType = 'all';
+
     public string $categoryId = 'all';
+
     public ?string $fromDate = null;
+
     public ?string $toDate = null;
 
     protected $queryString = [
@@ -26,73 +31,52 @@ class EventFeed extends Component
     public function render(): View
     {
         $user = auth()->user();
-        $visibleDocumentIds = Document::query()->select('documents.id');
 
         $categories = Category::query()
             ->whereIn('id', Document::query()->select('category_id')->whereNotNull('category_id'))
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $auditQuery = AuditLog::query()
-            ->with(['document:id,title,category_id', 'document.category:id,name'])
-            ->whereNotNull('document_id')
-            ->whereIn('document_id', $visibleDocumentIds)
-            ->latest('occurred_at');
+        if (! $user) {
+            return view('livewire.event-feed', [
+                'items' => collect(),
+                'categories' => $categories,
+                'canSeeFeed' => false,
+            ]);
+        }
+
+        $visible = app(HomeController::class)->getVisibleDocumentsQuery();
+        $items = app(DashboardActivityFeedService::class)->feed($visible, $user, 250);
+
+        if ($this->filterType === 'upload') {
+            $items = $items->where('kind', 'upload')->values();
+        } elseif ($this->filterType === 'pending') {
+            $items = $items->where('kind', 'pending')->values();
+        } elseif ($this->filterType === 'decision') {
+            $items = $items->whereIn('kind', ['approved', 'declined'])->values();
+        }
 
         if ($this->categoryId !== 'all') {
             $categoryId = (int) $this->categoryId;
-            $auditQuery->whereHas('document', function ($query) use ($categoryId) {
-                $query->where('category_id', $categoryId);
-            });
+            $items = $items->filter(fn (array $i) => (int) ($i['category_id'] ?? 0) === $categoryId)->values();
         }
 
         if (! empty($this->fromDate)) {
-            $auditQuery->whereDate('occurred_at', '>=', $this->fromDate);
+            $from = Carbon::parse($this->fromDate)->startOfDay();
+            $items = $items->filter(fn (array $i) => $i['at'] && $i['at']->gte($from))->values();
         }
 
         if (! empty($this->toDate)) {
-            $auditQuery->whereDate('occurred_at', '<=', $this->toDate);
+            $to = Carbon::parse($this->toDate)->endOfDay();
+            $items = $items->filter(fn (array $i) => $i['at'] && $i['at']->lte($to))->values();
         }
 
-        $items = $auditQuery
-            ->limit(150)
-            ->get()
-            ->map(function (AuditLog $log) {
-                $action = (string) $log->action;
-                $normalized = strtolower($action);
-
-                $type = match (true) {
-                    str_contains($normalized, 'approve') || str_contains($normalized, 'declin') => 'approval',
-                    str_contains($normalized, 'ocr') => 'ocr',
-                    str_contains($normalized, 'borrow') || str_contains($normalized, 'return') || str_contains($normalized, 'move') || str_contains($normalized, 'transfer') => 'movement',
-                    default => 'status',
-                };
-
-                return [
-                    'source' => 'audit',
-                    'type' => $type,
-                    'at' => $log->occurred_at ?? $log->created_at ?? now(),
-                    'title' => $action,
-                    'body' => trim(
-                        ($log->document?->title ?? __('Document introuvable'))
-                        .' · '
-                        .($log->document?->category?->name ?? __('Sans catégorie'))
-                        .' · '
-                        .($log->user_name ?? ($log->user?->full_name ?? __('Utilisateur inconnu')))
-                    ),
-                    'url' => $log->document_id ? route('documents.show', $log->document_id) : null,
-                    'id' => 'a-'.$log->id,
-                ];
-            });
-
-        if ($this->filterType !== 'all') {
-            $items = $items->where('type', $this->filterType)->values();
-        }
+        $items = $items->sortByDesc(fn (array $i) => $i['at']->getTimestamp())->values();
 
         return view('livewire.event-feed', [
-            'items' => $items->take(100),
+            'items' => $items,
             'categories' => $categories,
-            'canSeeFeed' => (bool) $user,
+            'canSeeFeed' => true,
         ]);
     }
 
