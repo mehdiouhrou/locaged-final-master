@@ -122,7 +122,7 @@
             $hasMyCategories = !empty($myCategories) || !empty($myFavoriteCategories);
         @endphp
         {{-- Consultation : catégories du profil (distinct du lien « Catégories » sous Gestion) --}}
-        <li class="has-submenu {{ request()->routeIs('documents.by-category') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('documents.by-category') || request()->routeIs('my-categories.*') ? 'active' : '' }}">
             <a href="#" class="menu-toggle" title="{{ __('Catégories accessibles selon votre profil (consultation)') }}">
                 <img src="{{ asset('assets/template/category.svg') }}" class="me-3" alt="" />
                 <span class="sidebar-text">{{ __('Mes catégories') }}</span>
@@ -157,11 +157,11 @@
                     @endforeach
                 @endif
 
-                @if($myCategoriesTotal > 5 && $canViewAnyDocument)
+                @if($myCategoriesTotal > 5)
                     <li class="mt-2">
-                        <a href="{{ route('documents.all') }}">
-                            <i class="fa-solid fa-ellipsis me-2"></i>
-                            <span class="sidebar-text">{{ __('Voir tous les documents') }}</span>
+                        <a href="{{ route('my-categories.index') }}">
+                            <i class="fa-solid fa-list-ul me-2"></i>
+                            <span class="sidebar-text">{{ __('pages.my_categories.view_all') }}</span>
                         </a>
                     </li>
                 @endif

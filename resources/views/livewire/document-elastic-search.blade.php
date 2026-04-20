@@ -167,34 +167,6 @@
                     </div>
                 @endif
             </div>
-            <div class="d-inline-flex align-items-center gap-2 flex-wrap header-saved-search-row">
-                <input
-                    type="text"
-                    class="form-control lgv2-saved-search-name-input"
-                    placeholder="{{ __('pages.search.save_placeholder') }}"
-                    wire:model.defer="savedSearchName"
-                />
-                <button
-                    type="button"
-                    class="btn border-0 shadow-none d-inline-flex align-items-center justify-content-center lgv2-save-search-btn"
-                    wire:click="saveCurrentSearch"
-                    title="{{ __('pages.search.save_tooltip') }}"
-                    aria-label="{{ __('pages.search.save_tooltip') }}"
-                >
-                    <i class="bi bi-bookmark" aria-hidden="true"></i>
-                </button>
-                @error('savedSearchName')
-                    <small class="text-danger">{{ $message }}</small>
-                @enderror
-                @foreach($this->savedSearches as $savedSearch)
-                    <button type="button" class="btn btn-sm btn-light" wire:click="applySavedSearch({{ $savedSearch->id }})">
-                        {{ $savedSearch->name }}
-                    </button>
-                    <button type="button" class="btn btn-sm btn-link text-danger p-0" wire:click="deleteSavedSearch({{ $savedSearch->id }})">
-                        ×
-                    </button>
-                @endforeach
-            </div>
         </div>
 
     </div>
@@ -238,33 +210,6 @@
             border-color: #cc2929 !important;
             box-shadow: 0 0 0 4px rgba(204, 41, 41, 0.18) !important;
             background: #ffffff !important;
-        }
-        .lgv2-saved-search-name-input {
-            max-width: 190px;
-            min-height: 42px;
-            padding: 0.45rem 0.65rem;
-            font-size: 0.875rem;
-            border-radius: 10px;
-            border: 1px solid #d1d5db;
-            background: #ffffff;
-        }
-        .lgv2-save-search-btn {
-            min-width: 42px;
-            height: 42px;
-            padding: 0 0.5rem;
-            color: #6b7280;
-            background: transparent;
-            border-radius: 10px;
-            transition: color 0.15s ease, background 0.15s ease;
-        }
-        .lgv2-save-search-btn:hover,
-        .lgv2-save-search-btn:focus-visible {
-            color: #cc2929;
-            background: rgba(204, 41, 41, 0.06);
-        }
-        .lgv2-save-search-btn .bi-bookmark {
-            font-size: 1.15rem;
-            line-height: 1;
         }
         .header-search-filter-btn {
             right: 8px;
@@ -342,25 +287,11 @@
             min-width: 100%;
             max-width: 40rem;
         }
-        .header-saved-search-row {
-            min-height: 42px;
-            align-content: center;
-        }
-        .header-saved-search-row .form-control {
-            background: #ffffff !important;
-            border: 1px solid #d1d5db !important;
-        }
-        .header-saved-search-row .btn {
-            white-space: nowrap;
-        }
         @media (max-width: 768px) {
             .header-search-wrap,
             .search-filter-overlay,
             .search-results-overlay {
                 max-width: calc(100vw - 2rem) !important;
-            }
-            .header-saved-search-row {
-                width: 100%;
             }
         }
         .search-results-overlay .list-group-item {

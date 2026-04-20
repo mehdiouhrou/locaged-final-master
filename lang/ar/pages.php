@@ -134,6 +134,9 @@ return [
             'moved' => 'تم النقل',
             'destroyed' => 'تم الإتلاف',
             'failed_access' => 'فشل الوصول',
+            'category_created' => 'تم إنشاء الفئة',
+            'category_updated' => 'تم تعديل الفئة',
+            'category_deleted' => 'تم حذف الفئة',
         ],
         'reset_filters' => 'إعادة التصفية',
         'table' => [
@@ -251,6 +254,12 @@ return [
         'confirm' => 'تأكيد',
         'delete_title' => 'هل أنت متأكد أنك تريد حذف الوسم :name؟',
         'delete_body' => 'لا يمكن التراجع عن هذا الإجراء.',
+    ],
+    'my_categories' => [
+        'page_title' => 'تصنيفاتي',
+        'page_subtitle' => 'التصنيفات المتاحة للاستعراض (قراءة فقط) حسب ملفك الشخصي.',
+        'view_all' => 'عرض كل تصنيفاتي',
+        'empty' => 'لا توجد تصنيفات متاحة حالياً.',
     ],
     'categories_page' => [
         'all_categories' => 'كل التصنيفات',
@@ -719,6 +728,9 @@ return [
         'select_service_first' => 'اختر خدمة لفتح الفئات.',
         'select_category_first' => 'اختر فئة لفتح الفئات الفرعية.',
         'tags' => 'الوسوم',
+        'tags_input_placeholder' => 'اكتب وسمًا ثم Enter أو فاصلة',
+        'tags_input_hint' => 'تُقترح الوسوم الموجودة؛ تُنشأ الوسوم الجديدة عند الإرسال.',
+        'remove_tag' => 'إزالة هذا الوسم',
         'add_new_tags' => 'إضافة وسوم جديدة',
         'new_tags_placeholder' => 'مثال: مالية، عاجل',
         'new_tags_hint' => 'اكتب الوسوم مفصولة بفواصل؛ سيتم إنشاؤها.',

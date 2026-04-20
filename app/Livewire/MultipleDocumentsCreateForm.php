@@ -90,6 +90,9 @@ class MultipleDocumentsCreateForm extends Component
     // Prevent duplicate submissions
     public $isSubmitting = false;
 
+    /** Saisie libre pour les étiquettes (Entrée ou virgule valide le jeton). */
+    public string $tagDraft = '';
+
     // Duplicate detection state (DEPRECATED - now using batch detection)
     public $showDuplicateModal = false;
 
@@ -305,9 +308,162 @@ class MultipleDocumentsCreateForm extends Component
         unset($this->duplicateDecisions[$this->currentDocumentIndex]);
 
         $this->syncPhysicalLocationSelectorsFromCurrentInfo();
+        $this->normalizeCurrentInfoTags();
         $this->updateCurrentPreview();
         // Ensure expiry is auto-calculated on first load when subcategory is present
         $this->recalculateExpiry();
+    }
+
+    /**
+     * Migre l’ancien champ tags (ids) vers tag_ids / new_tag_names et garantit des tableaux valides.
+     */
+    private function normalizeCurrentInfoTags(): void
+    {
+        if (! isset($this->currentInfo['tag_ids']) || ! is_array($this->currentInfo['tag_ids'])) {
+            $this->currentInfo['tag_ids'] = [];
+        }
+        if (! isset($this->currentInfo['new_tag_names']) || ! is_array($this->currentInfo['new_tag_names'])) {
+            $this->currentInfo['new_tag_names'] = [];
+        }
+
+        if (isset($this->currentInfo['tags']) && is_array($this->currentInfo['tags'])) {
+            foreach ($this->currentInfo['tags'] as $id) {
+                if ($id === null || $id === '') {
+                    continue;
+                }
+                $this->currentInfo['tag_ids'][] = (int) $id;
+            }
+            unset($this->currentInfo['tags']);
+        }
+
+        $this->currentInfo['tag_ids'] = array_values(array_unique(array_filter(
+            array_map('intval', $this->currentInfo['tag_ids']),
+            fn (int $id) => $id > 0
+        )));
+
+        $seenLower = [];
+        $names = [];
+        foreach ($this->currentInfo['new_tag_names'] as $n) {
+            $t = trim((string) $n);
+            if ($t === '') {
+                continue;
+            }
+            $k = mb_strtolower($t);
+            if (isset($seenLower[$k])) {
+                continue;
+            }
+            $seenLower[$k] = true;
+            $names[] = $t;
+        }
+        $this->currentInfo['new_tag_names'] = $names;
+    }
+
+    public function addTagsFromDraft(): void
+    {
+        $raw = trim($this->tagDraft);
+        if ($raw === '') {
+            return;
+        }
+
+        $this->normalizeCurrentInfoTags();
+
+        $parts = preg_split('/[,;]+/u', $raw) ?: [];
+        if (count($parts) <= 1) {
+            $parts = [$raw];
+        }
+
+        foreach ($parts as $part) {
+            $token = trim((string) $part);
+            if ($token === '') {
+                continue;
+            }
+            $this->addOneTagToken($token);
+        }
+
+        $this->tagDraft = '';
+    }
+
+    private function addOneTagToken(string $token): void
+    {
+        if (ctype_digit($token)) {
+            $id = (int) $token;
+            if (Tag::query()->whereKey($id)->exists()) {
+                if (! in_array($id, $this->currentInfo['tag_ids'], true)) {
+                    $this->currentInfo['tag_ids'][] = $id;
+                }
+
+                return;
+            }
+        }
+
+        $existing = Tag::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($token)])
+            ->first();
+
+        if ($existing) {
+            if (! in_array($existing->id, $this->currentInfo['tag_ids'], true)) {
+                $this->currentInfo['tag_ids'][] = $existing->id;
+            }
+
+            return;
+        }
+
+        $lower = mb_strtolower($token);
+        foreach ($this->currentInfo['new_tag_names'] as $n) {
+            if (mb_strtolower($n) === $lower) {
+                return;
+            }
+        }
+
+        $this->currentInfo['new_tag_names'][] = $token;
+    }
+
+    public function removeTagId(int $id): void
+    {
+        $this->normalizeCurrentInfoTags();
+        $this->currentInfo['tag_ids'] = array_values(array_filter(
+            $this->currentInfo['tag_ids'],
+            fn (int $tid) => $tid !== $id
+        ));
+    }
+
+    public function removeNewTagAtIndex(int $index): void
+    {
+        $this->normalizeCurrentInfoTags();
+        unset($this->currentInfo['new_tag_names'][$index]);
+        $this->currentInfo['new_tag_names'] = array_values($this->currentInfo['new_tag_names']);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function resolveTagIdsForDocument(array $metadata): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $metadata['tag_ids'] ?? []),
+            fn (int $id) => $id > 0
+        )));
+
+        foreach ($metadata['new_tag_names'] ?? [] as $name) {
+            $name = trim((string) $name);
+            if ($name === '') {
+                continue;
+            }
+
+            $tag = Tag::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->first();
+
+            if (! $tag) {
+                $tag = Tag::create(['name' => $name]);
+            }
+
+            if (! in_array($tag->id, $ids, true)) {
+                $ids[] = $tag->id;
+            }
+        }
+
+        return $ids;
     }
 
     // Check for duplicates for the current file
@@ -511,7 +667,8 @@ class MultipleDocumentsCreateForm extends Component
             'color',
             'created_at',
             'expire_at',
-            'tags',
+            'tag_ids',
+            'new_tag_names',
             'physical_location_id',
             'box_id',
             'digital_only',
@@ -637,7 +794,8 @@ class MultipleDocumentsCreateForm extends Component
             'color',
             'created_at',
             'expire_at',
-            'tags',
+            'tag_ids',
+            'new_tag_names',
             'box_id',
             'digital_only',
         ];
@@ -792,7 +950,8 @@ class MultipleDocumentsCreateForm extends Component
                     'color' => null,
                     'created_at' => null,
                     'expire_at' => null,
-                    'tags' => [],
+                    'tag_ids' => [],
+                    'new_tag_names' => [],
                     'physical_location_id' => null,
                     'box_id' => null,
                     'author' => '',
@@ -836,8 +995,10 @@ class MultipleDocumentsCreateForm extends Component
             'currentInfo.color' => 'required|string',
             'currentInfo.created_at' => 'required|date_format:Y-m-d\TH:i',
             'currentInfo.expire_at' => 'required|date|after:currentInfo.created_at',
-            'currentInfo.tags' => 'array',
-            'currentInfo.tags.*' => 'exists:tags,id',
+            'currentInfo.tag_ids' => 'array',
+            'currentInfo.tag_ids.*' => 'integer|exists:tags,id',
+            'currentInfo.new_tag_names' => 'array',
+            'currentInfo.new_tag_names.*' => 'string|max:255',
             'currentInfo.digital_only' => 'nullable|boolean',
             'currentInfo.box_id' => $isDigitalOnly ? 'nullable|exists:boxes,id' : 'required|exists:boxes,id',
             'currentInfo.author' => 'required|string|max:255',
@@ -1368,7 +1529,8 @@ class MultipleDocumentsCreateForm extends Component
                 'color',
                 'created_at',
                 'expire_at',
-                'tags',
+                'tag_ids',
+                'new_tag_names',
                 'physical_location_id',
                 'box_id',
                 'digital_only',
@@ -1466,7 +1628,7 @@ class MultipleDocumentsCreateForm extends Component
                 $metadata['box_id'] = null;
             }
 
-            $allTagIds = array_values(array_unique(array_filter($metadata['tags'] ?? [])));
+            $allTagIds = $this->resolveTagIdsForDocument($metadata);
 
             $extension = $file->getClientOriginalExtension();
             $filename = $metadata['title'].'_'.now()->format('His').'.'.$extension;

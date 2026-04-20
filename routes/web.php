@@ -11,6 +11,7 @@ use App\Http\Controllers\OcrJobController;
 use App\Http\Controllers\PhysicalLocationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MasterConsoleController;
+use App\Http\Controllers\MyCategoriesController;
 use App\Http\Controllers\UiTranslationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkFlowRuleController;
@@ -155,6 +156,9 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // All documents (card view design)
     Route::get('/documents/all', [DocumentController::class, 'byCategory'])->name('documents.all');
+
+    // Mes catégories (consultation, scope Category identique à la sidebar)
+    Route::get('/my-categories', [MyCategoriesController::class, 'index'])->name('my-categories.index');
 
     // Resource routes for models
     // Resource routes for models

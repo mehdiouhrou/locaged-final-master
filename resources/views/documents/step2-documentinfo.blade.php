@@ -174,15 +174,49 @@
                             @endif
                         </div>
 
-                        <!-- Tags (multiple select, optional) -->
+                        <!-- Tags (saisie libre + suggestions) -->
                         <div class="col-md-12 mb-3">
-                            <label for="tags" class="form-label">{{ __('pages.upload.tags') }}</label>
-                            <select multiple class="form-select @error('currentInfo.tags') is-invalid @enderror"
-                                    wire:model="currentInfo.tags">
-                                @foreach($tags as $tag)
-                                    <option value="{{ $tag->id }}">{{ $tag->name }}</option>
+                            <label for="tagInputDraft" class="form-label">{{ __('pages.upload.tags') }}</label>
+                            @error('currentInfo.tag_ids')
+                                <div class="text-danger small">{{ $message }}</div>
+                            @enderror
+                            @error('currentInfo.new_tag_names')
+                                <div class="text-danger small">{{ $message }}</div>
+                            @enderror
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach($currentInfo['tag_ids'] ?? [] as $tid)
+                                    @php $tagRow = $tags->firstWhere('id', (int) $tid); @endphp
+                                    @if($tagRow)
+                                        <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
+                                            {{ $tagRow->name }}
+                                            <button type="button" class="btn btn-sm btn-link text-white text-decoration-none p-0 lh-1" wire:click="removeTagId({{ (int) $tid }})" aria-label="{{ __('pages.upload.remove_tag') }}">&times;</button>
+                                        </span>
+                                    @endif
                                 @endforeach
-                            </select>
+                                @foreach($currentInfo['new_tag_names'] ?? [] as $nt)
+                                    <span class="badge bg-info text-dark d-inline-flex align-items-center gap-1">
+                                        {{ $nt }}
+                                        <button type="button" class="btn btn-sm btn-link text-dark text-decoration-none p-0 lh-1" wire:click="removeNewTagName('{{ addslashes($nt) }}')" aria-label="{{ __('actions.remove') }}">&times;</button>
+                                    </span>
+                                @endforeach
+                            </div>
+                            <input
+                                id="tagInputDraft"
+                                type="text"
+                                class="form-control"
+                                autocomplete="off"
+                                list="upload-tag-suggestions"
+                                wire:model.live="tagDraft"
+                                wire:keydown.enter.prevent="addTagsFromDraft"
+                                onkeydown="if(event.key===','){event.preventDefault();event.stopPropagation();@this.call('addTagsFromDraft');}"
+                                placeholder="{{ __('pages.upload.tags_input_placeholder') }}"
+                            />
+                            <datalist id="upload-tag-suggestions">
+                                @foreach($tags as $tag)
+                                    <option value="{{ $tag->name }}"></option>
+                                @endforeach
+                            </datalist>
+                            <small class="text-muted">{{ __('pages.upload.tags_input_hint') }}</small>
                         </div>
 
                         <!-- Physical Location (Hierarchical) -->

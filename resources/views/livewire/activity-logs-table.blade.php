@@ -140,6 +140,9 @@
                             <option value="moved">{{ ui_t('pages.activity.actions.moved') }}</option>
                             <option value="destroyed">{{ ui_t('pages.activity.actions.destroyed') }}</option>
                             <option value="failed_access">{{ ui_t('pages.activity.actions.failed_access') }}</option>
+                            <option value="category_created">{{ ui_t('pages.activity.actions.category_created') }}</option>
+                            <option value="category_updated">{{ ui_t('pages.activity.actions.category_updated') }}</option>
+                            <option value="category_deleted">{{ ui_t('pages.activity.actions.category_deleted') }}</option>
                         @else
                             <option value="login_success">{{ __('Login success') }}</option>
                             <option value="login_failed">{{ __('Login failed') }}</option>
@@ -227,9 +230,9 @@
                                 @if($logType === 'documents')
                                     <td>
                                         <span class="badge 
-                                            @if(in_array($log->action, ['created', 'approved', 'updated', 'downloaded', 'viewed', 'renamed', 'unlocked', 'moved', 'viewed_ocr'])) bg-success-subtle text-success
+                                            @if(in_array($log->action, ['created', 'approved', 'updated', 'downloaded', 'viewed', 'renamed', 'unlocked', 'moved', 'viewed_ocr', 'category_created', 'category_updated'])) bg-success-subtle text-success
                                             @elseif(in_array($log->action, ['declined', 'failed_access'])) bg-danger-subtle text-danger
-                                            @elseif(in_array($log->action, ['permanently_deleted', 'destroyed', 'deleted'])) bg-dark-subtle text-dark
+                                            @elseif(in_array($log->action, ['permanently_deleted', 'destroyed', 'deleted', 'category_deleted'])) bg-dark-subtle text-dark
                                             @elseif(in_array($log->action, ['archived', 'locked'])) bg-warning-subtle text-warning
                                             @else bg-secondary-subtle text-secondary
                                             @endif rounded-pill px-2 py-1">
@@ -251,6 +254,16 @@
                                             @if($log->document->department)
                                                 <div class="text-muted small">{{ $log->document->department->name }}</div>
                                             @endif
+                                        @elseif(in_array($log->action, ['category_created', 'category_updated', 'category_deleted'], true))
+                                            @php
+                                                $meta = $log->metadata ?? [];
+                                                $catLabel = $meta['name']
+                                                    ?? ($meta['after']['name'] ?? null)
+                                                    ?? ($meta['before']['name'] ?? null)
+                                                    ?? ('#' . ($meta['category_id'] ?? ''));
+                                            @endphp
+                                            <div class="fw-semibold">{{ \Str::limit((string) $catLabel, 60) }}</div>
+                                            <div class="text-muted small">{{ __('pages.upload.category') }}</div>
                                         @else
                                             <span class="text-muted">{{ ui_t('pages.activity.table.na') }}</span>
                                         @endif

@@ -73,6 +73,7 @@ class ActivityLogsExport implements FromCollection, WithHeadings, WithMapping, S
         }
 
         $doc = $log->document;
+        $meta = is_array($log->metadata ?? null) ? $log->metadata : [];
 
         // Resolve Org details
         $poleName = optional(optional(optional($doc?->service)->subDepartment)->department)->name 
@@ -88,11 +89,24 @@ class ActivityLogsExport implements FromCollection, WithHeadings, WithMapping, S
             ?? optional($doc?->subcategory)->name
             ?? __('N/A');
 
+        if (! $doc && in_array($log->action ?? '', ['category_created', 'category_updated', 'category_deleted'], true)) {
+            $categoryName = (string) ($meta['name'] ?? $meta['after']['name'] ?? $meta['before']['name'] ?? __('N/A'));
+        }
+
+        $documentTitle = $doc?->title;
+        if ($documentTitle === null || $documentTitle === '') {
+            if (in_array($log->action ?? '', ['category_created', 'category_updated', 'category_deleted'], true)) {
+                $documentTitle = (string) ($meta['name'] ?? $meta['after']['name'] ?? $meta['before']['name'] ?? __('(Category)'));
+            } else {
+                $documentTitle = __('(Deleted document)');
+            }
+        }
+
         return [
             $log->occurred_at?->format('d/m/Y H:i:s') ?? '—',
             $log->user?->full_name ?? __('N/A'),
             $this->translateAction($log->action ?? ''),
-            $doc?->title ?? __('(Deleted document)'),
+            $documentTitle,
             $log->ip_address ?? __('N/A'),
             $poleName,
             $deptName,
@@ -132,6 +146,9 @@ class ActivityLogsExport implements FromCollection, WithHeadings, WithMapping, S
             'login_failed' => __('Login failed'),
             'disconnection' => __('Disconnection'),
             'deconnexion' => __('Disconnection'),
+            'category_created' => __('Category created'),
+            'category_updated' => __('Category updated'),
+            'category_deleted' => __('Category deleted'),
         ];
 
         // Return translation if exists, otherwise format the action nicely

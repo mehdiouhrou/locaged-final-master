@@ -349,16 +349,22 @@ class ActivityLogsTable extends Component
                 $q->where('action', $this->actionType);
             })
             ->when($this->search, function($q) {
-                $q->where(function($q2) {
-                    $q2->whereHas('user', function($q3) {
-                        $q3->where('full_name', 'like', '%' . $this->search . '%')
-                           ->orWhere('email', 'like', '%' . $this->search . '%');
+                $term = '%'.$this->search.'%';
+                $q->where(function($q2) use ($term) {
+                    $q2->whereHas('user', function($q3) use ($term) {
+                        $q3->where('full_name', 'like', $term)
+                           ->orWhere('email', 'like', $term);
                     })
-                    ->orWhere('user_name', 'like', '%' . $this->search . '%')
-                    ->orWhereHas('document', function($q3) {
-                        $q3->where('title', 'like', '%' . $this->search . '%');
+                    ->orWhere('user_name', 'like', $term)
+                    ->orWhereHas('document', function($q3) use ($term) {
+                        $q3->where('title', 'like', $term);
                     })
-                    ->orWhere('action', 'like', '%' . $this->search . '%');
+                    ->orWhere('action', 'like', $term)
+                    ->orWhere(function ($q3) use ($term) {
+                        $q3->whereNull('document_id')
+                            ->whereIn('action', ['category_created', 'category_updated', 'category_deleted'])
+                            ->where('metadata', 'like', $term);
+                    });
                 });
             })
             ->latest('occurred_at');
@@ -367,9 +373,9 @@ class ActivityLogsTable extends Component
     private function getResult($log): string
     {
         // Determine result based on action type
-        $successActions = ['created', 'approved', 'updated', 'downloaded', 'viewed', 'archived', 'renamed', 'locked', 'unlocked', 'moved', 'viewed_ocr'];
+        $successActions = ['created', 'approved', 'updated', 'downloaded', 'viewed', 'archived', 'renamed', 'locked', 'unlocked', 'moved', 'viewed_ocr', 'category_created', 'category_updated'];
         $failureActions = ['declined', 'failed_access'];
-        $deleteActions = ['permanently_deleted', 'destroyed'];
+        $deleteActions = ['permanently_deleted', 'destroyed', 'category_deleted'];
         
         if (in_array($log->action, $successActions)) {
             return 'Success';

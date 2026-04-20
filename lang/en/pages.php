@@ -138,6 +138,9 @@ return [
             'failed_access' => 'Failed Access',
             'expiration_postponed' => 'Expiration Postponed',
             'metadata_updated' => 'Metadata Updated',
+            'category_created' => 'Category created',
+            'category_updated' => 'Category updated',
+            'category_deleted' => 'Category deleted',
         ],
         'reset_filters' => 'Reset Filters',
         'table' => [
@@ -256,6 +259,12 @@ return [
         'confirm' => 'Confirm',
         'delete_title' => 'Are you sure you want to delete the tag :name?',
         'delete_body' => 'This action cannot be undone.',
+    ],
+    'my_categories' => [
+        'page_title' => 'My categories',
+        'page_subtitle' => 'Categories you can browse in read-only mode according to your profile.',
+        'view_all' => 'View all my categories',
+        'empty' => 'No accessible categories at the moment.',
     ],
     'categories_page' => [
         'all_categories' => 'All Categories',
@@ -752,6 +761,9 @@ return [
         'select_service_first' => 'Select a service to unlock categories.',
         'select_category_first' => 'Select a category to unlock subcategories.',
         'tags' => 'Tags',
+        'tags_input_placeholder' => 'Type a tag, then Enter or comma',
+        'tags_input_hint' => 'Existing tags are suggested; new ones are created when you submit.',
+        'remove_tag' => 'Remove this tag',
         'add_new_tags' => 'Add New Tags',
         'new_tags_placeholder' => 'e.g., finance, urgent',
         'new_tags_hint' => 'Type tags separated by commas, they will be created.',

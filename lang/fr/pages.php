@@ -123,6 +123,9 @@ return [
             'failed_access' => 'Accès échoué',
             'expiration_postponed' => 'Expiration reportée',
             'metadata_updated' => 'Métadonnées mises à jour',
+            'category_created' => 'Catégorie créée',
+            'category_updated' => 'Catégorie modifiée',
+            'category_deleted' => 'Catégorie supprimée',
         ],
         'reset_filters' => 'Réinitialiser les filtres',
         'table' => [
@@ -240,6 +243,12 @@ return [
         'confirm' => 'Confirmer',
         'delete_title' => "Voulez-vous vraiment supprimer l'étiquette :name ?",
         'delete_body' => 'Cette action est irréversible.',
+    ],
+    'my_categories' => [
+        'page_title' => 'Mes catégories',
+        'page_subtitle' => 'Catégories accessibles en consultation (lecture seule) selon votre profil.',
+        'view_all' => 'Voir toutes mes catégories',
+        'empty' => 'Aucune catégorie accessible pour le moment.',
     ],
     'categories_page' => [
         'all_categories' => 'Toutes les catégories',
@@ -734,6 +743,9 @@ return [
         'select_service_first' => 'Sélectionnez un service pour débloquer les catégories.',
         'select_category_first' => 'Sélectionnez une catégorie pour débloquer les sous-catégories.',
         'tags' => 'Étiquettes',
+        'tags_input_placeholder' => 'Saisir une étiquette, puis Entrée ou virgule',
+        'tags_input_hint' => 'Les étiquettes existantes sont proposées en autocomplétion ; les nouvelles sont créées à l’envoi.',
+        'remove_tag' => 'Retirer cette étiquette',
         'add_new_tags' => 'Ajouter de nouvelles étiquettes',
         'new_tags_placeholder' => 'ex. finance, urgent',
         'new_tags_hint' => 'Saisissez des étiquettes séparées par des virgules ; elles seront créées.',

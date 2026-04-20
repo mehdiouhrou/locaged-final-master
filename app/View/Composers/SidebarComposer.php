@@ -118,7 +118,7 @@ class SidebarComposer
             ->all();
 
         $sidebarActivityFeed = app(DashboardActivityFeedService::class)
-            ->feed($home->getVisibleDocumentsQuery(), $user, 6)
+            ->feed($home->getVisibleDocumentsQuery(), $user, 5)
             ->all();
 
         $view->with('sidebarFavorites', [

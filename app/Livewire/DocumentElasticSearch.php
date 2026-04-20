@@ -5,7 +5,6 @@ namespace App\Livewire;
 use App\Enums\DocumentStatus;
 use App\Models\Category;
 use App\Models\Document;
-use App\Models\SavedSearch;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -14,7 +13,6 @@ class DocumentElasticSearch extends Component
 {
     public $query = '';
     public $results = [];
-    public $savedSearchName = '';
 
     public $filters = [
         'type' => '',
@@ -66,66 +64,6 @@ class DocumentElasticSearch extends Component
 
         $this->searchDocuments(); // Optional: refresh results after reset
     }
-
-    public function getSavedSearchesProperty()
-    {
-        $userId = auth()->id();
-        if (! $userId) {
-            return collect();
-        }
-
-        return SavedSearch::query()
-            ->where('user_id', $userId)
-            ->latest()
-            ->limit(10)
-            ->get();
-    }
-
-    public function saveCurrentSearch(): void
-    {
-        $this->validate([
-            'savedSearchName' => ['required', 'string', 'max:120'],
-        ]);
-
-        $name = trim((string) $this->savedSearchName);
-        if ($name === '' || ! auth()->check()) {
-            return;
-        }
-
-        SavedSearch::create([
-            'user_id' => auth()->id(),
-            'name' => $name,
-            'query' => $this->query,
-            'filters' => $this->filters,
-        ]);
-
-        $this->savedSearchName = '';
-    }
-
-    public function applySavedSearch(int $id): void
-    {
-        $saved = SavedSearch::query()
-            ->where('id', $id)
-            ->where('user_id', auth()->id())
-            ->first();
-
-        if (! $saved) {
-            return;
-        }
-
-        $this->query = (string) ($saved->query ?? '');
-        $this->filters = is_array($saved->filters) ? $saved->filters : $this->filters;
-        $this->searchDocuments();
-    }
-
-    public function deleteSavedSearch(int $id): void
-    {
-        SavedSearch::query()
-            ->where('id', $id)
-            ->where('user_id', auth()->id())
-            ->delete();
-    }
-
 
     public function getActiveFiltersCountProperty()
     {

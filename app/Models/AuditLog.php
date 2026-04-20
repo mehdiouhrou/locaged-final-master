@@ -44,14 +44,26 @@ class AuditLog extends Model
 
             $departmentIds = $user->departments->pluck('id')->filter();
 
+            $canSeeCategoryOrg = $user->can('view organization wide reports')
+                || $user->can('view any role');
+
             // Always restrict audits to logs whose documents the user can see.
             // IMPORTANT: include soft-deleted documents so we can still see who deleted them.
-            $query->whereHas('document', function ($docQuery) use ($departmentIds) {
-                // Include soft-deleted documents in the relationship query
-                $docQuery->withTrashed();
+            // Catégories (sans document) : visibles pour super-admin / master uniquement.
+            $query->where(function ($q) use ($departmentIds, $canSeeCategoryOrg) {
+                $q->whereHas('document', function ($docQuery) use ($departmentIds) {
+                    $docQuery->withTrashed();
 
-                if ($departmentIds->isNotEmpty()) {
-                    $docQuery->whereIn('department_id', $departmentIds->all());
+                    if ($departmentIds->isNotEmpty()) {
+                        $docQuery->whereIn('department_id', $departmentIds->all());
+                    }
+                });
+
+                if ($canSeeCategoryOrg) {
+                    $q->orWhere(function ($c) {
+                        $c->whereNull('document_id')
+                            ->whereIn('action', ['category_created', 'category_updated', 'category_deleted']);
+                    });
                 }
             });
         });
