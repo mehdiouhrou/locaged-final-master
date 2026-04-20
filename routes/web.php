@@ -111,8 +111,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Profils d'accès (V2) — accès par policy / permissions, pas seulement par rôle « structure »
     Route::resource('access-profiles', ProfileController::class)
-        ->parameters(['access-profiles' => 'profile'])
-        ->except(['show']);
+        ->parameters(['access-profiles' => 'profile']);
 
     // Storage overview (Master & Super Admin)
     Route::group(['middleware' => ['permission:view organization wide reports|view any role']], function () {
