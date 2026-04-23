@@ -91,8 +91,9 @@
                 </div>
             </div>
 
-            @unless($isDestructionContext)
+                    @unless($isDestructionContext)
                 <div class="col-12 col-xl-4">
+                    <x-approval-progress :document="$document" />
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Métadonnées') }}</h6>

@@ -659,6 +659,8 @@ return [
         'view_document' => 'Voir le document',
         'marked_as_read' => 'Marqué comme lu',
         'view_all' => 'Voir tout',
+        'level_pending_title' => 'Document à approuver (Niveau :level)',
+        'level_pending_body' => 'Le document ":title" nécessite votre approbation.',
     ],
     'messages' => [
         'no_results' => 'Aucun résultat trouvé.',

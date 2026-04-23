@@ -13,6 +13,7 @@ use App\Models\Subcategory;
 use App\Models\SubDepartment;
 use App\Services\DestructionCertificateService;
 use App\Services\PdfConversionService;
+use App\Services\WorkflowApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -202,6 +203,9 @@ class DocumentController extends Controller
             // OCR is now only triggered when a document is approved.
             // See Document::queueOcrIfNeeded() and the approve/bulkApprove flows.
 
+            // Initialize multi-level workflow
+            app(WorkflowApprovalService::class)->initializeWorkflow($document);
+
             \DB::commit();
 
             return redirect()->route('documents.success')->with('success', 'Document created successfully.');
@@ -308,52 +312,59 @@ class DocumentController extends Controller
         return back()->with('success', 'Document archived successfully.');
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
+        $document = Document::findOrFail($id);
+        Gate::authorize('approve', $document);
 
-        Gate::authorize('approve', Document::class);
+        $workflowService = app(WorkflowApprovalService::class);
 
-        $doc = Document::with('latestVersion')->findOrFail($id);
-        $doc->status = DocumentStatus::Approved->value;
-
-        $version = $doc->latestVersion;
-        if ($version && Storage::disk('local')->exists($version->file_path)) {
-            $absolutePath = Storage::disk('local')->path($version->file_path);
-            $doc->file_hash = hash_file('sha256', $absolutePath);
+        if (!$workflowService->canUserApprove($document, auth()->user())) {
+            return back()->withErrors(['error' => 'You do not have permission to approve this document at its current stage.']);
         }
 
-        $doc->save();
-        $doc->logAction('approved');
+        $currentLevel = $workflowService->getCurrentLevel($document);
+        $success = $workflowService->approveLevel(
+            $document,
+            $currentLevel,
+            auth()->user(),
+            $request->input('comments')
+        );
 
-        // Queue OCR only once the document is approved.
-        $doc->queueOcrIfNeeded();
+        if ($success) {
+            return redirect()->back()->with('success', 'Level ' . $currentLevel . ' approved successfully.');
+        }
 
-        return back()->with('success', 'Document approved.');
+        return back()->withErrors(['error' => 'Failed to approve document level.']);
     }
 
     public function decline(Request $request, $id)
     {
-        Gate::authorize('decline', Document::class);
+        $document = Document::findOrFail($id);
+        Gate::authorize('decline', $document);
 
-        $validated = $request->validate([
-            'decline_reason' => ['nullable', 'string', 'max:5000'],
-        ]);
+        $workflowService = app(WorkflowApprovalService::class);
+        $currentLevel = $workflowService->getCurrentLevel($document);
 
-        $doc = Document::findOrFail($id);
-
-        $doc->status = DocumentStatus::Declined->value;
-        $meta = is_array($doc->metadata) ? $doc->metadata : (array) ($doc->metadata ?? []);
-        $declineReason = trim((string) ($validated['decline_reason'] ?? ''));
-        if ($declineReason !== '') {
-            $meta['decline_reason'] = $declineReason;
-        } else {
-            unset($meta['decline_reason']);
+        if (!$currentLevel) {
+            // Fallback for legacy behavior or documents without workflow
+            $document->update(['status' => DocumentStatus::Declined->value]);
+            $document->logAction('declined', null, ['reason' => $request->input('decline_reason')]);
+            return redirect()->back()->with('success', 'Document declined successfully.');
         }
-        $doc->metadata = $meta;
-        $doc->save();
-        $doc->logAction('declined', null, ['decline_reason' => $declineReason !== '' ? $declineReason : null]);
 
-        return back()->with('success', 'Document rejected.');
+        $success = $workflowService->declineLevel(
+            $document,
+            $currentLevel,
+            auth()->user(),
+            $request->input('decline_reason', 'No reason provided')
+        );
+
+        if ($success) {
+            return redirect()->back()->with('success', 'Document declined successfully.');
+        }
+
+        return back()->withErrors(['error' => 'Failed to decline document.']);
     }
 
     public function lock($id)

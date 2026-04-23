@@ -487,6 +487,11 @@ class Document extends Model
         return $this->hasMany(DestructionCertificate::class);
     }
 
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(DocumentApproval::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

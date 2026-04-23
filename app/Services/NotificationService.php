@@ -37,8 +37,19 @@ class NotificationService
         $config = $this->getNotificationConfig($action);
 
         if (!$config) {
-            Log::warning("Unknown notification action: $action");
-            return;
+            // Handle dynamic level notifications
+            if (preg_match('/level_(\d+)_pending/', $action, $matches)) {
+                $level = $matches[1];
+                $config = [
+                    'type' => 'info',
+                    'title' => 'pages.notifications.level_pending_title',
+                    'body' => 'pages.notifications.level_pending_body',
+                    'icon' => 'clipboard-check',
+                ];
+            } else {
+                Log::warning("Unknown notification action: $action");
+                return;
+            }
         }
 
         $title = __($config['title']);

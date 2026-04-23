@@ -14,8 +14,10 @@ class WorkFlowRule extends Model
         'category_id',
         'level',
         'approver_role',
+        'approver_user_id',
         'from_status',
         'to_status',
+        'is_active',
     ];
 
     protected static function booted()
@@ -45,5 +47,30 @@ class WorkFlowRule extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function approverUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_user_id');
+    }
+
+    /**
+     * Obtenir les utilisateurs éligibles pour cette règle
+     */
+    public function getApprovers()
+    {
+        if ($this->approver_user_id) {
+            return collect([$this->approverUser]);
+        }
+
+        if ($this->approver_role) {
+            return User::role($this->approver_role)
+                ->whereHas('departments', function ($q) {
+                    $q->where('departments.id', $this->department_id);
+                })
+                ->get();
+        }
+
+        return collect();
     }
 }

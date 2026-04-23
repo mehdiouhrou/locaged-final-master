@@ -6,6 +6,7 @@ use App\Enums\DocumentStatus;
 use App\Models\Department;
 use App\Models\WorkFlowRule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
@@ -13,39 +14,51 @@ class WorkFlowRuleController extends Controller
 {
     public function byDepartment($departmentId)
     {
-        $department = Department::findOrFail($departmentId);
+        $department = Department::with('users')->findOrFail($departmentId);
 
-        $rules = WorkFlowRule::with('department')->where('department_id', $departmentId)->paginate(10);
-        return view('workflow_rules.by-department', compact('rules', 'department'));
+        $rules = WorkFlowRule::with(['department', 'category', 'approverUser'])
+            ->where('department_id', $departmentId)
+            ->orderBy('category_id')
+            ->orderBy('level')
+            ->get()
+            ->groupBy(function($rule) {
+                return ($rule->category_id ?: 'all') . '_' . $rule->from_status . '_' . $rule->to_status;
+            });
+
+        $categories = \App\Models\Category::all();
+        $roles = \Spatie\Permission\Models\Role::all();
+        $users = $department->users;
+
+        return view('workflow_rules.by-department', compact('rules', 'department', 'categories', 'roles', 'users'));
     }
 
     public function store(Request $request, $departmentId)
     {
-
-        $validated = $request->validate([
+        $request->validate([
+            'from_status' => ['required', new Enum(DocumentStatus::class)],
+            'to_status' => ['required', new Enum(DocumentStatus::class), 'different:from_status'],
             'category_id' => ['nullable', 'exists:categories,id'],
-            'level' => ['nullable', 'integer', 'min:1', 'max:10'],
-            'approver_role' => ['nullable', 'string', 'max:120'],
-            'from_status' => [
-                'required',
-                'different:to_status',
-                new Enum(DocumentStatus::class),
-                Rule::unique('workflow_rules')
-                    ->where(function ($query) use ($departmentId, $request) {
-                        return $query->where('department_id', $departmentId)
-                            ->where('category_id', $request->category_id)
-                            ->where('level', (int) ($request->level ?: 1))
-                            ->where('to_status', $request->to_status);
-                    }),
-            ],
-            'to_status' => ['required', new Enum(DocumentStatus::class)],
+            'levels' => ['required', 'array', 'min:1', 'max:3'],
+            'levels.*.approver_type' => ['required', 'in:role,user'],
+            'levels.*.approver_role' => ['required_if:levels.*.approver_type,role'],
+            'levels.*.approver_user_id' => ['required_if:levels.*.approver_type,user', 'nullable', 'exists:users,id'],
         ]);
 
         $department = Department::findOrFail($departmentId);
 
-        $validated['department_id'] = $department->id;
-        $validated['level'] = (int) ($validated['level'] ?? 1);
-        WorkFlowRule::create($validated);
+        DB::transaction(function () use ($request, $department) {
+            foreach ($request->levels as $index => $levelData) {
+                WorkFlowRule::create([
+                    'department_id' => $department->id,
+                    'category_id' => $request->category_id,
+                    'from_status' => $request->from_status,
+                    'to_status' => $request->to_status,
+                    'level' => $index + 1,
+                    'approver_role' => $levelData['approver_type'] === 'role' ? $levelData['approver_role'] : null,
+                    'approver_user_id' => $levelData['approver_type'] === 'user' ? $levelData['approver_user_id'] : null,
+                ]);
+            }
+        });
 
         return redirect()->back()->with('success', 'Workflow rule created successfully.');
     }
