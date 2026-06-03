@@ -209,19 +209,21 @@
                             $expectedPieces = ["Livre de paie","Bulletin de paie","État CNSS/AMO","État de pointage","Ordre de virement","Décision RH"];
                         }
 
-                        $presentPieces = collect();
+                        $groupDocs = collect();
                         if (!empty($expectedPieces) && $checklistSupplier && $checklistPeriod) {
-                            $presentPieces = \App\Models\Document::withoutGlobalScopes()
+                            $groupDocs = \App\Models\Document::withoutGlobalScopes()
                                 ->where('category_id', $document->category_id)
                                 ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.supplier')) = ?", [$checklistSupplier])
                                 ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.period')) = ?", [$checklistPeriod])
-                                ->whereNotNull('metadata')
-                                ->pluck(\DB::raw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.piece_type'))"))
-                                ->filter()
-                                ->unique()
-                                ->values();
+                                ->get(['id', 'metadata']);
                         }
-                        $presentCount = $presentPieces->count();
+
+                        $presentPieces = $groupDocs->map(function ($d) {
+                            $m = is_array($d->metadata) ? $d->metadata : json_decode($d->metadata, true);
+                            return $m['piece_type'] ?? null;
+                        })->filter()->values()->toArray();
+
+                        $presentCount = count(array_unique($presentPieces));
                         $totalCount   = count($expectedPieces);
                     @endphp
 
@@ -236,7 +238,7 @@
                         <div class="card-body py-2 small">
                             <ul class="list-unstyled mb-0">
                                 @foreach($expectedPieces as $piece)
-                                    @php $present = $presentPieces->contains($piece); @endphp
+                                    @php $present = in_array($piece, $presentPieces); @endphp
                                     <li class="py-1 border-bottom d-flex align-items-center gap-2">
                                         @if($present)
                                             <i class="fa-solid fa-circle-check text-success"></i>

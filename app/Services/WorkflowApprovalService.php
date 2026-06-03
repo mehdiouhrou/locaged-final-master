@@ -222,6 +222,11 @@ class WorkflowApprovalService
             return false;
         }
 
+        // Le rôle master peut toujours approuver n'importe quel niveau
+        if ($user->hasRole('master')) {
+            return $this->getCurrentLevel($document) !== null;
+        }
+
         $currentLevel = $this->getCurrentLevel($document);
         if (!$currentLevel) {
             return false;
