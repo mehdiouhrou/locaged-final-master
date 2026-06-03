@@ -719,42 +719,45 @@ class DocumentsTable extends Component
     {
         Gate::authorize('approve', Document::class);
 
+        $user    = auth()->user();
+        $service = app(WorkflowApprovalService::class);
+
         $docs = Document::where('batch_id', $batchId)
-            ->where('status', DocumentStatus::Pending->value)
+            ->where('status', 'pending')
             ->get();
 
-        if ($docs->isEmpty()) {
-            session()->flash('error', 'Aucun document en attente pour ce dossier.');
-            return;
-        }
-
-        $service = app(WorkflowApprovalService::class);
-        $approvedCount = 0;
+        $approved = 0;
+        $errors   = 0;
 
         foreach ($docs as $doc) {
             try {
-                // Si le workflow n'a pas encore été initialisé (aucun approval),
-                // on l'initialise avant de tenter d'approuver.
+                // Initialiser le workflow si pas encore fait
                 $hasApprovals = DocumentApproval::where('document_id', $doc->id)->exists();
                 if (! $hasApprovals) {
                     $service->initializeWorkflow($doc);
                     $doc->refresh();
                 }
 
-                $level = $service->getCurrentLevel($doc);
-                if ($level === null) {
-                    // Pas de niveau en attente (ex: approuvé directement sans règle)
-                    $approvedCount++;
+                // Vérifier si ce document est encore pending après l'init
+                if ($doc->fresh()->status !== 'pending') {
+                    $approved++; // approuvé directement par initializeWorkflow (pas de règle)
                     continue;
                 }
 
-                $service->approveLevel($doc, $level, auth()->user(), $comments);
-                $approvedCount++;
+                $level = $service->getCurrentLevel($doc);
+                if (! $level) {
+                    continue;
+                }
+
+                $result = $service->approveLevel($doc, $level, $user, $comments);
+                if ($result) {
+                    $approved++;
+                } else {
+                    $errors++;
+                }
             } catch (\Throwable $e) {
-                Log::warning('approveBatch: error on document', [
-                    'document_id' => $doc->id,
-                    'error'       => $e->getMessage(),
-                ]);
+                report($e);
+                $errors++;
             }
         }
 
@@ -763,12 +766,15 @@ class DocumentsTable extends Component
         $this->dispatch('document-updated');
         $this->resetPage();
 
-        session()->flash(
-            $approvedCount > 0 ? 'success' : 'error',
-            $approvedCount > 0
-                ? "$approvedCount document(s) du dossier approuvé(s)."
-                : 'Aucun document du dossier n\'a pu être approuvé.'
-        );
+        if ($approved > 0) {
+            session()->flash('success', "$approved document(s) du dossier approuvé(s) avec succès.");
+        }
+        if ($errors > 0) {
+            session()->flash('error', "$errors document(s) n'ont pas pu être approuvés.");
+        }
+        if ($approved === 0 && $errors === 0) {
+            session()->flash('error', 'Aucun document en attente pour ce dossier.');
+        }
     }
 
     /**
@@ -778,33 +784,45 @@ class DocumentsTable extends Component
     {
         Gate::authorize('decline', Document::class);
 
-        $reason = trim($reason ?: $this->bulkDeclineReason);
+        $user    = auth()->user();
+        $service = app(WorkflowApprovalService::class);
+        $reason  = trim($reason ?: $this->bulkDeclineReason) ?: 'Refusé en lot';
 
         $docs = Document::where('batch_id', $batchId)
-            ->where('status', DocumentStatus::Pending->value)
+            ->where('status', 'pending')
             ->get();
 
-        if ($docs->isEmpty()) {
-            session()->flash('error', 'Aucun document en attente pour ce dossier.');
-            return;
-        }
-
-        $service = app(WorkflowApprovalService::class);
-        $declinedCount = 0;
+        $declined = 0;
+        $errors   = 0;
 
         foreach ($docs as $doc) {
-            $level = $service->getCurrentLevel($doc);
-            if ($level === null) {
-                continue;
-            }
             try {
-                $service->declineLevel($doc, $level, auth()->user(), $reason ?: 'Refusé en lot');
-                $declinedCount++;
+                // Initialiser le workflow si pas encore fait
+                $hasApprovals = DocumentApproval::where('document_id', $doc->id)->exists();
+                if (! $hasApprovals) {
+                    $service->initializeWorkflow($doc);
+                    $doc->refresh();
+                }
+
+                // Vérifier si ce document est encore pending après l'init
+                if ($doc->fresh()->status !== 'pending') {
+                    continue;
+                }
+
+                $level = $service->getCurrentLevel($doc);
+                if (! $level) {
+                    continue;
+                }
+
+                $result = $service->declineLevel($doc, $level, $user, $reason);
+                if ($result) {
+                    $declined++;
+                } else {
+                    $errors++;
+                }
             } catch (\Throwable $e) {
-                Log::warning('declineBatch: error on document', [
-                    'document_id' => $doc->id,
-                    'error'       => $e->getMessage(),
-                ]);
+                report($e);
+                $errors++;
             }
         }
 
@@ -814,12 +832,15 @@ class DocumentsTable extends Component
         $this->dispatch('document-updated');
         $this->resetPage();
 
-        session()->flash(
-            $declinedCount > 0 ? 'success' : 'error',
-            $declinedCount > 0
-                ? "$declinedCount document(s) du dossier refusé(s)."
-                : 'Aucun document du dossier n\'a pu être refusé.'
-        );
+        if ($declined > 0) {
+            session()->flash('success', "$declined document(s) du dossier refusé(s).");
+        }
+        if ($errors > 0) {
+            session()->flash('error', "$errors document(s) n'ont pas pu être refusés.");
+        }
+        if ($declined === 0 && $errors === 0) {
+            session()->flash('error', 'Aucun document en attente pour ce dossier.');
+        }
     }
 
     public function bulkDecline(): void

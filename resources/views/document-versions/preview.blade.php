@@ -335,7 +335,7 @@
 
                     @if(($document->status ?? null) === 'pending')
                         <div class="card border-0 shadow-sm">
-                            <div class="card-body d-flex gap-2 justify-content-end">
+                            <div class="card-body d-flex gap-2 justify-content-end flex-wrap">
                                 @can('decline', $document)
                                     <button
                                         class="btn btn-sm btn-outline-danger trigger-action"
@@ -365,6 +365,28 @@
                                     >
                                         {{ __('Approuver') }}
                                     </button>
+                                @endcan
+
+                                @can('approve', $document)
+                                    @php
+                                        $batchPendingCount = $document->batch_id
+                                            ? \App\Models\Document::where('batch_id', $document->batch_id)
+                                                ->where('status', 'pending')
+                                                ->count()
+                                            : 0;
+                                    @endphp
+                                    @if($batchPendingCount > 1)
+                                        <form method="POST"
+                                              action="{{ route('documents.approve-batch', $document->batch_id) }}"
+                                              onsubmit="return confirm('Approuver tous les {{ $batchPendingCount }} documents du dossier ?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="fas fa-check-double me-1"></i>
+                                                {{ __('Approuver tout le dossier') }}
+                                                <span class="badge bg-white text-success ms-1">{{ $batchPendingCount }}</span>
+                                            </button>
+                                        </form>
+                                    @endif
                                 @endcan
                             </div>
                         </div>

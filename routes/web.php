@@ -202,6 +202,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents/{id}/unlock', [DocumentController::class, 'unlock'])->name('documents.unlock');
     Route::put('/documents/{id}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
     Route::put('/documents/{id}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
+    Route::post('/documents/batch/{batchId}/approve', [DocumentController::class, 'approveBatch'])->name('documents.approve-batch');
     Route::delete('/documents/{id}/permanent-delete', [DocumentController::class, 'permanentDelete'])->name('documents.permanent-delete');
     Route::get('/documents/{id}/metadata', [DocumentController::class, 'getMetadata'])->name('documents.metadata');
     Route::put('/documents/{id}/metadata', [DocumentController::class, 'updateMetadata'])->name('documents.metadata.update');

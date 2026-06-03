@@ -7,6 +7,7 @@ use App\Exports\DocumentsReportExport;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentApproval;
 use App\Models\DocumentVersion;
 use App\Models\Service;
 use App\Models\Subcategory;
@@ -842,5 +843,52 @@ class DocumentController extends Controller
 
         // Return refreshed metadata payload
         return $this->getMetadata($document->id);
+    }
+
+    /**
+     * Approuver tous les documents d'un même batch depuis la fiche document.
+     */
+    public function approveBatch(Request $request, string $batchId)
+    {
+        Gate::authorize('approve', Document::class);
+
+        $user    = auth()->user();
+        $service = app(WorkflowApprovalService::class);
+
+        $docs = Document::where('batch_id', $batchId)
+            ->where('status', 'pending')
+            ->get();
+
+        $approved = 0;
+
+        foreach ($docs as $doc) {
+            try {
+                $hasApprovals = DocumentApproval::where('document_id', $doc->id)->exists();
+                if (! $hasApprovals) {
+                    $service->initializeWorkflow($doc);
+                    $doc->refresh();
+                }
+
+                if ($doc->fresh()->status !== 'pending') {
+                    $approved++;
+                    continue;
+                }
+
+                $level = $service->getCurrentLevel($doc);
+                if ($level) {
+                    $service->approveLevel($doc, $level, $user, $request->input('comments'));
+                    $approved++;
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return redirect()->back()->with(
+            $approved > 0 ? 'success' : 'error',
+            $approved > 0
+                ? "Tout le dossier a été approuvé ($approved document(s))."
+                : 'Aucun document du dossier n\'a pu être approuvé.'
+        );
     }
 }
