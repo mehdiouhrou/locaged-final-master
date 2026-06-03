@@ -17,23 +17,24 @@ class WorkflowApprovalService
      */
     public function initializeWorkflow(Document $document): void
     {
-        $amount = $document->amount;
-
-        $rule = WorkFlowRule::where('department_id', $document->department_id)
-            ->where(function ($q) use ($document) {
-                $q->where('category_id', $document->category_id)
-                    ->orWhereNull('category_id');
-            })
+        $query = WorkFlowRule::withoutGlobalScopes()
+            ->where('category_id', $document->category_id)
             ->where('level', 1)
-            ->where('is_active', true)
-            ->where(function ($q) use ($amount) {
-                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount);
-            })
-            ->where(function ($q) use ($amount) {
-                $q->whereNull('max_amount')->orWhere('max_amount', '>', $amount);
-            })
-            ->orderByRaw('category_id DESC')
-            ->first();
+            ->where('is_active', true);
+
+        if ($document->amount !== null) {
+            $query->where(function ($q) use ($document) {
+                $q->whereNull('min_amount')
+                  ->orWhere('min_amount', '<=', $document->amount);
+            })->where(function ($q) use ($document) {
+                $q->whereNull('max_amount')
+                  ->orWhere('max_amount', '>', $document->amount);
+            });
+        }
+
+        $query->orderBy('level', 'asc');
+
+        $rule = $query->first();
 
         if ($rule) {
             $document->approvals()->create([
@@ -137,23 +138,24 @@ class WorkflowApprovalService
     {
         $nextLevel = $currentLevel + 1;
 
-        $amount = $document->amount;
-
-        $nextRule = WorkFlowRule::where('department_id', $document->department_id)
-            ->where(function ($q) use ($document) {
-                $q->where('category_id', $document->category_id)
-                    ->orWhereNull('category_id');
-            })
+        $query = WorkFlowRule::withoutGlobalScopes()
+            ->where('category_id', $document->category_id)
             ->where('level', $nextLevel)
-            ->where('is_active', true)
-            ->where(function ($q) use ($amount) {
-                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount);
-            })
-            ->where(function ($q) use ($amount) {
-                $q->whereNull('max_amount')->orWhere('max_amount', '>', $amount);
-            })
-            ->orderByRaw('category_id DESC')
-            ->first();
+            ->where('is_active', true);
+
+        if ($document->amount !== null) {
+            $query->where(function ($q) use ($document) {
+                $q->whereNull('min_amount')
+                  ->orWhere('min_amount', '<=', $document->amount);
+            })->where(function ($q) use ($document) {
+                $q->whereNull('max_amount')
+                  ->orWhere('max_amount', '>', $document->amount);
+            });
+        }
+
+        $query->orderBy('level', 'asc');
+
+        $nextRule = $query->first();
 
         if ($nextRule) {
             if ($nextRule->requires_all) {
