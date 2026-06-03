@@ -31,6 +31,10 @@ class DocumentApprovalPolicy
      */
     public function approve(User $user, DocumentApproval $approval): bool
     {
+        if ($user->hasRole('master')) {
+            return true;
+        }
+
         if ($approval->status !== 'pending') {
             return false;
         }
@@ -40,7 +44,11 @@ class DocumentApprovalPolicy
         }
 
         // Check if user is in the list of eligible approvers for this level
-        $approvers = $approval->workflowRule->getApprovers();
+        $rule = $approval->workflowRule()->withoutGlobalScopes()->first();
+        if (!$rule) {
+            return false;
+        }
+        $approvers = $rule->getApprovers();
         return $approvers->pluck('id')->contains($user->id);
     }
 
@@ -49,6 +57,10 @@ class DocumentApprovalPolicy
      */
     public function decline(User $user, DocumentApproval $approval): bool
     {
+        if ($user->hasRole('master')) {
+            return true;
+        }
+
         if ($approval->status !== 'pending') {
             return false;
         }
@@ -58,7 +70,11 @@ class DocumentApprovalPolicy
         }
 
         // Check if user is in the list of eligible approvers for this level
-        $approvers = $approval->workflowRule->getApprovers();
+        $rule = $approval->workflowRule()->withoutGlobalScopes()->first();
+        if (!$rule) {
+            return false;
+        }
+        $approvers = $rule->getApprovers();
         return $approvers->pluck('id')->contains($user->id);
     }
 }
