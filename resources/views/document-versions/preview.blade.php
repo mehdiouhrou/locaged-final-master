@@ -155,6 +155,28 @@
                             : json_decode($document->metadata, true);
                         $meta = $meta ?? [];
                         $isPayment = !empty($meta['type']) && $meta['type'] === 'payment';
+
+                        // Checklist déclarée par l'uploadeur
+                        $declaredChecklist = isset($meta['checklist']) && is_array($meta['checklist'])
+                            ? $meta['checklist']
+                            : [];
+
+                        // Pièces attendues selon la catégorie
+                        $catNamePreview = strtolower($document->category?->name ?? '');
+                        $isFournisseurPrev = str_contains($catNamePreview, 'fournisseur') || str_contains($catNamePreview, 'prestataire');
+                        $isCaissePrev      = str_contains($catNamePreview, 'caisse');
+                        $isPayePrev        = str_contains($catNamePreview, 'paie');
+                        if ($isFournisseurPrev) {
+                            $expectedPieces = ["Demande d'achat", "Bon de commande", "Bon de livraison", "État de réception système", "Facture", "Attestation RIB", "Attestation fiscale", "Ordre de paiement"];
+                        } elseif ($isCaissePrev) {
+                            $expectedPieces = ["Bulletin de caisse", "État récapitulatif encaissements", "Ordre de virement"];
+                        } elseif ($isPayePrev) {
+                            $expectedPieces = ["Livre de paie", "Bulletin de paie", "État CNSS/AMO", "État de pointage", "Ordre de virement", "Décision RH"];
+                        } else {
+                            $expectedPieces = [];
+                        }
+                        $declaredCount = count($declaredChecklist);
+                        $totalExpected = count($expectedPieces);
                     @endphp
                     @if($isPayment)
                     <div class="card border-0 shadow-sm mb-3 border-start border-4 border-primary">
@@ -183,74 +205,39 @@
                                 <dt class="col-6 text-muted">{{ __('Période') }}</dt>
                                 <dd class="col-6 mb-0">{{ $meta['period'] ?? '—' }}</dd>
 
-                                <dt class="col-6 text-muted">{{ __('Type de pièce') }}</dt>
-                                <dd class="col-6 mb-0">{{ $meta['piece_type'] ?? '—' }}</dd>
-
                                 <dt class="col-6 text-muted">{{ __('Motif') }}</dt>
                                 <dd class="col-6 mb-0 text-break">{{ $meta['reason'] ?? '—' }}</dd>
                             </dl>
                         </div>
                     </div>
-                    @endif
 
-                    @php
-                        $checklistCatName  = strtolower($document->category?->name ?? '');
-                        $checklistSupplier = $meta['supplier'] ?? null;
-                        $checklistPeriod   = $meta['period'] ?? null;
-                        $isFournisseurCheck = str_contains($checklistCatName, 'fournisseur') || str_contains($checklistCatName, 'prestataire');
-                        $isCaisseCheck      = str_contains($checklistCatName, 'caisse');
-                        $isPayeCheck        = str_contains($checklistCatName, 'paie');
-                        $expectedPieces = [];
-                        if ($isFournisseurCheck) {
-                            $expectedPieces = ["Demande d'achat","Bon de commande","Bon de livraison","État de réception","Facture","Attestation RIB","Attestation fiscale","Ordre de paiement"];
-                        } elseif ($isCaisseCheck) {
-                            $expectedPieces = ["Bulletin de caisse","État récapitulatif encaissements","Ordre de virement"];
-                        } elseif ($isPayeCheck) {
-                            $expectedPieces = ["Livre de paie","Bulletin de paie","État CNSS/AMO","État de pointage","Ordre de virement","Décision RH"];
-                        }
-
-                        $groupDocs = collect();
-                        if (!empty($expectedPieces) && $checklistSupplier && $checklistPeriod) {
-                            $groupDocs = \App\Models\Document::withoutGlobalScopes()
-                                ->where('category_id', $document->category_id)
-                                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.supplier')) = ?", [$checklistSupplier])
-                                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.period')) = ?", [$checklistPeriod])
-                                ->get(['id', 'metadata']);
-                        }
-
-                        $presentPieces = $groupDocs->map(function ($d) {
-                            $m = is_array($d->metadata) ? $d->metadata : json_decode($d->metadata, true);
-                            return $m['piece_type'] ?? null;
-                        })->filter()->values()->toArray();
-
-                        $presentCount = count(array_unique($presentPieces));
-                        $totalCount   = count($expectedPieces);
-                    @endphp
-
-                    @if(!empty($expectedPieces) && $isPayment)
+                    @if(!empty($expectedPieces))
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Pièces du dossier') }}</h6>
-                            <span class="badge {{ $presentCount === $totalCount ? 'bg-success' : 'bg-warning text-dark' }}">
-                                {{ $presentCount }}/{{ $totalCount }} pièces présentes
+                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">
+                                <i class="fa-solid fa-list-check me-1"></i>{{ __('Pièces déclarées') }}
+                            </h6>
+                            <span class="badge {{ $declaredCount >= $totalExpected ? 'bg-success' : ($declaredCount > 0 ? 'bg-warning text-dark' : 'bg-secondary') }}">
+                                {{ $declaredCount }} / {{ $totalExpected }} déclarées
                             </span>
                         </div>
                         <div class="card-body py-2 small">
                             <ul class="list-unstyled mb-0">
                                 @foreach($expectedPieces as $piece)
-                                    @php $present = in_array($piece, $presentPieces); @endphp
+                                    @php $checked = in_array($piece, $declaredChecklist); @endphp
                                     <li class="py-1 border-bottom d-flex align-items-center gap-2">
-                                        @if($present)
-                                            <i class="fa-solid fa-circle-check text-success"></i>
+                                        @if($checked)
+                                            <i class="fa-solid fa-square-check text-success"></i>
                                         @else
-                                            <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                            <i class="fa-regular fa-square text-muted"></i>
                                         @endif
-                                        <span class="{{ $present ? '' : 'text-muted' }}">{{ $piece }}</span>
+                                        <span class="{{ $checked ? 'fw-semibold' : 'text-muted' }}">{{ $piece }}</span>
                                     </li>
                                 @endforeach
                             </ul>
                         </div>
                     </div>
+                    @endif
                     @endif
 
                     <div class="card border-0 shadow-sm mb-3">

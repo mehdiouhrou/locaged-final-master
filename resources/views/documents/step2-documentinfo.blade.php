@@ -140,42 +140,50 @@
                             $isFournisseur = str_contains($catNameForPiece, 'fournisseur') || str_contains($catNameForPiece, 'prestataire');
                             $isCaisse      = str_contains($catNameForPiece, 'caisse');
                             $isPayePiece   = str_contains($catNameForPiece, 'paie');
+
+                            if ($isFournisseur) {
+                                $checklistItems = ["Demande d'achat", "Bon de commande", "Bon de livraison", "État de réception système", "Facture", "Attestation RIB", "Attestation fiscale", "Ordre de paiement"];
+                            } elseif ($isCaisse) {
+                                $checklistItems = ["Bulletin de caisse", "État récapitulatif encaissements", "Ordre de virement"];
+                            } elseif ($isPayePiece) {
+                                $checklistItems = ["Livre de paie", "Bulletin de paie", "État CNSS/AMO", "État de pointage", "Ordre de virement", "Décision RH"];
+                            } else {
+                                $checklistItems = [];
+                            }
                         @endphp
 
+                        @if(!empty($checklistItems))
                         <div class="col-md-12 mb-3">
-                            <label class="form-label fw-semibold">Type de pièce <span class="text-muted small">(optionnel)</span></label>
-                            @if($isFournisseur || $isCaisse || $isPayePiece)
-                                <select wire:model="piece_type" class="form-select">
-                                    <option value="">— Sélectionner —</option>
-                                    @if($isFournisseur)
-                                        <option value="Demande d'achat">Demande d'achat</option>
-                                        <option value="Bon de commande">Bon de commande</option>
-                                        <option value="Bon de livraison">Bon de livraison</option>
-                                        <option value="État de réception">État de réception</option>
-                                        <option value="Facture">Facture</option>
-                                        <option value="Attestation RIB">Attestation RIB</option>
-                                        <option value="Attestation fiscale">Attestation fiscale</option>
-                                        <option value="Ordre de paiement">Ordre de paiement</option>
-                                    @elseif($isCaisse)
-                                        <option value="Bulletin de caisse">Bulletin de caisse</option>
-                                        <option value="État récapitulatif encaissements">État récapitulatif encaissements</option>
-                                        <option value="Ordre de virement">Ordre de virement</option>
-                                    @elseif($isPayePiece)
-                                        <option value="Livre de paie">Livre de paie</option>
-                                        <option value="Bulletin de paie">Bulletin de paie</option>
-                                        <option value="État CNSS/AMO">État CNSS/AMO</option>
-                                        <option value="État de pointage">État de pointage</option>
-                                        <option value="Ordre de virement">Ordre de virement</option>
-                                        <option value="Décision RH">Décision RH</option>
-                                    @endif
-                                </select>
-                            @else
-                                <input type="text"
-                                       wire:model="piece_type"
-                                       class="form-control"
-                                       placeholder="Ex: Facture, Bon de commande…">
-                            @endif
+                            <label class="form-label fw-semibold">
+                                Pièces du dossier
+                                <span class="text-muted small">(cochez les pièces présentes dans ce batch)</span>
+                            </label>
+                            <div class="border rounded p-3 bg-light">
+                                <div class="row g-2">
+                                    @foreach($checklistItems as $item)
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   id="checklist_{{ Str::slug($item) }}"
+                                                   wire:model="checklist"
+                                                   value="{{ $item }}">
+                                            <label class="form-check-label" for="checklist_{{ Str::slug($item) }}">
+                                                {{ $item }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @if(!empty($checklist))
+                                <div class="mt-2 small text-primary fw-semibold">
+                                    {{ count($checklist) }}/{{ count($checklistItems) }} pièces sélectionnées
+                                </div>
+                                @endif
+                            </div>
+                            <div class="form-text">Ces pièces s'appliquent à tous les fichiers du batch.</div>
                         </div>
+                        @endif
 
                         @php
                             $selectedCategoryId = $currentInfo['category_id'] ?? null;

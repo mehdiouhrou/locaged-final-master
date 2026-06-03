@@ -50,7 +50,7 @@ class MultipleDocumentsCreateForm extends Component
     public $account_number = null;
     public $reason = null;
     public $period = null;
-    public $piece_type = null;
+    public $checklist = [];
 
     public $documents = [];
 
@@ -1668,7 +1668,7 @@ class MultipleDocumentsCreateForm extends Component
                         'account_number' => $this->account_number,
                         'reason'         => $this->reason,
                         'period'         => $this->period,
-                        'piece_type'     => $this->piece_type,
+                        'checklist'      => $this->checklist,
                         'color'          => $metadata['color'],
                         'digital_only'   => $isDigitalOnly,
                         'author'         => (auth()->user()?->full_name ?: (auth()->user()?->name ?? $metadata['author'])),
