@@ -109,7 +109,7 @@ class Document extends Model
 
                 DocumentStatusHistory::create([
                     'document_id' => $document->id,
-                    'changed_by' => auth()->id(),
+                    'changed_by' => auth()->id() ?? $document->created_by,
                     'from_status' => $statusFrom,
                     'to_status' => $statusTo,
                     'changed_at' => now(),

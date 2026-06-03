@@ -45,8 +45,11 @@ class WorkflowApprovalService
             // Envoyer notification aux approbateurs du niveau 1
             $this->notifyLevelApprovers($document, 1);
         } else {
-            // Si aucune règle n'est définie, on approuve directement
-            $document->update(['status' => DocumentStatus::Approved->value]);
+            // Si aucune règle n'est définie, on approuve directement.
+            // On passe par DB::table pour éviter le hook updating() qui exige auth()->id().
+            DB::table('documents')
+                ->where('id', $document->id)
+                ->update(['status' => DocumentStatus::Approved->value]);
         }
     }
 
@@ -186,7 +189,15 @@ class WorkflowApprovalService
      */
     private function finalizeApproval(Document $document): void
     {
-        $document->update(['status' => DocumentStatus::Approved->value]);
+        // On passe par DB::table pour éviter le hook updating() qui exige auth()->id().
+        // Le workflow peut être finalisé dans un job/queue sans session active.
+        DB::table('documents')
+            ->where('id', $document->id)
+            ->update(['status' => DocumentStatus::Approved->value]);
+
+        // Recharger le modèle pour que les appels suivants (logAction, Scout, OCR)
+        // voient bien le statut approved à jour.
+        $document->refresh();
 
         // Document::booted handles OCR queuing and Typesense indexing on status change
         $document->logAction('approved');
