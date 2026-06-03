@@ -906,21 +906,30 @@
                         $bPeriod   = $bMeta['period']   ?? null;
                         $bCount    = $batchCounts[$doc->batch_id];
                     @endphp
-                    <tr class="batch-header-row">
+                    @php $isBatchCollapsed = in_array($doc->batch_id, $this->collapsedBatches, true); @endphp
+                    <tr class="batch-header-row"
+                        wire:click="toggleBatch('{{ $doc->batch_id }}')"
+                        style="cursor:pointer;user-select:none;">
                         <td colspan="9" style="background:#eff6ff;border-left:4px solid #3b82f6;padding:8px 16px;">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-chevron-down text-primary"
+                                       style="transition:transform .2s;{{ $isBatchCollapsed ? 'transform:rotate(-90deg);' : '' }}"></i>
                                     <i class="fas fa-layer-group text-primary"></i>
                                     <strong>Dossier</strong>
                                     @if($bSupplier)<span class="text-muted">— {{ $bSupplier }}</span>@endif
                                     @if($bPeriod)<span class="text-muted">— {{ $bPeriod }}</span>@endif
                                     <span class="badge bg-primary bg-opacity-10 text-primary">{{ $bCount }} fichier(s)</span>
+                                    @if($isBatchCollapsed)
+                                        <span class="text-muted small fst-italic">(replié)</span>
+                                    @endif
                                 </div>
-                                <div class="d-flex gap-2">
+                                {{-- stopPropagation empêche le clic bouton de déclencher toggleBatch sur le <tr> --}}
+                                <div class="d-flex gap-2" onclick="event.stopPropagation()">
                                     @can('approve', \App\Models\Document::class)
                                     <button type="button"
                                             class="btn btn-success btn-sm"
-                                            wire:click="approveBatch('{{ $doc->batch_id }}')"
+                                            wire:click.stop="approveBatch('{{ $doc->batch_id }}')"
                                             wire:confirm="Approuver tous les documents de ce dossier ?">
                                         <i class="fas fa-check-double me-1"></i>Approuver tout le dossier
                                     </button>
@@ -928,7 +937,7 @@
                                     @can('decline', \App\Models\Document::class)
                                     <button type="button"
                                             class="btn btn-danger btn-sm"
-                                            wire:click="declineBatch('{{ $doc->batch_id }}')"
+                                            wire:click.stop="declineBatch('{{ $doc->batch_id }}')"
                                             wire:confirm="Refuser tous les documents de ce dossier ?">
                                         <i class="fas fa-times-circle me-1"></i>Refuser tout le dossier
                                     </button>
@@ -943,6 +952,8 @@
                     @php $seenBatchIds[] = $doc->batch_id; @endphp
                 @endif
 
+                {{-- Masquer les lignes du dossier replié (accordéon batch) --}}
+                @if(empty($doc->batch_id) || !in_array($doc->batch_id, $this->collapsedBatches, true))
                 <tr class="document-row @if(collect($checkedDocuments ?? [])->contains($doc->id) || collect($checkedDocuments ?? [])->contains((string) $doc->id)) lgv2-row-selected @endif" data-doc-id="{{ $doc->id }}">
                     <td>
                         <input type="checkbox"
@@ -1330,6 +1341,7 @@
                 @endcan
                 @include('components.modals.move-documents-modal',['document' => $doc,'rooms' => $rooms])
                 @include('components.modals.document-destruction-modal',['document' => $doc,'movements' => $movements])
+                @endif {{-- fin accordéon batch --}}
             @endforeach
 
 

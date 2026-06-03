@@ -74,6 +74,9 @@ class DocumentsTable extends Component
     /** Motif optionnel pour refus groupé */
     public string $bulkDeclineReason = '';
 
+    /** Batch IDs dont les lignes sont repliées (accordéon) */
+    public array $collapsedBatches = [];
+
     protected $queryString = [
         'search' => ['except' => ''],
         'status' => ['except' => ''],
@@ -692,6 +695,20 @@ class DocumentsTable extends Component
             session()->flash('success', $approvedCount . ' document(s) approved.');
         } else {
             session()->flash('error', 'No pending documents in the selected items.');
+        }
+    }
+
+    /**
+     * Replier / déplier les lignes d'un batch dans la vue approbations (accordéon).
+     */
+    public function toggleBatch(string $batchId): void
+    {
+        if (in_array($batchId, $this->collapsedBatches, true)) {
+            $this->collapsedBatches = array_values(
+                array_filter($this->collapsedBatches, fn ($id) => $id !== $batchId)
+            );
+        } else {
+            $this->collapsedBatches[] = $batchId;
         }
     }
 
