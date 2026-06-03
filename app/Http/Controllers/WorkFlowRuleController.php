@@ -38,10 +38,12 @@ class WorkFlowRuleController extends Controller
             'from_status' => ['required', new Enum(DocumentStatus::class)],
             'to_status' => ['required', new Enum(DocumentStatus::class), 'different:from_status'],
             'category_id' => ['nullable', 'exists:categories,id'],
-            'levels' => ['required', 'array', 'min:1', 'max:3'],
+            'levels' => ['required', 'array', 'min:1', 'max:6'],
             'levels.*.approver_type' => ['required', 'in:role,user'],
             'levels.*.approver_role' => ['required_if:levels.*.approver_type,role'],
             'levels.*.approver_user_id' => ['required_if:levels.*.approver_type,user', 'nullable', 'exists:users,id'],
+            'levels.*.min_amount' => ['nullable', 'numeric', 'min:0'],
+            'levels.*.max_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $department = Department::findOrFail($departmentId);
@@ -56,6 +58,8 @@ class WorkFlowRuleController extends Controller
                     'level' => $index + 1,
                     'approver_role' => $levelData['approver_type'] === 'role' ? $levelData['approver_role'] : null,
                     'approver_user_id' => $levelData['approver_type'] === 'user' ? $levelData['approver_user_id'] : null,
+                    'min_amount' => $levelData['min_amount'] ?? null,
+                    'max_amount' => $levelData['max_amount'] ?? null,
                 ]);
             }
         });

@@ -18,6 +18,8 @@ class WorkFlowRule extends Model
         'from_status',
         'to_status',
         'is_active',
+        'min_amount',
+        'max_amount',
     ];
 
     protected static function booted()

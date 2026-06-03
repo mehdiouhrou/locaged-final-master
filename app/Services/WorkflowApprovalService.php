@@ -17,7 +17,8 @@ class WorkflowApprovalService
      */
     public function initializeWorkflow(Document $document): void
     {
-        // Trouver la règle pour le niveau 1
+        $amount = $document->amount;
+
         $rule = WorkFlowRule::where('department_id', $document->department_id)
             ->where(function ($q) use ($document) {
                 $q->where('category_id', $document->category_id)
@@ -25,7 +26,13 @@ class WorkflowApprovalService
             })
             ->where('level', 1)
             ->where('is_active', true)
-            ->orderByRaw('category_id DESC') // Priorité à la catégorie spécifique
+            ->where(function ($q) use ($amount) {
+                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount);
+            })
+            ->where(function ($q) use ($amount) {
+                $q->whereNull('max_amount')->orWhere('max_amount', '>', $amount);
+            })
+            ->orderByRaw('category_id DESC')
             ->first();
 
         if ($rule) {
@@ -114,6 +121,8 @@ class WorkflowApprovalService
     {
         $nextLevel = $currentLevel + 1;
 
+        $amount = $document->amount;
+
         $nextRule = WorkFlowRule::where('department_id', $document->department_id)
             ->where(function ($q) use ($document) {
                 $q->where('category_id', $document->category_id)
@@ -121,6 +130,12 @@ class WorkflowApprovalService
             })
             ->where('level', $nextLevel)
             ->where('is_active', true)
+            ->where(function ($q) use ($amount) {
+                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount);
+            })
+            ->where(function ($q) use ($amount) {
+                $q->whereNull('max_amount')->orWhere('max_amount', '>', $amount);
+            })
             ->orderByRaw('category_id DESC')
             ->first();
 
@@ -145,9 +160,17 @@ class WorkflowApprovalService
     private function finalizeApproval(Document $document): void
     {
         $document->update(['status' => DocumentStatus::Approved->value]);
-        
+
         // Document::booted handles OCR queuing and Typesense indexing on status change
         $document->logAction('approved');
+
+        if (!empty($document->metadata['type']) && $document->metadata['type'] === 'payment') {
+            try {
+                app(\App\Services\PaymentOrderService::class)->generate($document->fresh());
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     /**
