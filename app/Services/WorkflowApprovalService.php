@@ -201,16 +201,22 @@ class WorkflowApprovalService
         // voient bien le statut approved à jour.
         $document->refresh();
 
-        // Document::booted handles OCR queuing and Typesense indexing on status change
-        $document->logAction('approved');
+        // Générer automatiquement le PDF Ordre de Virement / Mise à disposition
+        // dès que le document de type "payment" est approuvé au dernier niveau.
+        $meta = is_array($document->metadata)
+            ? $document->metadata
+            : json_decode($document->metadata, true);
 
-        if (!empty($document->metadata['type']) && $document->metadata['type'] === 'payment') {
+        if (!empty($meta['type']) && $meta['type'] === 'payment') {
             try {
-                app(\App\Services\PaymentOrderService::class)->generate($document->fresh());
+                app(\App\Services\PaymentOrderService::class)->generate($document);
             } catch (\Throwable $e) {
                 report($e);
             }
         }
+
+        // Document::booted handles OCR queuing and Typesense indexing on status change
+        $document->logAction('approved');
     }
 
     /**

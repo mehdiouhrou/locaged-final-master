@@ -891,4 +891,25 @@ class DocumentController extends Controller
                 : 'Aucun document du dossier n\'a pu être approuvé.'
         );
     }
+
+    /**
+     * Télécharger le PDF Ordre de Virement / Mise à disposition généré pour ce document.
+     */
+    public function downloadPaymentOrder(int $id)
+    {
+        $document = Document::findOrFail($id);
+
+        Gate::authorize('view', $document);
+
+        $files = Storage::disk('private')->files('payment-orders/');
+        $file  = collect($files)->first(
+            fn ($f) => str_starts_with($f, "payment-orders/{$id}-")
+        );
+
+        if (! $file) {
+            abort(404, 'Ordre de virement introuvable.');
+        }
+
+        return Storage::disk('private')->download($file, "ordre-virement-{$id}.pdf");
+    }
 }

@@ -29,6 +29,18 @@
                     <a href="{{ route('documents.download', ['id' => $document->id]) }}" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-download me-1"></i>{{ __('Document') }}
                     </a>
+                    @if($status === 'approved')
+                        @php
+                            $paymentOrderFile = collect(\Illuminate\Support\Facades\Storage::disk('private')->files('payment-orders/'))
+                                ->first(fn($f) => str_starts_with($f, "payment-orders/{$document->id}-"));
+                        @endphp
+                        @if($paymentOrderFile)
+                            <a href="{{ route('documents.payment-order', $document->id) }}"
+                               class="btn btn-sm btn-success">
+                                <i class="fa-solid fa-file-pdf me-1"></i>{{ __('Télécharger l\'Ordre de Virement') }}
+                            </a>
+                        @endif
+                    @endif
                     @if($isDestructionContext)
                         <a href="{{ route('documents-destructions.index') }}" class="btn btn-sm btn-outline-secondary">
                             <i class="fa-solid fa-xmark me-1"></i>{{ __('Fermer') }}
