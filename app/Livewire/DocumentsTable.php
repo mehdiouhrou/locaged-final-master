@@ -36,6 +36,13 @@ class DocumentsTable extends Component
     public $boxId = ''; // Box ID filter for physical location
     public $favoritesOnly = false;
 
+    // Payment filters
+    public $filterSupplier  = '';
+    public $filterAmountMin = '';
+    public $filterAmountMax = '';
+    public $filterPeriod    = '';
+    public $filterPieceType = '';
+
     // Hierarchy filter (department / sub-department / service)
     // Encoded as e.g. "department:5", "subdepartment:8", "service:12".
     public $hierarchy = '';
@@ -76,9 +83,14 @@ class DocumentsTable extends Component
         'category' => ['except' => ''],
         'service' => ['except' => ''],
         'boxId' => ['except' => ''],
-        'favoritesOnly' => ['except' => false],
-        'perPage' => ['except' => 10],
-        'hierarchy' => ['except' => ''],
+        'favoritesOnly'    => ['except' => false],
+        'perPage'          => ['except' => 10],
+        'hierarchy'        => ['except' => ''],
+        'filterSupplier'   => ['except' => ''],
+        'filterAmountMin'  => ['except' => ''],
+        'filterAmountMax'  => ['except' => ''],
+        'filterPeriod'     => ['except' => ''],
+        'filterPieceType'  => ['except' => ''],
     ];
 
     public function mount(): void
@@ -117,10 +129,15 @@ class DocumentsTable extends Component
         $this->category = '';
         $this->service = '';
         $this->boxId = '';
-        $this->favoritesOnly = false;
-        $this->perPage = 10;
-        $this->hierarchy = '';
-        $this->searchResults = [];
+        $this->favoritesOnly   = false;
+        $this->perPage         = 10;
+        $this->hierarchy       = '';
+        $this->filterSupplier  = '';
+        $this->filterAmountMin = '';
+        $this->filterAmountMax = '';
+        $this->filterPeriod    = '';
+        $this->filterPieceType = '';
+        $this->searchResults   = [];
         $this->showSearchDropdown = false;
 
         $this->selectAll = false;
@@ -379,6 +396,21 @@ class DocumentsTable extends Component
                         }
                     });
                 });
+            })
+            ->when($this->filterSupplier, function ($q) {
+                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.supplier')) LIKE ?", ['%' . $this->filterSupplier . '%']);
+            })
+            ->when($this->filterAmountMin !== '' && $this->filterAmountMin !== null, function ($q) {
+                $q->where('amount', '>=', (float) $this->filterAmountMin);
+            })
+            ->when($this->filterAmountMax !== '' && $this->filterAmountMax !== null, function ($q) {
+                $q->where('amount', '<=', (float) $this->filterAmountMax);
+            })
+            ->when($this->filterPeriod, function ($q) {
+                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.period')) = ?", [$this->filterPeriod]);
+            })
+            ->when($this->filterPieceType, function ($q) {
+                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.piece_type')) = ?", [$this->filterPieceType]);
             })
             ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc');

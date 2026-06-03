@@ -46,6 +46,11 @@ class MultipleDocumentsCreateForm extends Component
     public $step = 1;
 
     public $amount = null;
+    public $supplier = null;
+    public $account_number = null;
+    public $reason = null;
+    public $period = null;
+    public $piece_type = null;
 
     public $documents = [];
 
@@ -1657,13 +1662,18 @@ class MultipleDocumentsCreateForm extends Component
                     'department_id' => $metadata['department_id'],
                     'service_id' => $metadata['service_id'] ?? null,
                     'amount' => $this->amount !== '' ? $this->amount : null,
-                    'metadata' => [
-                        'color' => $metadata['color'],
-                        'digital_only' => $isDigitalOnly,
-                        // Enforce author/email from authenticated user regardless of UI
-                        'author' => (auth()->user()?->full_name ?: (auth()->user()?->name ?? $metadata['author'])),
-                        'email' => (auth()->user()?->email ?? $metadata['email']),
-                    ],
+                    'metadata' => json_encode([
+                        'type'           => 'payment',
+                        'supplier'       => $this->supplier,
+                        'account_number' => $this->account_number,
+                        'reason'         => $this->reason,
+                        'period'         => $this->period,
+                        'piece_type'     => $this->piece_type,
+                        'color'          => $metadata['color'],
+                        'digital_only'   => $isDigitalOnly,
+                        'author'         => (auth()->user()?->full_name ?: (auth()->user()?->name ?? $metadata['author'])),
+                        'email'          => (auth()->user()?->email ?? $metadata['email']),
+                    ]),
                 ]);
 
                 if (! empty($allTagIds)) {

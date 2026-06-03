@@ -18,6 +18,10 @@ class PaymentOrderService
     {
         $document->loadMissing(['department', 'service', 'category', 'approvals.approver']);
 
+        $categoryName = strtolower($document->category?->name ?? '');
+        $isCaisse     = str_contains($categoryName, 'caisse');
+        $pdfTemplate  = $isCaisse ? 'pdf.mise-a-disposition' : 'pdf.payment-order';
+
         $manifest = [
             'document_id'    => $document->id,
             'document_uid'   => $document->uid,
@@ -32,7 +36,7 @@ class PaymentOrderService
 
         $relativePath = 'payment-orders/' . $document->id . '-' . now()->timestamp . '.pdf';
 
-        $html = view('pdf.payment-order', [
+        $html = view($pdfTemplate, [
             'document'          => $document,
             'manifest'          => $manifest,
             'clientLogoDataUri' => Branding::clientLogoDataUriForPdf(),

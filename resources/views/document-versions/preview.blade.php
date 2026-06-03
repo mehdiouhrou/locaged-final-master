@@ -149,6 +149,105 @@
                         </div>
                     </div>
 
+                    @php
+                        $payMeta = $document->metadata ?? [];
+                        $isPaymentDoc = ($payMeta['type'] ?? '') === 'payment';
+                    @endphp
+                    @if($isPaymentDoc)
+                    <div class="card border-0 shadow-sm mb-3 border-start border-4 border-primary">
+                        <div class="card-header bg-primary bg-opacity-10 py-2">
+                            <h6 class="mb-0 text-uppercase text-primary small fw-bold">
+                                <i class="fa-solid fa-money-bill-wave me-1"></i>{{ __('Informations de paiement') }}
+                            </h6>
+                        </div>
+                        <div class="card-body small">
+                            <dl class="row mb-0 gy-2">
+                                <dt class="col-6 text-muted">{{ __('Fournisseur') }}</dt>
+                                <dd class="col-6 mb-0">{{ $payMeta['supplier'] ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('N° de compte') }}</dt>
+                                <dd class="col-6 mb-0 text-break">{{ $payMeta['account_number'] ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Montant') }}</dt>
+                                <dd class="col-6 mb-0 fw-semibold">
+                                    @if($document->amount !== null)
+                                        {{ number_format((float) $document->amount, 2, ',', ' ') }} DH
+                                    @else
+                                        —
+                                    @endif
+                                </dd>
+
+                                <dt class="col-6 text-muted">{{ __('Période') }}</dt>
+                                <dd class="col-6 mb-0">{{ $payMeta['period'] ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Type de pièce') }}</dt>
+                                <dd class="col-6 mb-0">{{ $payMeta['piece_type'] ?? '—' }}</dd>
+
+                                <dt class="col-6 text-muted">{{ __('Motif') }}</dt>
+                                <dd class="col-6 mb-0 text-break">{{ $payMeta['reason'] ?? '—' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    @endif
+
+                    @php
+                        $checklistCatName  = strtolower($document->category?->name ?? '');
+                        $checklistSupplier = $payMeta['supplier'] ?? null;
+                        $checklistPeriod   = $payMeta['period'] ?? null;
+                        $isFournisseurCheck = str_contains($checklistCatName, 'fournisseur') || str_contains($checklistCatName, 'prestataire');
+                        $isCaisseCheck      = str_contains($checklistCatName, 'caisse');
+                        $isPayeCheck        = str_contains($checklistCatName, 'paie');
+                        $expectedPieces = [];
+                        if ($isFournisseurCheck) {
+                            $expectedPieces = ["Demande d'achat","Bon de commande","Bon de livraison","État de réception","Facture","Attestation RIB","Attestation fiscale","Ordre de paiement"];
+                        } elseif ($isCaisseCheck) {
+                            $expectedPieces = ["Bulletin de caisse","État récapitulatif encaissements","Ordre de virement"];
+                        } elseif ($isPayeCheck) {
+                            $expectedPieces = ["Livre de paie","Bulletin de paie","État CNSS/AMO","État de pointage","Ordre de virement","Décision RH"];
+                        }
+
+                        $presentPieces = collect();
+                        if (!empty($expectedPieces) && $checklistSupplier && $checklistPeriod) {
+                            $presentPieces = \App\Models\Document::withoutGlobalScopes()
+                                ->where('category_id', $document->category_id)
+                                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.supplier')) = ?", [$checklistSupplier])
+                                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.period')) = ?", [$checklistPeriod])
+                                ->whereNotNull('metadata')
+                                ->pluck(\DB::raw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.piece_type'))"))
+                                ->filter()
+                                ->unique()
+                                ->values();
+                        }
+                        $presentCount = $presentPieces->count();
+                        $totalCount   = count($expectedPieces);
+                    @endphp
+
+                    @if(!empty($expectedPieces) && $isPaymentDoc)
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Pièces du dossier') }}</h6>
+                            <span class="badge {{ $presentCount === $totalCount ? 'bg-success' : 'bg-warning text-dark' }}">
+                                {{ $presentCount }}/{{ $totalCount }} pièces présentes
+                            </span>
+                        </div>
+                        <div class="card-body py-2 small">
+                            <ul class="list-unstyled mb-0">
+                                @foreach($expectedPieces as $piece)
+                                    @php $present = $presentPieces->contains($piece); @endphp
+                                    <li class="py-1 border-bottom d-flex align-items-center gap-2">
+                                        @if($present)
+                                            <i class="fa-solid fa-circle-check text-success"></i>
+                                        @else
+                                            <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                        @endif
+                                        <span class="{{ $present ? '' : 'text-muted' }}">{{ $piece }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                    @endif
+
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des statuts') }}</h6>

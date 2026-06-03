@@ -97,6 +97,86 @@
                             <div class="form-text">Requis pour les documents de paiement (fournisseurs, paie, caisse)</div>
                         </div>
 
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Fournisseur / Bénéficiaire <span class="text-muted small">(optionnel)</span></label>
+                            <input type="text"
+                                   wire:model="supplier"
+                                   class="form-control"
+                                   placeholder="Ex: CLEAN PRO MAROC">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Numéro de compte <span class="text-muted small">(optionnel)</span></label>
+                            <input type="text"
+                                   wire:model="account_number"
+                                   class="form-control"
+                                   placeholder="Ex: 007841000234">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Motif <span class="text-muted small">(optionnel)</span></label>
+                            <input type="text"
+                                   wire:model="reason"
+                                   class="form-control"
+                                   placeholder="Ex: Prestation nettoyage juin 2026">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Période concernée <span class="text-muted small">(MM/AAAA)</span></label>
+                            <input type="text"
+                                   wire:model="period"
+                                   class="form-control"
+                                   placeholder="Ex: 06/2026"
+                                   pattern="\d{2}/\d{4}">
+                        </div>
+
+                        @php
+                            $catNameForPiece = '';
+                            $catIdForPiece   = $currentInfo['category_id'] ?? null;
+                            if ($catIdForPiece) {
+                                $catObj = $categories->firstWhere('id', $catIdForPiece);
+                                $catNameForPiece = strtolower($catObj->name ?? '');
+                            }
+                            $isFournisseur = str_contains($catNameForPiece, 'fournisseur') || str_contains($catNameForPiece, 'prestataire');
+                            $isCaisse      = str_contains($catNameForPiece, 'caisse');
+                            $isPayePiece   = str_contains($catNameForPiece, 'paie');
+                        @endphp
+
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-semibold">Type de pièce <span class="text-muted small">(optionnel)</span></label>
+                            @if($isFournisseur || $isCaisse || $isPayePiece)
+                                <select wire:model="piece_type" class="form-select">
+                                    <option value="">— Sélectionner —</option>
+                                    @if($isFournisseur)
+                                        <option value="Demande d'achat">Demande d'achat</option>
+                                        <option value="Bon de commande">Bon de commande</option>
+                                        <option value="Bon de livraison">Bon de livraison</option>
+                                        <option value="État de réception">État de réception</option>
+                                        <option value="Facture">Facture</option>
+                                        <option value="Attestation RIB">Attestation RIB</option>
+                                        <option value="Attestation fiscale">Attestation fiscale</option>
+                                        <option value="Ordre de paiement">Ordre de paiement</option>
+                                    @elseif($isCaisse)
+                                        <option value="Bulletin de caisse">Bulletin de caisse</option>
+                                        <option value="État récapitulatif encaissements">État récapitulatif encaissements</option>
+                                        <option value="Ordre de virement">Ordre de virement</option>
+                                    @elseif($isPayePiece)
+                                        <option value="Livre de paie">Livre de paie</option>
+                                        <option value="Bulletin de paie">Bulletin de paie</option>
+                                        <option value="État CNSS/AMO">État CNSS/AMO</option>
+                                        <option value="État de pointage">État de pointage</option>
+                                        <option value="Ordre de virement">Ordre de virement</option>
+                                        <option value="Décision RH">Décision RH</option>
+                                    @endif
+                                </select>
+                            @else
+                                <input type="text"
+                                       wire:model="piece_type"
+                                       class="form-control"
+                                       placeholder="Ex: Facture, Bon de commande…">
+                            @endif
+                        </div>
+
                         @php
                             $selectedCategoryId = $currentInfo['category_id'] ?? null;
                             $lockCategoryFromContext = !is_null($categoryId ?? null);

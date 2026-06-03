@@ -75,6 +75,17 @@ class WorkflowApprovalService
             // Logger l'action
             $document->logAction("approved_level_$level", null, ['approver' => $approver->full_name]);
 
+            // Si requires_all : s'assurer que tous les approbateurs du niveau ont validé
+            // avant de progresser. S'il reste des pending au même niveau, on attend.
+            $stillPendingAtLevel = $document->approvals()
+                ->where('level', $level)
+                ->where('status', 'pending')
+                ->exists();
+
+            if ($stillPendingAtLevel) {
+                return true; // d'autres approbateurs doivent encore valider
+            }
+
             // Vérifier s'il y a un niveau suivant
             $this->cascadeToNextLevel($document, $level);
 
@@ -115,7 +126,9 @@ class WorkflowApprovalService
     }
 
     /**
-     * Passer au niveau suivant ou finaliser
+     * Passer au niveau suivant ou finaliser.
+     * Si requires_all=true sur la règle du niveau suivant, on crée un DocumentApproval
+     * par approbateur éligible (multi-signature), et on attend que tous aient validé.
      */
     private function cascadeToNextLevel(Document $document, int $currentLevel): void
     {
@@ -140,11 +153,25 @@ class WorkflowApprovalService
             ->first();
 
         if ($nextRule) {
-            $document->approvals()->create([
-                'workflow_rule_id' => $nextRule->id,
-                'level' => $nextLevel,
-                'status' => 'pending',
-            ]);
+            if ($nextRule->requires_all) {
+                // Double (ou multi) signature : créer un approval par approbateur éligible
+                $approvers = $nextRule->getApprovers();
+                foreach ($approvers as $approver) {
+                    $document->approvals()->create([
+                        'workflow_rule_id' => $nextRule->id,
+                        'level'            => $nextLevel,
+                        'status'           => 'pending',
+                        'approver_user_id' => $approver->id,
+                    ]);
+                }
+            } else {
+                // Comportement standard : un seul slot pending
+                $document->approvals()->create([
+                    'workflow_rule_id' => $nextRule->id,
+                    'level'            => $nextLevel,
+                    'status'           => 'pending',
+                ]);
+            }
 
             // Notification niveau suivant
             $this->notifyLevelApprovers($document, $nextLevel);
