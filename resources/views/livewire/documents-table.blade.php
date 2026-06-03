@@ -332,31 +332,33 @@
                 </div>
 
                 {{-- Filtres pièces comptables --}}
-                <input type="text"
-                       class="form-control"
-                       style="min-width:130px;max-width:160px;"
-                       wire:model.live="filterSupplier"
-                       placeholder="Fournisseur" />
+                <div class="mb-2">
+                    <label class="form-label small text-muted">Fournisseur</label>
+                    <input type="text" class="form-control form-control-sm"
+                           wire:model.live="filterSupplier"
+                           placeholder="Ex: Clean Pro Maroc" />
+                </div>
 
-                <input type="text"
-                       class="form-control"
-                       style="min-width:110px;max-width:140px;"
-                       wire:model.live="filterPeriod"
-                       placeholder="Période (MM/YYYY)" />
+                <div class="mb-2">
+                    <label class="form-label small text-muted">Période</label>
+                    <input type="text" class="form-control form-control-sm"
+                           wire:model.live="filterPeriod"
+                           placeholder="Ex: 06/2026" />
+                </div>
 
-                <input type="number"
-                       class="form-control"
-                       style="min-width:100px;max-width:130px;"
-                       wire:model.live="filterAmountMin"
-                       placeholder="Montant min"
-                       min="0" step="0.01" />
+                <div class="mb-2">
+                    <label class="form-label small text-muted">Montant min (DH)</label>
+                    <input type="number" class="form-control form-control-sm"
+                           wire:model.live="filterAmountMin"
+                           placeholder="Ex: 50000" min="0" />
+                </div>
 
-                <input type="number"
-                       class="form-control"
-                       style="min-width:100px;max-width:130px;"
-                       wire:model.live="filterAmountMax"
-                       placeholder="Montant max"
-                       min="0" step="0.01" />
+                <div class="mb-2">
+                    <label class="form-label small text-muted">Montant max (DH)</label>
+                    <input type="number" class="form-control form-control-sm"
+                           wire:model.live="filterAmountMax"
+                           placeholder="Ex: 300000" min="0" />
+                </div>
 
                 <style>
                     .fav-toggle-input { display: none; }
