@@ -26,6 +26,8 @@ class Document extends Model
 
     protected $fillable = [
         'uid',
+        'folder_id',
+        'batch_id',
         'category_id',
         'subcategory_id',
         'department_id',
@@ -36,6 +38,7 @@ class Document extends Model
         'status',
         'physical_location_id',
         'box_id',
+        'amount',
         'expire_at',
         'is_expired',
         'created_at',
@@ -257,7 +260,7 @@ class Document extends Model
                     return;
                 }
 
-                $query->where(function ($q) use ($ids, $user, $pending) {
+                $query->where(function ($q) use ($ids, $user) {
                     if (! empty($ids)) {
                         $q->whereIn('documents.category_id', $ids)
                             ->orWhereHas('subcategory', function ($sq) use ($ids) {
@@ -265,11 +268,11 @@ class Document extends Model
                             });
                     }
 
+                    // Always let users see their own documents regardless of status
+                    // (approved documents become visible to category-access holders,
+                    //  but uploaders must always find their own work in "Mes documents").
                     if ($user->can('view own document')) {
-                        $q->orWhere(function ($own) use ($user, $pending) {
-                            $own->where('documents.created_by', $user->id)
-                                ->where('documents.status', $pending);
-                        });
+                        $q->orWhere('documents.created_by', $user->id);
                     }
                 });
 

@@ -11,8 +11,10 @@ use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\Service;
 use App\Services\DocumentSearchService;
+use App\Services\WorkflowApprovalService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -690,6 +692,105 @@ class DocumentsTable extends Component
         } else {
             session()->flash('error', 'No pending documents in the selected items.');
         }
+    }
+
+    /**
+     * Approuver tous les documents d'un même batch (dossier uploadé ensemble).
+     */
+    public function approveBatch(string $batchId, ?string $comments = null): void
+    {
+        Gate::authorize('approve', Document::class);
+
+        $docs = Document::where('batch_id', $batchId)
+            ->where('status', DocumentStatus::Pending->value)
+            ->get();
+
+        if ($docs->isEmpty()) {
+            session()->flash('error', 'Aucun document en attente pour ce dossier.');
+            return;
+        }
+
+        $service = app(WorkflowApprovalService::class);
+        $approvedCount = 0;
+
+        foreach ($docs as $doc) {
+            $level = $service->getCurrentLevel($doc);
+            if ($level === null) {
+                continue;
+            }
+            try {
+                $service->approveLevel($doc, $level, auth()->user(), $comments);
+                $approvedCount++;
+            } catch (\Throwable $e) {
+                Log::warning('approveBatch: error on document', [
+                    'document_id' => $doc->id,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->checkedDocuments = [];
+        $this->selectAll = false;
+        $this->dispatch('document-updated');
+        $this->resetPage();
+
+        session()->flash(
+            $approvedCount > 0 ? 'success' : 'error',
+            $approvedCount > 0
+                ? "$approvedCount document(s) du dossier approuvé(s)."
+                : 'Aucun document du dossier n\'a pu être approuvé.'
+        );
+    }
+
+    /**
+     * Refuser tous les documents d'un même batch (dossier uploadé ensemble).
+     */
+    public function declineBatch(string $batchId, string $reason = ''): void
+    {
+        Gate::authorize('decline', Document::class);
+
+        $reason = trim($reason ?: $this->bulkDeclineReason);
+
+        $docs = Document::where('batch_id', $batchId)
+            ->where('status', DocumentStatus::Pending->value)
+            ->get();
+
+        if ($docs->isEmpty()) {
+            session()->flash('error', 'Aucun document en attente pour ce dossier.');
+            return;
+        }
+
+        $service = app(WorkflowApprovalService::class);
+        $declinedCount = 0;
+
+        foreach ($docs as $doc) {
+            $level = $service->getCurrentLevel($doc);
+            if ($level === null) {
+                continue;
+            }
+            try {
+                $service->declineLevel($doc, $level, auth()->user(), $reason ?: 'Refusé en lot');
+                $declinedCount++;
+            } catch (\Throwable $e) {
+                Log::warning('declineBatch: error on document', [
+                    'document_id' => $doc->id,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->checkedDocuments = [];
+        $this->selectAll = false;
+        $this->bulkDeclineReason = '';
+        $this->dispatch('document-updated');
+        $this->resetPage();
+
+        session()->flash(
+            $declinedCount > 0 ? 'success' : 'error',
+            $declinedCount > 0
+                ? "$declinedCount document(s) du dossier refusé(s)."
+                : 'Aucun document du dossier n\'a pu être refusé.'
+        );
     }
 
     public function bulkDecline(): void

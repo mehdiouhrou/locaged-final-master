@@ -17,6 +17,7 @@ use App\Models\Tag;
 use App\Services\ClamAvScanner;
 use App\Services\PdfConversionService;
 use App\Services\ProfileCategoryAccessService;
+use App\Services\WorkflowApprovalService;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1516,6 +1517,9 @@ class MultipleDocumentsCreateForm extends Component
         // Set submitting flag at the start
         $this->isSubmitting = true;
 
+        // Unique identifier shared by all documents uploaded in this batch
+        $batchId = \Illuminate\Support\Str::uuid()->toString();
+
         $successCount = 0;
         $skippedCount = 0;
         $hadError = false;
@@ -1651,6 +1655,7 @@ class MultipleDocumentsCreateForm extends Component
                     'title' => $metadata['title'],
                     'uid' => $uid,
                     'folder_id' => $documentFolderId,
+                    'batch_id' => $batchId,
                     'created_by' => auth()->id(),
                     'category_id' => $metadata['category_id'],
                     'subcategory_id' => $metadata['subcategory_id'],
@@ -1707,6 +1712,17 @@ class MultipleDocumentsCreateForm extends Component
 
                 \DB::commit();
                 $successCount++;
+
+                // Initialise le workflow d'approbation en dehors de la transaction
+                // pour éviter un rollback en cas d'erreur de notification.
+                try {
+                    app(WorkflowApprovalService::class)->initializeWorkflow($document);
+                } catch (\Throwable $wfEx) {
+                    Log::warning('Workflow initialization error after upload', [
+                        'document_id' => $document->id,
+                        'error'       => $wfEx->getMessage(),
+                    ]);
+                }
 
             } catch (\Exception $e) {
                 \DB::rollBack();

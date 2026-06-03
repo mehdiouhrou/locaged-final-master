@@ -884,7 +884,65 @@
             @endunless
 
             {{-- Documents --}}
+            @php
+                // Pré-calcul des tailles de batch pour les en-têtes de dossier (vue approbations)
+                $seenBatchIds = [];
+                $batchCounts  = [];
+                if ($this->showOnlyPendingApprovals) {
+                    $batchCounts = $documents->getCollection()
+                        ->filter(fn($d) => !empty($d->batch_id))
+                        ->groupBy('batch_id')
+                        ->map->count()
+                        ->all();
+                }
+            @endphp
             @foreach($documents as $doc)
+                {{-- En-tête de dossier (batch) — affiché une seule fois par batch_id --}}
+                @if($this->showOnlyPendingApprovals && !empty($doc->batch_id) && !in_array($doc->batch_id, $seenBatchIds) && ($batchCounts[$doc->batch_id] ?? 0) > 1)
+                    @php
+                        $seenBatchIds[] = $doc->batch_id;
+                        $bMeta     = is_array($doc->metadata) ? $doc->metadata : (json_decode($doc->metadata, true) ?? []);
+                        $bSupplier = $bMeta['supplier'] ?? null;
+                        $bPeriod   = $bMeta['period']   ?? null;
+                        $bCount    = $batchCounts[$doc->batch_id];
+                    @endphp
+                    <tr class="batch-header-row">
+                        <td colspan="9" style="background:#eff6ff;border-left:4px solid #3b82f6;padding:8px 16px;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-layer-group text-primary"></i>
+                                    <strong>Dossier</strong>
+                                    @if($bSupplier)<span class="text-muted">— {{ $bSupplier }}</span>@endif
+                                    @if($bPeriod)<span class="text-muted">— {{ $bPeriod }}</span>@endif
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ $bCount }} fichier(s)</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    @can('approve', \App\Models\Document::class)
+                                    <button type="button"
+                                            class="btn btn-success btn-sm"
+                                            wire:click="approveBatch('{{ $doc->batch_id }}')"
+                                            wire:confirm="Approuver tous les documents de ce dossier ?">
+                                        <i class="fas fa-check-double me-1"></i>Approuver tout le dossier
+                                    </button>
+                                    @endcan
+                                    @can('decline', \App\Models\Document::class)
+                                    <button type="button"
+                                            class="btn btn-danger btn-sm"
+                                            wire:click="declineBatch('{{ $doc->batch_id }}')"
+                                            wire:confirm="Refuser tous les documents de ce dossier ?">
+                                        <i class="fas fa-times-circle me-1"></i>Refuser tout le dossier
+                                    </button>
+                                    @endcan
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                @elseif($this->showOnlyPendingApprovals && !empty($doc->batch_id) && in_array($doc->batch_id, $seenBatchIds))
+                    {{-- document appartenant à un batch déjà affiché : on enregistre juste --}}
+                @elseif($this->showOnlyPendingApprovals && !empty($doc->batch_id))
+                    @php $seenBatchIds[] = $doc->batch_id; @endphp
+                @endif
+
                 <tr class="document-row @if(collect($checkedDocuments ?? [])->contains($doc->id) || collect($checkedDocuments ?? [])->contains((string) $doc->id)) lgv2-row-selected @endif" data-doc-id="{{ $doc->id }}">
                     <td>
                         <input type="checkbox"
