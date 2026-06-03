@@ -45,6 +45,8 @@ class MultipleDocumentsCreateForm extends Component
 
     public $step = 1;
 
+    public $amount = null;
+
     public $documents = [];
 
     public $newDocuments = [];
@@ -1654,6 +1656,7 @@ class MultipleDocumentsCreateForm extends Component
                     // Use department selected by user (from their assigned departments)
                     'department_id' => $metadata['department_id'],
                     'service_id' => $metadata['service_id'] ?? null,
+                    'amount' => $this->amount !== '' ? $this->amount : null,
                     'metadata' => [
                         'color' => $metadata['color'],
                         'digital_only' => $isDigitalOnly,

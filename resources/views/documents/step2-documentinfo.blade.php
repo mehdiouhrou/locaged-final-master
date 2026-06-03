@@ -86,6 +86,17 @@
                             </div>
                         @endif
 
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-semibold">Montant (DH) <span class="text-muted small">(optionnel)</span></label>
+                            <input type="number"
+                                   step="0.01"
+                                   min="0"
+                                   wire:model="amount"
+                                   class="form-control"
+                                   placeholder="Ex: 75000">
+                            <div class="form-text">Requis pour les documents de paiement (fournisseurs, paie, caisse)</div>
+                        </div>
+
                         @php
                             $selectedCategoryId = $currentInfo['category_id'] ?? null;
                             $lockCategoryFromContext = !is_null($categoryId ?? null);
