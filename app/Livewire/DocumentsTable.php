@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enums\DocumentStatus;
 use App\Models\Document;
+use App\Models\DocumentApproval;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
 use App\Models\Category;
@@ -714,11 +715,22 @@ class DocumentsTable extends Component
         $approvedCount = 0;
 
         foreach ($docs as $doc) {
-            $level = $service->getCurrentLevel($doc);
-            if ($level === null) {
-                continue;
-            }
             try {
+                // Si le workflow n'a pas encore été initialisé (aucun approval),
+                // on l'initialise avant de tenter d'approuver.
+                $hasApprovals = DocumentApproval::where('document_id', $doc->id)->exists();
+                if (! $hasApprovals) {
+                    $service->initializeWorkflow($doc);
+                    $doc->refresh();
+                }
+
+                $level = $service->getCurrentLevel($doc);
+                if ($level === null) {
+                    // Pas de niveau en attente (ex: approuvé directement sans règle)
+                    $approvedCount++;
+                    continue;
+                }
+
                 $service->approveLevel($doc, $level, auth()->user(), $comments);
                 $approvedCount++;
             } catch (\Throwable $e) {

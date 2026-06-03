@@ -14,7 +14,7 @@
         ->get();
 @endphp
 
-@if($document->status === 'pending' && $approvals->isNotEmpty())
+@if($approvals->isNotEmpty())
     <div class="card border-0 shadow-sm mb-4 bg-light">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
