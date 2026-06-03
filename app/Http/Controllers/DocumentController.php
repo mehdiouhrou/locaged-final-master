@@ -898,7 +898,6 @@ class DocumentController extends Controller
     public function downloadPaymentOrder(int $id)
     {
         $document = Document::findOrFail($id);
-
         Gate::authorize('view', $document);
 
         $files = Storage::disk('private')->files('payment-orders/');
@@ -907,9 +906,17 @@ class DocumentController extends Controller
         );
 
         if (! $file) {
-            abort(404, 'Ordre de virement introuvable.');
+            abort(404, 'Ordre de virement non trouvé');
         }
 
-        return Storage::disk('private')->download($file, "ordre-virement-{$id}.pdf");
+        $fullPath = storage_path('app/private/' . $file);
+
+        if (! file_exists($fullPath)) {
+            abort(404, 'Fichier introuvable');
+        }
+
+        return response()->download($fullPath, "ordre-virement-{$id}.pdf", [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 }
