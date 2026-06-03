@@ -150,10 +150,13 @@
                     </div>
 
                     @php
-                        $payMeta = $document->metadata ?? [];
-                        $isPaymentDoc = ($payMeta['type'] ?? '') === 'payment';
+                        $meta = is_array($document->metadata)
+                            ? $document->metadata
+                            : json_decode($document->metadata, true);
+                        $meta = $meta ?? [];
+                        $isPayment = !empty($meta['type']) && $meta['type'] === 'payment';
                     @endphp
-                    @if($isPaymentDoc)
+                    @if($isPayment)
                     <div class="card border-0 shadow-sm mb-3 border-start border-4 border-primary">
                         <div class="card-header bg-primary bg-opacity-10 py-2">
                             <h6 class="mb-0 text-uppercase text-primary small fw-bold">
@@ -163,10 +166,10 @@
                         <div class="card-body small">
                             <dl class="row mb-0 gy-2">
                                 <dt class="col-6 text-muted">{{ __('Fournisseur') }}</dt>
-                                <dd class="col-6 mb-0">{{ $payMeta['supplier'] ?? '—' }}</dd>
+                                <dd class="col-6 mb-0">{{ $meta['supplier'] ?? '—' }}</dd>
 
                                 <dt class="col-6 text-muted">{{ __('N° de compte') }}</dt>
-                                <dd class="col-6 mb-0 text-break">{{ $payMeta['account_number'] ?? '—' }}</dd>
+                                <dd class="col-6 mb-0 text-break">{{ $meta['account_number'] ?? '—' }}</dd>
 
                                 <dt class="col-6 text-muted">{{ __('Montant') }}</dt>
                                 <dd class="col-6 mb-0 fw-semibold">
@@ -178,13 +181,13 @@
                                 </dd>
 
                                 <dt class="col-6 text-muted">{{ __('Période') }}</dt>
-                                <dd class="col-6 mb-0">{{ $payMeta['period'] ?? '—' }}</dd>
+                                <dd class="col-6 mb-0">{{ $meta['period'] ?? '—' }}</dd>
 
                                 <dt class="col-6 text-muted">{{ __('Type de pièce') }}</dt>
-                                <dd class="col-6 mb-0">{{ $payMeta['piece_type'] ?? '—' }}</dd>
+                                <dd class="col-6 mb-0">{{ $meta['piece_type'] ?? '—' }}</dd>
 
                                 <dt class="col-6 text-muted">{{ __('Motif') }}</dt>
-                                <dd class="col-6 mb-0 text-break">{{ $payMeta['reason'] ?? '—' }}</dd>
+                                <dd class="col-6 mb-0 text-break">{{ $meta['reason'] ?? '—' }}</dd>
                             </dl>
                         </div>
                     </div>
@@ -192,8 +195,8 @@
 
                     @php
                         $checklistCatName  = strtolower($document->category?->name ?? '');
-                        $checklistSupplier = $payMeta['supplier'] ?? null;
-                        $checklistPeriod   = $payMeta['period'] ?? null;
+                        $checklistSupplier = $meta['supplier'] ?? null;
+                        $checklistPeriod   = $meta['period'] ?? null;
                         $isFournisseurCheck = str_contains($checklistCatName, 'fournisseur') || str_contains($checklistCatName, 'prestataire');
                         $isCaisseCheck      = str_contains($checklistCatName, 'caisse');
                         $isPayeCheck        = str_contains($checklistCatName, 'paie');
@@ -222,7 +225,7 @@
                         $totalCount   = count($expectedPieces);
                     @endphp
 
-                    @if(!empty($expectedPieces) && $isPaymentDoc)
+                    @if(!empty($expectedPieces) && $isPayment)
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Pièces du dossier') }}</h6>
