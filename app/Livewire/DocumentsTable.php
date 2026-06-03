@@ -110,7 +110,7 @@ class DocumentsTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'tags', 'category', 'service', 'boxId', 'favoritesOnly', 'perPage', 'hierarchy'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'tags', 'category', 'service', 'boxId', 'favoritesOnly', 'perPage', 'hierarchy', 'filterSupplier', 'filterPeriod', 'filterAmountMin', 'filterAmountMax', 'filterPieceType'])) {
             $this->resetPage();
         }
 

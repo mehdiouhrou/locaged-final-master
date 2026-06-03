@@ -331,6 +331,33 @@
                     <input type="date" class="form-control" wire:model.change="dateTo" placeholder="{{ ui_t('filters.to') }}" />
                 </div>
 
+                {{-- Filtres pièces comptables --}}
+                <input type="text"
+                       class="form-control"
+                       style="min-width:130px;max-width:160px;"
+                       wire:model.live="filterSupplier"
+                       placeholder="Fournisseur" />
+
+                <input type="text"
+                       class="form-control"
+                       style="min-width:110px;max-width:140px;"
+                       wire:model.live="filterPeriod"
+                       placeholder="Période (MM/YYYY)" />
+
+                <input type="number"
+                       class="form-control"
+                       style="min-width:100px;max-width:130px;"
+                       wire:model.live="filterAmountMin"
+                       placeholder="Montant min"
+                       min="0" step="0.01" />
+
+                <input type="number"
+                       class="form-control"
+                       style="min-width:100px;max-width:130px;"
+                       wire:model.live="filterAmountMax"
+                       placeholder="Montant max"
+                       min="0" step="0.01" />
+
                 <style>
                     .fav-toggle-input { display: none; }
                     .fav-toggle {
@@ -885,40 +912,45 @@
 
             {{-- Documents --}}
             @php
-                // Pré-calcul des tailles de batch pour les en-têtes de dossier (vue approbations)
+                // Pré-calcul des tailles de batch pour les en-têtes de dossier (toutes les vues)
                 $seenBatchIds = [];
-                $batchCounts  = [];
-                if ($this->showOnlyPendingApprovals) {
-                    $batchCounts = $documents->getCollection()
-                        ->filter(fn($d) => !empty($d->batch_id))
-                        ->groupBy('batch_id')
-                        ->map->count()
-                        ->all();
-                }
+                $batchCounts  = $documents->getCollection()
+                    ->filter(fn($d) => !empty($d->batch_id))
+                    ->groupBy('batch_id')
+                    ->map->count()
+                    ->all();
             @endphp
             @foreach($documents as $doc)
-                {{-- En-tête de dossier (batch) — affiché une seule fois par batch_id --}}
-                @if($this->showOnlyPendingApprovals && !empty($doc->batch_id) && !in_array($doc->batch_id, $seenBatchIds) && ($batchCounts[$doc->batch_id] ?? 0) > 1)
+                {{-- En-tête de dossier (batch) — affiché une seule fois par batch_id, toutes les vues --}}
+                @if(!empty($doc->batch_id) && !in_array($doc->batch_id, $seenBatchIds) && ($batchCounts[$doc->batch_id] ?? 0) > 1)
                     @php
                         $seenBatchIds[] = $doc->batch_id;
                         $bMeta     = is_array($doc->metadata) ? $doc->metadata : (json_decode($doc->metadata, true) ?? []);
-                        $bSupplier = $bMeta['supplier'] ?? null;
+                        $bSupplier = trim($bMeta['supplier'] ?? '') ?: 'Dossier sans titre';
                         $bPeriod   = $bMeta['period']   ?? null;
+                        $bAmount   = $doc->amount ?? null;
                         $bCount    = $batchCounts[$doc->batch_id];
+                        $isBatchCollapsed = in_array($doc->batch_id, $this->collapsedBatches, true);
                     @endphp
-                    @php $isBatchCollapsed = in_array($doc->batch_id, $this->collapsedBatches, true); @endphp
                     <tr class="batch-header-row"
                         wire:click="toggleBatch('{{ $doc->batch_id }}')"
                         style="cursor:pointer;user-select:none;">
                         <td colspan="9" style="background:#eff6ff;border-left:4px solid #3b82f6;padding:8px 16px;">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <div class="d-flex align-items-center gap-2">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <i class="fas fa-chevron-down text-primary"
                                        style="transition:transform .2s;{{ $isBatchCollapsed ? 'transform:rotate(-90deg);' : '' }}"></i>
-                                    <i class="fas fa-layer-group text-primary"></i>
-                                    <strong>Dossier</strong>
-                                    @if($bSupplier)<span class="text-muted">— {{ $bSupplier }}</span>@endif
-                                    @if($bPeriod)<span class="text-muted">— {{ $bPeriod }}</span>@endif
+                                    <i class="fas fa-folder-open text-primary"></i>
+                                    <strong class="text-primary">{{ $bSupplier }}</strong>
+                                    @if($bPeriod)
+                                        <span class="text-muted small">|</span>
+                                        <span class="text-muted small">{{ $bPeriod }}</span>
+                                    @endif
+                                    @if($bAmount !== null)
+                                        <span class="text-muted small">|</span>
+                                        <span class="text-dark small fw-semibold">{{ number_format($bAmount, 2, ',', ' ') }} DH</span>
+                                    @endif
+                                    <span class="text-muted small">|</span>
                                     <span class="badge bg-primary bg-opacity-10 text-primary">{{ $bCount }} fichier(s)</span>
                                     @if($isBatchCollapsed)
                                         <span class="text-muted small fst-italic">(replié)</span>
@@ -946,9 +978,9 @@
                             </div>
                         </td>
                     </tr>
-                @elseif($this->showOnlyPendingApprovals && !empty($doc->batch_id) && in_array($doc->batch_id, $seenBatchIds))
-                    {{-- document appartenant à un batch déjà affiché : on enregistre juste --}}
-                @elseif($this->showOnlyPendingApprovals && !empty($doc->batch_id))
+                @elseif(!empty($doc->batch_id) && in_array($doc->batch_id, $seenBatchIds))
+                    {{-- document appartenant à un batch déjà affiché : rien à faire --}}
+                @elseif(!empty($doc->batch_id))
                     @php $seenBatchIds[] = $doc->batch_id; @endphp
                 @endif
 
