@@ -3346,3 +3346,7 @@ text-align: center;
 .doc-icon.doc-icon-excel { background-color: #2e7d32; }
 .doc-icon.doc-icon-video { background-color: #5d4037; }
 .doc-icon.doc-icon-audio { background-color: #00796b; }
+
+.logo-name { font-size: 1.6rem; font-weight: 800; color: #1a1a1a; letter-spacing: -0.02em; }
+.logo-name span { color: #e63946; }
+.logo-sub { font-size: 0.7rem; color: #666; letter-spacing: 0.05em; text-transform: uppercase; }
