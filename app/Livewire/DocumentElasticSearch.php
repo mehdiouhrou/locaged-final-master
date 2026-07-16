@@ -24,6 +24,7 @@ class DocumentElasticSearch extends Component
         'modified_end' => '',
         'author' => '',
         'tags' => '',
+        'box' => '',
     ];
 
 
@@ -60,6 +61,7 @@ class DocumentElasticSearch extends Component
             'modified_end' => '',
             'author' => '',
             'tags' => '',
+            'box' => '',
         ];
 
         $this->searchDocuments(); // Optional: refresh results after reset
@@ -269,6 +271,7 @@ class DocumentElasticSearch extends Component
             'dateTo'   => $this->filters['creation_end'] ?: null,
             'author'   => $this->filters['author'] ?: null,
             'tags'     => $this->filters['tags'] ?: null,
+            'box_q'    => $this->filters['box'] ?: null,
         ];
 
         // Remove nulls

@@ -134,6 +134,18 @@
                                             wire:model="filters.author"
                                         >
                                     </div>
+
+                                    <!-- Box -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">Numéro / nom de boîte</label>
+                                        <input
+                                            type="text"
+                                            name="box"
+                                            class="form-control"
+                                            placeholder="Numéro ou nom de boîte..."
+                                            wire:model="filters.box"
+                                        >
+                                    </div>
                                 </div>
 
                                 <div class="d-flex justify-content-end gap-2 mt-3">
