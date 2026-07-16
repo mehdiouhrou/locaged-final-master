@@ -3,6 +3,8 @@
 namespace App\Livewire;
 
 use App\Enums\DocumentStatus;
+use App\Models\Box;
+use App\Models\BoxFolder;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
@@ -34,6 +36,7 @@ class DocumentsTable extends Component
     public $category = ''; // Category ID filter
     public $service = ''; // Service ID filter
     public $boxId = ''; // Box ID filter for physical location
+    public $boxSearch = ''; // Free-text search on box_number / box name / box folder name
     public $favoritesOnly = false;
 
     // Hierarchy filter (department / sub-department / service)
@@ -76,6 +79,7 @@ class DocumentsTable extends Component
         'category' => ['except' => ''],
         'service' => ['except' => ''],
         'boxId' => ['except' => ''],
+        'boxSearch' => ['except' => '', 'as' => 'box_q'],
         'favoritesOnly' => ['except' => false],
         'perPage' => ['except' => 10],
         'hierarchy' => ['except' => ''],
@@ -92,7 +96,7 @@ class DocumentsTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'tags', 'category', 'service', 'boxId', 'favoritesOnly', 'perPage', 'hierarchy'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'author', 'tags', 'category', 'service', 'boxId', 'boxSearch', 'favoritesOnly', 'perPage', 'hierarchy'])) {
             $this->resetPage();
         }
 
@@ -117,6 +121,7 @@ class DocumentsTable extends Component
         $this->category = '';
         $this->service = '';
         $this->boxId = '';
+        $this->boxSearch = '';
         $this->favoritesOnly = false;
         $this->perPage = 10;
         $this->hierarchy = '';
@@ -350,6 +355,17 @@ class DocumentsTable extends Component
             })
             ->when($this->boxId, function ($q) {
                 $q->where('box_id', $this->boxId);
+            })
+            ->when($this->boxSearch, function ($q) {
+                $term = '%' . $this->boxSearch . '%';
+                $boxIds = Box::where('box_number', 'like', $term)
+                    ->orWhere('name', 'like', $term)
+                    ->pluck('id');
+                $boxFolderIds = BoxFolder::where('name', 'like', $term)->pluck('id');
+                $q->where(function ($sub) use ($boxIds, $boxFolderIds) {
+                    $sub->whereIn('box_id', $boxIds)
+                        ->orWhereIn('box_folder_id', $boxFolderIds);
+                });
             })
             ->when($this->dateFrom, fn($q) =>
                 $q->whereDate('created_at', '>=', $this->dateFrom)

@@ -124,6 +124,12 @@
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="{{ ui_t('tables.file_name') }}" wire:model.live="search" />
             </div>
+            <div class="search-files position-relative">
+                <i class="fas fa-box"></i>
+                <input type="text"
+                       placeholder="{{ ui_t('filters.box_search') ?? 'Rechercher une boîte (numéro ou nom)...' }}"
+                       wire:model.live="boxSearch" />
+            </div>
             <div class="table-filters">
                 <select class="form-select" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
                     <option value="all">{{ ui_t('filters.all') }}</option>
