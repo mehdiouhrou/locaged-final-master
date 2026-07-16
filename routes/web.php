@@ -129,6 +129,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
             'ocr-jobs' => OcrJobController::class,
             'ui-translations' => UiTranslationController::class,
         ]);
+        Route::get('/admin/master/export-reversibility', [\App\Http\Controllers\ReversibilityExportController::class, 'export'])->name('master.export-reversibility');
+        Route::post('/admin/master/export-reversibility-selected', [\App\Http\Controllers\ReversibilityExportController::class, 'exportSelected'])->name('master.export-reversibility-selected');
     });
 
     // Hierarchical structure operations

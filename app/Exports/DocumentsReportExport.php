@@ -33,7 +33,7 @@ class DocumentsReportExport implements FromQuery, WithHeadings, WithMapping, Sho
         $this->request = $request;
     }
 
-    protected function baseQuery(): Builder
+    public function baseQuery(): Builder
     {
         $query = Document::query()
             ->with([

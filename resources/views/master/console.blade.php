@@ -116,6 +116,9 @@
                 <li class="nav-item">
                     <a class="nav-link py-1 px-2 rounded-2 small" href="#master-localization">{{ ui_t('nav.localization') }}</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-2 rounded-2 small" href="#master-reversibility">Export réversibilité</a>
+                </li>
             </ul>
         </nav>
 
@@ -136,6 +139,12 @@
         <section id="master-localization" class="card border-0 shadow-sm mb-5 scroll-margin-top">
             <div class="card-body p-4">
                 @include('master.partials.localization')
+            </div>
+        </section>
+
+        <section id="master-reversibility" class="card border-0 shadow-sm mb-5 scroll-margin-top">
+            <div class="card-body p-4">
+                @include('master.partials.reversibility')
             </div>
         </section>
     </div>
