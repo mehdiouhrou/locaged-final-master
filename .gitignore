@@ -22,3 +22,4 @@ yarn-error.log
 # Exports de diff / comparaison de branches (locaux, ne pas versionner)
 /diff-*.patch
 /diff-fichiers*.txt
+.DS_Store

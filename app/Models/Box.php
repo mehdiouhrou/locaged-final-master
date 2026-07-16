@@ -12,6 +12,7 @@ class Box extends Model
         'shelf_id',
         'service_id',
         'name',
+        'box_number',
         'description',
     ];
 
@@ -53,6 +54,11 @@ class Box extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class, 'box_id');
+    }
+
+    public function boxFolders(): HasMany
+    {
+        return $this->hasMany(BoxFolder::class);
     }
 
     /**

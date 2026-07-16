@@ -36,6 +36,7 @@ class Document extends Model
         'status',
         'physical_location_id',
         'box_id',
+        'box_folder_id',
         'expire_at',
         'is_expired',
         'created_at',
@@ -533,6 +534,11 @@ class Document extends Model
     public function box(): BelongsTo
     {
         return $this->belongsTo(Box::class, 'box_id');
+    }
+
+    public function boxFolder(): BelongsTo
+    {
+        return $this->belongsTo(BoxFolder::class, 'box_folder_id');
     }
 
     /**

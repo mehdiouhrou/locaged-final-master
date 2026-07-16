@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Models\Box;
+use App\Models\BoxFolder;
 use App\Models\Category;
 use App\Models\Document;
 use App\Models\DocumentMovement;
@@ -37,6 +39,7 @@ class DocumentsByCategoryTable extends Component
 
     public $documentId = null; // Filter by specific document ID
     public $boxId = ''; // Filter by box ID (physical location)
+    public $boxSearch = ''; // Free-text search on box_number / box name / box folder name
     public $showExpired = false; // Show expired documents (from dashboard All Documents card)
     public $physicalOnly = false; // Only documents assigned to a box (dashboard physical storage cards)
     public $digitalOnly = false; // metadata digital_only + no box (dashboard digital card)
@@ -65,6 +68,7 @@ class DocumentsByCategoryTable extends Component
         'category' => ['except' => ''],
         'perPage' => ['except' => 10],
         'boxId' => ['except' => '', 'as' => 'box_id'],
+        'boxSearch' => ['except' => '', 'as' => 'box_q'],
         'documentId' => ['except' => null, 'as' => 'document_id'],
         'showExpired' => ['except' => false, 'as' => 'show_expired'],
         'physicalOnly' => ['except' => false, 'as' => 'physical'],
@@ -92,7 +96,7 @@ class DocumentsByCategoryTable extends Component
     public function updated($field)
     {
         // Reset to first page when any filter changes
-        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'tags', 'boxId', 'favoritesOnly', 'category', 'perPage', 'digitalOnly', 'physicalOnly'])) {
+        if (in_array($field, ['search', 'status', 'fileType', 'dateFrom', 'dateTo', 'room', 'author', 'tags', 'boxId', 'boxSearch', 'favoritesOnly', 'category', 'perPage', 'digitalOnly', 'physicalOnly'])) {
             $this->resetPage();
         }
         if ($field === 'digitalOnly' && filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
@@ -114,6 +118,7 @@ class DocumentsByCategoryTable extends Component
         $this->author = '';
         $this->tags = '';
         $this->boxId = '';
+        $this->boxSearch = '';
         $this->favoritesOnly = false;
         $this->category = ($this->filterId && $this->isCategory) ? (string) $this->filterId : '';
         $this->physicalOnly = false;
@@ -255,6 +260,18 @@ class DocumentsByCategoryTable extends Component
         $documentsQuery->when($this->boxId, function ($q) {
             $q->where('box_id', $this->boxId);
         });
+
+        if ($this->boxSearch !== '' && $this->boxSearch !== null) {
+            $term = '%' . $this->boxSearch . '%';
+            $boxIds = Box::where('box_number', 'like', $term)
+                ->orWhere('name', 'like', $term)
+                ->pluck('id');
+            $boxFolderIds = BoxFolder::where('name', 'like', $term)->pluck('id');
+            $documentsQuery->where(function ($q) use ($boxIds, $boxFolderIds) {
+                $q->whereIn('box_id', $boxIds)
+                    ->orWhereIn('box_folder_id', $boxFolderIds);
+            });
+        }
 
         if (filter_var($this->digitalOnly, FILTER_VALIDATE_BOOLEAN)) {
             $documentsQuery->digitalOnly();

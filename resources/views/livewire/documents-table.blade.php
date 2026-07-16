@@ -146,6 +146,12 @@
                     </div>
                 @endif
             </div>
+            <div class="search-files">
+                <i class="fas fa-box"></i>
+                <input type="text"
+                       placeholder="{{ ui_t('filters.box_search') ?? 'Rechercher une boîte (numéro ou nom)...' }}"
+                       wire:model.debounce.300ms="boxSearch" />
+            </div>
             <div class="table-filters">
                 @unless($this->showOnlyPendingApprovals)
                     <select class="form-select" wire:model.change="status" @if($this->lockStatusFilter) disabled @endif>
