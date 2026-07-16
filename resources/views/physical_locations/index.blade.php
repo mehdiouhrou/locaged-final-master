@@ -276,6 +276,11 @@
                                            placeholder="{{ __('pages.physical.placeholders.box_example') }}" required>
                                 </div>
                                 <div class="mb-3">
+                                    <label for="add_box_number" class="form-label">Numéro de boîte</label>
+                                    <input type="text" class="form-control" id="add_box_number" name="box_number"
+                                           placeholder="ex. BOX-001">
+                                </div>
+                                <div class="mb-3">
                                     <label for="add_box_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
                                     <textarea class="form-control" id="add_box_description" name="description" rows="2"></textarea>
                                 </div>
@@ -689,6 +694,11 @@
                                                 <label for="box_name_edit{{ $box->id }}" class="form-label">{{ __('pages.physical.actions.box_name') }}</label>
                                                 <input type="text" class="form-control" id="box_name_edit{{ $box->id }}" 
                                                        name="name" value="{{ $box->name }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="box_number_edit{{ $box->id }}" class="form-label">Numéro de boîte</label>
+                                                <input type="text" class="form-control" id="box_number_edit{{ $box->id }}"
+                                                       name="box_number" value="{{ $box->box_number }}" placeholder="ex. BOX-001">
                                             </div>
 
                                             {{-- Service (optional) --}}

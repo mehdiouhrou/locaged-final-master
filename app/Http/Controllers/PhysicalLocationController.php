@@ -294,6 +294,7 @@ class PhysicalLocationController extends Controller
             'service_id' => 'nullable|exists:services,id',
             'shelf_id' => 'required|exists:shelves,id',
             'name' => 'required|string|max:255',
+            'box_number' => 'nullable|string|max:255|unique:boxes,box_number',
             'description' => 'nullable|string',
         ]);
 
@@ -310,6 +311,7 @@ class PhysicalLocationController extends Controller
             'shelf_id' => $validated['shelf_id'],
             'service_id' => $validated['service_id'] ?? null,
             'name' => $validated['name'],
+            'box_number' => $validated['box_number'] ?? null,
             'description' => $validated['description'] ?? null,
         ]);
 
@@ -557,6 +559,7 @@ class PhysicalLocationController extends Controller
             'row_name' => 'required|string|max:255',
             'shelf_name' => 'required|string|max:255',
             'name' => 'required|string|max:255',
+            'box_number' => 'nullable|string|max:255|unique:boxes,box_number,' . $box->id,
             'description' => 'nullable|string',
         ]);
 
@@ -600,6 +603,7 @@ class PhysicalLocationController extends Controller
                 'shelf_id' => $shelf->id,
                 'service_id' => $validated['service_id'] ?? null,
                 'name' => $validated['name'],
+                'box_number' => $validated['box_number'] ?? null,
                 'description' => $validated['description'] ?? null,
             ]);
 
