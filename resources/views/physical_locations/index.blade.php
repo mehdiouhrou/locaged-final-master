@@ -739,6 +739,33 @@
                                                 <textarea class="form-control" id="box_description_edit{{ $box->id }}" 
                                                           name="description" rows="2">{{ $box->description }}</textarea>
                                             </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Noms de boîte (dossiers)</label>
+                                                <ul class="list-group mb-2">
+                                                    @forelse($box->boxFolders as $folder)
+                                                        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                                                            <span>{{ $folder->name }}</span>
+                                                            <form action="{{ route('boxes.folders.destroy', $folder) }}" method="POST" class="m-0" onsubmit="return confirm('Supprimer ce nom de boîte ?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </li>
+                                                    @empty
+                                                        <li class="list-group-item text-muted py-1">Aucun nom de boîte pour le moment.</li>
+                                                    @endforelse
+                                                </ul>
+                                                <form action="{{ route('boxes.folders.store', $box) }}" method="POST" class="d-flex gap-2">
+                                                    @csrf
+                                                    <input type="text" class="form-control form-control-sm" name="name" placeholder="ex. Comité technique" required>
+                                                    <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                        <i class="fas fa-plus"></i> Ajouter
+                                                    </button>
+                                                </form>
+                                            </div>
                                             <p class="text-muted small">
                                                 <strong>{{ __('pages.physical.actions.full_path') }}</strong>
                                                 <span id="edit_box_full_path_{{ $box->id }}">{{ $box->__toString() }}</span>

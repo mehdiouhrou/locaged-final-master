@@ -142,6 +142,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Box operations
     Route::put('/boxes/{box}', [PhysicalLocationController::class, 'updateBox'])->name('physical-locations.update-box');
+    Route::post('/boxes/{box}/folders', [PhysicalLocationController::class, 'storeBoxFolder'])->name('boxes.folders.store');
+    Route::delete('/box-folders/{boxFolder}', [PhysicalLocationController::class, 'destroyBoxFolder'])->name('boxes.folders.destroy');
     Route::delete('/boxes/{box}', [PhysicalLocationController::class, 'destroyBox'])->name('physical-locations.destroy-box');
     Route::delete('/rooms/{room}', [PhysicalLocationController::class, 'destroyRoom'])->name('physical-locations.destroy-room');
 

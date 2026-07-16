@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\PhysicalLocationFilesExport;
 use App\Exports\PhysicalLocationsExport;
 use App\Models\Box;
+use App\Models\BoxFolder;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
 use App\Models\Room;
@@ -645,6 +646,45 @@ class PhysicalLocationController extends Controller
 
             return back()->withErrors(['error' => ui_t('errors.physical_location.box_update_failed')]);
         }
+    }
+
+    /**
+     * Create a folder inside a box.
+     */
+    public function storeBoxFolder(Request $request, Box $box)
+    {
+        Gate::authorize('create', PhysicalLocation::class);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $existing = BoxFolder::where('box_id', $box->id)
+            ->where('name', $validated['name'])
+            ->first();
+
+        if ($existing) {
+            return back()->withErrors(['error' => 'Ce nom de boîte existe déjà dans cette boîte.']);
+        }
+
+        BoxFolder::create([
+            'box_id' => $box->id,
+            'name' => $validated['name'],
+        ]);
+
+        return back()->with('success', 'Nom de boîte "' . $validated['name'] . '" ajouté avec succès.');
+    }
+
+    /**
+     * Delete a folder inside a box.
+     */
+    public function destroyBoxFolder(BoxFolder $boxFolder)
+    {
+        Gate::authorize('delete physical location');
+
+        $boxFolder->delete();
+
+        return back()->with('success', 'Nom de boîte supprimé avec succès.');
     }
 
     /**
