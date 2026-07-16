@@ -238,8 +238,8 @@ if (donutEl) {
 
     // Color palette for hierarchical donut segments
     const colorPalette = [
-        '#2563eb', '#3b82f6', '#60a5fa', '#6366f1', '#8b5cf6', '#a855f7', '#22c55e', '#10b981', '#14b8a6',
-        '#06b6d4', '#0ea5e9', '#f59e0b', '#ef4444', '#84cc16', '#e11d48', '#f97316', '#475569', '#0ea5a5'
+        '#2563eb', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#e11d48', '#84cc16', '#0ea5e9',
+        '#f97316', '#14b8a6', '#a855f7', '#475569', '#6366f1', '#10b981', '#60a5fa', '#3b82f6', '#0ea5a5'
     ];
 
     window.currentDonutChart = null;

@@ -1455,3 +1455,111 @@ body.locaged-v2 .lgv2-approval-timeline__detail {
 body.locaged-v2 .lgv2-approval-timeline__date {
   margin-top: 0.15rem;
 }
+
+// Dropdown profil dans le header
+.header-profile-dropdown {
+  .dropdown-toggle {
+    outline: none;
+    box-shadow: none;
+
+    &::after {
+      display: none;
+    }
+
+    &:focus,
+    &:focus-visible,
+    &:active {
+      outline: none;
+      box-shadow: none;
+    }
+
+    img {
+      border: none;
+      outline: none;
+    }
+  }
+
+  .dropdown-menu {
+    min-width: 220px;
+    padding: 0.5rem 0;
+    margin-top: 0.75rem !important;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+  }
+
+  .dropdown-menu li:first-child {
+    padding: 0.5rem 1rem 0.65rem;
+  }
+
+  .dropdown-menu .dropdown-divider {
+    margin: 0.25rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+
+    &:hover {
+      background-color: var(--lgv2-surface-muted, #f5f6f8);
+    }
+  }
+
+  .dropdown-menu form {
+    padding: 0.25rem 1rem 0.5rem !important;
+  }
+
+  .dropdown-menu form .btn-link {
+    font-size: 0.875rem;
+  }
+}
+
+// Logo sidebar LocaGed configurable (Console Master)
+.sidebar-brand-logo-img {
+  max-width: 160px;
+  max-height: 48px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+// Cartes KPI dashboard : icône + chiffre côte à côte, avec assez de présence pour une démo
+body.locaged-v2 .stat-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 24px;
+}
+
+body.locaged-v2 .stat-icon {
+  margin-bottom: 0;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  font-size: 22px;
+}
+
+body.locaged-v2 .stat-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+body.locaged-v2 .stat-content > .d-flex {
+  display: contents !important;
+}
+
+body.locaged-v2 .stat-content h3 {
+  font-size: 30px;
+  margin-bottom: 0;
+  order: 1;
+}
+
+body.locaged-v2 .stat-content p {
+  margin: 0;
+  order: 2;
+  font-size: 14px;
+  white-space: nowrap;
+}

@@ -170,6 +170,7 @@ class UiTranslationController extends Controller
 
         $request->validate([
             'header_logo' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:5120'],
+            'sidebar_logo' => ['nullable','image','mimes:jpg,jpeg,png,webp,svg','max:5120'],
             'login_left_image' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:8192'],
             'max_users' => ['nullable','integer','min:0'],
             'timezone' => ['nullable','string','timezone'],
@@ -179,6 +180,11 @@ class UiTranslationController extends Controller
         if ($request->hasFile('header_logo')) {
             $path = $request->file('header_logo')->store('branding', 'public');
             Branding::set('header_logo', $path);
+        }
+
+        if ($request->hasFile('sidebar_logo')) {
+            $path = $request->file('sidebar_logo')->store('branding', 'public');
+            Branding::set('sidebar_logo', $path);
         }
 
         if ($request->hasFile('login_left_image')) {

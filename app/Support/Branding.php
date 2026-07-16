@@ -89,6 +89,15 @@ class Branding
     }
 
     /**
+     * URL du logo LocaGed affiché dans la sidebar (texte stylisé par défaut si non configuré).
+     * Retourne null si aucun logo n'a été uploadé (la vue doit alors afficher le texte stylisé).
+     */
+    public static function sidebarLogoUrl(): ?string
+    {
+        return self::get('sidebar_logo');
+    }
+
+    /**
      * Chemin absolu d’un fichier logo lisible par mPDF (console Master / branding.json).
      */
     public static function clientLogoAbsolutePathForPdf(): ?string

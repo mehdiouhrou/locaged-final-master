@@ -32,9 +32,15 @@
 <nav id="sidebar" class="sidebar">
     <div class="sidebar-brand text-center px-2 mb-1">
         <div class="d-flex justify-content-center">
+            @php
+                $sidebarLogoUrl = \App\Support\Branding::sidebarLogoUrl();
+            @endphp
             <a href="{{ route('home') }}" class="sidebar-brand-logo-link text-decoration-none d-inline-flex flex-column align-items-center mt-3 mb-1">
-                <div class="logo-name">Loca<span>Ged</span></div>
-                <div class="logo-sub">{{ __('branding.logo_sub') }}</div>
+                @if($sidebarLogoUrl)
+                    <img src="{{ $sidebarLogoUrl }}" alt="LocaGed" class="sidebar-brand-logo-img" />
+                @else
+                    <div class="logo-name">Loca<span>Ged</span></div>
+                @endif
             </a>
         </div>
     </div>
@@ -70,33 +76,14 @@
         @endcan
 
         @if($showDocumentsNavGroup)
-        <li class="has-submenu {{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') ? 'active' : '' }}">
-            <a href="#" class="menu-toggle">
+        @can('viewAny', \App\Models\Document::class)
+        <li>
+            <a href="{{ route('documents.all') }}" class="{{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') ? 'active' : '' }}">
                 <img src="{{ asset('assets/template/document-text.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ ui_t('nav.documents') }}</span>
-                <i class="fa-solid fa-chevron-down submenu-chevron small opacity-50" aria-hidden="true"></i>
             </a>
-            <ul class="submenu list-unstyled">
-                @can('viewAny', \App\Models\Document::class)
-                <li class="mt-2">
-                    <a href="{{ route('documents.all') }}" class="{{ request()->routeIs('documents.all') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/document-favorite.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ ui_t('nav.all_documents') }}</span>
-                    </a>
-                </li>
-                @endcan
-                {{-- Optional: versions page kept hidden for now
-                @can('viewAny', \App\Models\DocumentVersion::class)
-                <li class="mt-2">
-                    <a href="{{ route('document-versions.index') }}" class="{{ request()->routeIs('document-versions.index') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/document-favorite.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ ui_t('nav.versions') }}</span>
-                    </a>
-                </li>
-                @endcan
-                --}}
-            </ul>
         </li>
+        @endcan
         @endif
 
         @canany(['approve','decline'], \App\Models\Document::class)
@@ -316,14 +303,6 @@
                     </a>
                 </li>
                 @endcan
-                @canany(['view any document', 'view department document', 'view service document', 'view own document'])
-                <li class="mt-2">
-                    <a href="{{ route('reports.index') }}" class="{{ request()->routeIs('reports.*') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/document-favorite.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ ui_t('nav.reports') }}</span>
-                    </a>
-                </li>
-                @endcanany
             </ul>
         </li>
         @endif
@@ -407,28 +386,4 @@
         @endif
     </ul>
 
-    @php
-        $authUserImageUrl = auth()->user()?->avatar_url ?? asset('assets/user.png');
-    @endphp
-    <div class="bottom-icons mt-auto">
-        <a href="{{ route('profile.show') }}" class="sidebar-profile-card text-decoration-none">
-            <img
-                src="{{ $authUserImageUrl }}"
-                class="sidebar-profile-avatar"
-                alt="{{ ui_t('actions.user') }}"
-                onerror="this.onerror=null;this.src='{{ asset('assets/user.png') }}';"
-            />
-            <div class="sidebar-profile-meta">
-                <div class="sidebar-profile-name">{{ auth()->user()->full_name }}</div>
-                <div class="sidebar-profile-role">{{ auth()->user()->role }}</div>
-            </div>
-        </a>
-        <form method="POST" action="{{ route('logout') }}" class="sidebar-logout-form px-2 pb-2 mb-0">
-            @csrf
-            <button type="submit" class="btn btn-sm sidebar-logout-btn w-100 rounded-pill d-flex align-items-center justify-content-center gap-2">
-                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-                <span>{{ __('header.logout') }}</span>
-            </button>
-        </form>
-    </div>
 </nav>

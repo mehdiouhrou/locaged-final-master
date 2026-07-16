@@ -95,6 +95,11 @@
                     <small class="text-muted">{{ ui_t('pages.translations.image_limit_5mb') }}</small>
                 </div>
                 <div class="col-md-6">
+                    <label class="form-label">Logo LocaGed (sidebar)</label>
+                    <input type="file" name="sidebar_logo" class="form-control" accept="image/*" />
+                    <small class="text-muted">{{ ui_t('pages.translations.image_limit_5mb') }} — remplace le texte "LocaGed" dans le menu latéral.</small>
+                </div>
+                <div class="col-md-6">
                     <label class="form-label">{{ ui_t('pages.translations.login_left_image') }}</label>
                     <input type="file" name="login_left_image" class="form-control" accept="image/*" />
                     <small class="text-muted">{{ ui_t('pages.translations.image_limit_8mb') }}</small>
