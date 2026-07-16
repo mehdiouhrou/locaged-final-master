@@ -89,6 +89,12 @@
                                     —
                                 @endif
                             </dd>
+                            @if($document->boxFolder)
+                            <dt class="col-sm-4 text-muted">{{ __('Nom de boîte') }}</dt>
+                            <dd class="col-sm-8 mb-0">
+                                <span class="text-break">{{ $document->boxFolder->name }}</span>
+                            </dd>
+                            @endif
                             <dt class="col-sm-4 text-muted">{{ ui_t('pages.document_detail.hash') }}</dt>
                             <dd class="col-sm-8 mb-0 font-monospace text-break">{{ $document->file_hash ?: ui_t('pages.document_detail.hash_empty') }}</dd>
                         </dl>

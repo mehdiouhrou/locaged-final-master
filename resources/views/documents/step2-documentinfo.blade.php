@@ -287,6 +287,20 @@
                                     </select>
                                 </div>
                             </div>
+
+                            @if($selectedBoxId)
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label small">5. Nom de boîte</label>
+                                        <select class="form-select form-select-sm" wire:model.live="selectedBoxFolderId">
+                                            <option value="">-- Aucun --</option>
+                                            @foreach($this->boxFolders as $folder)
+                                                <option value="{{ $folder->id }}">{{ $folder->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            @endif
                             
                             @error('currentInfo.box_id')
                                 <div class="text-danger small">{{ $message }}</div>

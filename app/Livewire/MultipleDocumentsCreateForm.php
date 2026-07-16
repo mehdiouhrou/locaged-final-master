@@ -75,6 +75,8 @@ class MultipleDocumentsCreateForm extends Component
 
     public $selectedBoxId = null;
 
+    public $selectedBoxFolderId = null;
+
     public $uploadProgress = 0;
 
     public $previewUrl;
@@ -187,16 +189,26 @@ class MultipleDocumentsCreateForm extends Component
             $this->selectedRowId = null;
             $this->selectedShelfId = null;
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
             $this->currentInfo['box_id'] = null;
+            $this->currentInfo['box_folder_id'] = null;
         } elseif ($name === 'selectedRowId') {
             $this->selectedShelfId = null;
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
             $this->currentInfo['box_id'] = null;
+            $this->currentInfo['box_folder_id'] = null;
         } elseif ($name === 'selectedShelfId') {
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
             $this->currentInfo['box_id'] = null;
+            $this->currentInfo['box_folder_id'] = null;
         } elseif ($name === 'selectedBoxId') {
             $this->currentInfo['box_id'] = $value;
+            $this->selectedBoxFolderId = null;
+            $this->currentInfo['box_folder_id'] = null;
+        } elseif ($name === 'selectedBoxFolderId') {
+            $this->currentInfo['box_folder_id'] = $value;
         }
     }
 
@@ -262,6 +274,17 @@ class MultipleDocumentsCreateForm extends Component
         }
 
         return $query->get();
+    }
+
+    public function getBoxFoldersProperty()
+    {
+        if (! $this->selectedBoxId) {
+            return collect();
+        }
+
+        return \App\Models\BoxFolder::where('box_id', $this->selectedBoxId)
+            ->orderBy('name')
+            ->get();
     }
 
     // Helper to load the current document's info into the form property
@@ -692,6 +715,7 @@ class MultipleDocumentsCreateForm extends Component
             $this->selectedRowId = null;
             $this->selectedShelfId = null;
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
 
             return;
         }
@@ -703,6 +727,7 @@ class MultipleDocumentsCreateForm extends Component
             $this->selectedRowId = null;
             $this->selectedShelfId = null;
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
 
             return;
         }
@@ -954,6 +979,7 @@ class MultipleDocumentsCreateForm extends Component
                     'new_tag_names' => [],
                     'physical_location_id' => null,
                     'box_id' => null,
+                    'box_folder_id' => null,
                     'author' => '',
                     'email' => '',
                     'department_id' => null,
@@ -1072,7 +1098,9 @@ class MultipleDocumentsCreateForm extends Component
             $this->selectedRowId = null;
             $this->selectedShelfId = null;
             $this->selectedBoxId = null;
+            $this->selectedBoxFolderId = null;
             $this->currentInfo['box_id'] = null;
+            $this->currentInfo['box_folder_id'] = null;
         }
     }
 
@@ -1651,6 +1679,7 @@ class MultipleDocumentsCreateForm extends Component
                     'expire_at' => isset($metadata['expire_at']) ? \Carbon\Carbon::parse($metadata['expire_at']) : null,
                     'physical_location_id' => $metadata['physical_location_id'] ?? null, // Keep for backward compatibility
                     'box_id' => $metadata['box_id'] ?? null,
+                    'box_folder_id' => $metadata['box_folder_id'] ?? null,
                     // Use department selected by user (from their assigned departments)
                     'department_id' => $metadata['department_id'],
                     'service_id' => $metadata['service_id'] ?? null,

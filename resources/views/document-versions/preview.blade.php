@@ -119,6 +119,11 @@
                                 <dt class="col-6 text-muted">{{ __('Emplacement physique') }}</dt>
                                 <dd class="col-6 mb-0 text-break">@if($document->box){{ $document->box->__toString() }}@elseif($document->isDigitalOnly()){{ __('pages.documents.digital_only_location') }}@else—@endif</dd>
 
+                                @if($document->boxFolder)
+                                <dt class="col-6 text-muted">{{ __('Nom de boîte') }}</dt>
+                                <dd class="col-6 mb-0 text-break">{{ $document->boxFolder->name }}</dd>
+                                @endif
+
                                 <dt class="col-6 text-muted">{{ __('Empreinte (SHA-256)') }}</dt>
                                 <dd class="col-6 mb-0 text-break">{{ $document->file_hash ?? 'Non calculée' }}</dd>
 
