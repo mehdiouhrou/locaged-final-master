@@ -77,15 +77,17 @@
             </div>
 
             @if($this->showOnlyPendingApprovals)
-                @can('decline', \App\Models\Document::class)
-                    <div class="w-100 mb-2">
-                        <label class="form-label small mb-1">{{ __('Motif de refus groupé (optionnel)') }}</label>
-                        <textarea class="form-control form-control-sm" rows="2" wire:model="bulkDeclineReason" placeholder="{{ __('Laisser vide si non nécessaire') }}"></textarea>
-                        @error('bulkDeclineReason')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                        @enderror
-                    </div>
-                @endcan
+                @if(count($checkedDocuments) > 0)
+                    @can('decline', \App\Models\Document::class)
+                        <div class="w-100 mb-2">
+                            <label class="form-label small mb-1">{{ __('Motif de refus groupé (optionnel)') }}</label>
+                            <textarea class="form-control form-control-sm" rows="2" wire:model="bulkDeclineReason" placeholder="{{ __('Laisser vide si non nécessaire') }}"></textarea>
+                            @error('bulkDeclineReason')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    @endcan
+                @endif
                 @if(count($checkedDocuments) > 0)
                     @can('approve', \App\Models\Document::class)
                         <button type="button" class="btn btn-success btn-sm ms-3" wire:click="bulkApprove">

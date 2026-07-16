@@ -119,17 +119,13 @@
                 </button>
             </div>
         @endif
-        <div class="row g-4 align-items-start lgv2-documents-split mb-4">
-            <aside class="col-12 col-lg-auto flex-shrink-0 lgv2-documents-filter-column">
-                <div class="lgv2-filter-panel card border-0 shadow-sm p-2 mb-0">
-                    <div class="lgv2-filter-panel-title text-uppercase text-muted small fw-bold mb-3">{{ __('Filtres') }}</div>
-                    <div class="d-flex flex-column gap-3">
-            <div class="search-files w-100">
+        <div class="table-controls">
+            <div class="search-files position-relative">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="{{ ui_t('tables.file_name') }}" wire:model.live="search" />
             </div>
-            <div class="table-filters d-flex flex-column gap-2 w-100">
-                <select class="form-select w-100" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
+            <div class="table-filters">
+                <select class="form-select" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
                     <option value="all">{{ ui_t('filters.all') }}</option>
                     @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                         <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
@@ -137,8 +133,7 @@
                     <option value="expired">{{ ui_t('pages.documents.status.expired') }}</option>
                 </select>
 
-
-                <select class="form-select w-100" wire:model.change="fileType">
+                <select class="form-select" wire:model.change="fileType">
                     <option value="">{{ ui_t('filters.file_type') }}</option>
                     <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                     <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -148,7 +143,7 @@
                     <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                 </select>
 
-                <select class="form-select w-100" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
+                <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
                     <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
@@ -156,13 +151,13 @@
                     @endforeach
                 </select>
 
-                <div class="d-flex flex-column gap-1">
-                    <label class="small text-muted mb-0">{{ ui_t('filters.from') }}</label>
+                <div class="d-flex align-items-center gap-1">
+                    <label>{{ ui_t('filters.from') }}: </label>
                     <input type="date" class="form-control" wire:model.change="dateFrom" placeholder="{{ ui_t('filters.from') }}" />
                 </div>
 
-                <div class="d-flex flex-column gap-1">
-                    <label class="small text-muted mb-0">{{ ui_t('filters.to') }}</label>
+                <div class="d-flex align-items-center gap-1">
+                    <label>{{ ui_t('filters.to') }}: </label>
                     <input type="date" class="form-control" wire:model.change="dateTo" placeholder="{{ ui_t('filters.to') }}" />
                 </div>
 
@@ -219,7 +214,7 @@
                         font-size: 18px;
                     }
                 </style>
-                <div class="fav-toggle-wrap d-flex align-items-center">
+                <div class="fav-toggle-wrap ms-2 d-flex align-items-center">
                     <input type="checkbox" id="favoritesOnlyCat" class="fav-toggle-input" wire:model.change="favoritesOnly">
                     <label for="favoritesOnlyCat"
                            class="fav-toggle {{ $favoritesOnly ? 'is-active' : '' }}"
@@ -231,25 +226,25 @@
                     </label>
                 </div>
 
-                <!-- Per Page Selector -->
-                <select class="form-select w-100" wire:model.change="perPage">
-                    <option value="10">10 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                    <option value="250">250 per page</option>
-                    <option value="500">500 per page</option>
-                </select>
-
                 <!-- Reset button -->
-                <button type="button" wire:click="resetFilters" class="btn btn-sm btn-outline-danger text-nowrap w-100">
+                <button type="button" wire:click="resetFilters" class="btn btn-sm btn-outline-danger text-nowrap">
                     {{ ui_t('filters.reset_filters') }}
                 </button>
 
-            </div>
-                    </div>
+                <!-- Per-page selector -->
+                <div class="ms-2">
+                    <select class="form-select" wire:model.change="perPage" style="min-width: 110px;">
+                        <option value="10">10 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option value="250">250 per page</option>
+                        <option value="500">500 per page</option>
+                    </select>
                 </div>
-            </aside>
-            <div class="col-12 col-lg min-w-0">
+
+            </div>
+        </div>
+        <div class="lgv2-documents-table-full">
         <div class="recent-files-section mb-0">
         <table class="files-table">
             <thead>
@@ -585,8 +580,6 @@
 
         @include('components.modals.confirm-modal')
         <x-pagination :items="$documents"></x-pagination>
-        </div>
-            </div>
         </div>
 
     </div>
