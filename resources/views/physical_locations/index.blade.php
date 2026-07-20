@@ -271,14 +271,9 @@
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_name" class="form-label">{{ __('pages.physical.actions.box_name') }} <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="add_box_name" name="name" 
-                                           placeholder="{{ __('pages.physical.placeholders.box_example') }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="add_box_number" class="form-label">Numéro de boîte</label>
+                                    <label for="add_box_number" class="form-label">Numéro de boîte <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_box_number" name="box_number"
-                                           placeholder="ex. BOX-001">
+                                           placeholder="ex. BOX-001" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="add_box_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
@@ -691,14 +686,9 @@
                                                        value="{{ $shelf->name }}" required>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="box_name_edit{{ $box->id }}" class="form-label">{{ __('pages.physical.actions.box_name') }}</label>
-                                                <input type="text" class="form-control" id="box_name_edit{{ $box->id }}" 
-                                                       name="name" value="{{ $box->name }}" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="box_number_edit{{ $box->id }}" class="form-label">Numéro de boîte</label>
+                                                <label for="box_number_edit{{ $box->id }}" class="form-label">Numéro de boîte <span class="text-danger">*</span></label>
                                                 <input type="text" class="form-control" id="box_number_edit{{ $box->id }}"
-                                                       name="box_number" value="{{ $box->box_number }}" placeholder="ex. BOX-001">
+                                                       name="box_number" value="{{ $box->box_number }}" placeholder="ex. BOX-001" required>
                                             </div>
 
                                             {{-- Service (optional) --}}
@@ -740,32 +730,6 @@
                                                           name="description" rows="2">{{ $box->description }}</textarea>
                                             </div>
 
-                                            <div class="mb-3">
-                                                <label class="form-label">Noms de boîte (dossiers)</label>
-                                                <ul class="list-group mb-2">
-                                                    @forelse($box->boxFolders as $folder)
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-                                                            <span>{{ $folder->name }}</span>
-                                                            <form action="{{ route('boxes.folders.destroy', $folder) }}" method="POST" class="m-0" onsubmit="return confirm('Supprimer ce nom de boîte ?');">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                    @empty
-                                                        <li class="list-group-item text-muted py-1">Aucun nom de boîte pour le moment.</li>
-                                                    @endforelse
-                                                </ul>
-                                                <form action="{{ route('boxes.folders.store', $box) }}" method="POST" class="d-flex gap-2">
-                                                    @csrf
-                                                    <input type="text" class="form-control form-control-sm" name="name" placeholder="ex. Comité technique" required>
-                                                    <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
-                                                        <i class="fas fa-plus"></i> Ajouter
-                                                    </button>
-                                                </form>
-                                            </div>
                                             <p class="text-muted small">
                                                 <strong>{{ __('pages.physical.actions.full_path') }}</strong>
                                                 <span id="edit_box_full_path_{{ $box->id }}">{{ $box->__toString() }}</span>
@@ -776,6 +740,34 @@
                                             <button type="submit" class="btn btn-primary">{{ __('pages.physical.actions.update') }}</button>
                                         </div>
                                     </form>
+                                    <div class="modal-body pt-0">
+                                        <div class="mb-3">
+                                            <label class="form-label">Noms de boîte (dossiers)</label>
+                                            <ul class="list-group mb-2">
+                                                @forelse($box->boxFolders as $folder)
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                                                        <span>{{ $folder->name }}</span>
+                                                        <form action="{{ route('boxes.folders.destroy', $folder) }}" method="POST" class="m-0" onsubmit="return confirm('Supprimer ce nom de boîte ?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                @empty
+                                                    <li class="list-group-item text-muted py-1">Aucun nom de boîte pour le moment.</li>
+                                                @endforelse
+                                            </ul>
+                                            <form action="{{ route('boxes.folders.store', $box) }}" method="POST" class="d-flex gap-2">
+                                                @csrf
+                                                <input type="text" class="form-control form-control-sm" name="name" placeholder="ex. Comité technique" required>
+                                                <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                    <i class="fas fa-plus"></i> Ajouter
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -799,7 +791,7 @@
             const roomInput = document.getElementById('edit_room_name_' + boxId);
             const rowInput = document.getElementById('edit_row_name_' + boxId);
             const shelfInput = document.getElementById('edit_shelf_name_' + boxId);
-            const boxNameInput = document.getElementById('box_name_edit' + boxId);
+            const boxNameInput = document.getElementById('box_number_edit' + boxId);
             const pathSpan = document.getElementById('edit_box_full_path_' + boxId);
             if (!roomInput || !rowInput || !shelfInput || !boxNameInput || !pathSpan) return;
 
@@ -844,7 +836,7 @@
                 const boxId = roomInput.dataset.boxId;
                 const rowInput = document.getElementById('edit_row_name_' + boxId);
                 const shelfInput = document.getElementById('edit_shelf_name_' + boxId);
-                const boxNameInput = document.getElementById('box_name_edit' + boxId);
+                const boxNameInput = document.getElementById('box_number_edit' + boxId);
 
                 function attach(el) {
                     if (!el) return;

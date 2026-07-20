@@ -294,25 +294,15 @@ class PhysicalLocationController extends Controller
         $validated = $request->validate([
             'service_id' => 'nullable|exists:services,id',
             'shelf_id' => 'required|exists:shelves,id',
-            'name' => 'required|string|max:255',
-            'box_number' => 'nullable|string|max:255|unique:boxes,box_number',
+            'box_number' => 'required|string|max:255|unique:boxes,box_number',
             'description' => 'nullable|string',
         ]);
-
-        // Check if box with same name already exists in this shelf
-        $existingBox = Box::where('shelf_id', $validated['shelf_id'])
-            ->where('name', $validated['name'])
-            ->first();
-
-        if ($existingBox) {
-            return back()->withErrors(['error' => 'A box with this name already exists in the selected shelf.']);
-        }
 
         $box = Box::create([
             'shelf_id' => $validated['shelf_id'],
             'service_id' => $validated['service_id'] ?? null,
-            'name' => $validated['name'],
-            'box_number' => $validated['box_number'] ?? null,
+            'name' => $validated['box_number'],
+            'box_number' => $validated['box_number'],
             'description' => $validated['description'] ?? null,
         ]);
 
@@ -559,8 +549,7 @@ class PhysicalLocationController extends Controller
             'room_name' => 'required|string|max:255',
             'row_name' => 'required|string|max:255',
             'shelf_name' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
-            'box_number' => 'nullable|string|max:255|unique:boxes,box_number,' . $box->id,
+            'box_number' => 'required|string|max:255|unique:boxes,box_number,' . $box->id,
             'description' => 'nullable|string',
         ]);
 
@@ -587,24 +576,12 @@ class PhysicalLocationController extends Controller
                 'name' => $validated['shelf_name'],
             ]);
 
-            // Check if a box with this name already exists in the target shelf (excluding current box)
-            $existingBox = Box::where('shelf_id', $shelf->id)
-                ->where('name', $validated['name'])
-                ->where('id', '!=', $box->id)
-                ->first();
-
-            if ($existingBox) {
-                DB::rollBack();
-
-                return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
-            }
-
             // Move the box to the new shelf and update details
             $box->update([
                 'shelf_id' => $shelf->id,
                 'service_id' => $validated['service_id'] ?? null,
-                'name' => $validated['name'],
-                'box_number' => $validated['box_number'] ?? null,
+                'name' => $validated['box_number'],
+                'box_number' => $validated['box_number'],
                 'description' => $validated['description'] ?? null,
             ]);
 
