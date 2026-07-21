@@ -148,7 +148,7 @@ class PhysicalLocationController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Location path created successfully: <strong>'.$box->__toString().'</strong>');
+            return back()->with('success', 'Location path created successfully: <strong>'.e($box->__toString()).'</strong>');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -174,7 +174,7 @@ class PhysicalLocationController extends Controller
 
         $room = Room::create($validated);
 
-        return back()->with('success', 'Room "<strong>'.$room->name.'</strong>" created successfully.');
+        return back()->with('success', 'Room "<strong>'.e($room->name).'</strong>" created successfully.');
     }
 
     /**
@@ -248,7 +248,7 @@ class PhysicalLocationController extends Controller
 
         $room = Room::find($validated['room_id']);
 
-        return back()->with('success', 'Row "<strong>'.$row->name.'</strong>" added to room "<strong>'.$room->name.'</strong>" successfully.');
+        return back()->with('success', 'Row "<strong>'.e($row->name).'</strong>" added to room "<strong>'.e($room->name).'</strong>" successfully.');
     }
 
     /**
@@ -281,7 +281,7 @@ class PhysicalLocationController extends Controller
 
         $row = Row::with('room')->find($validated['row_id']);
 
-        return back()->with('success', 'Shelf "<strong>'.$shelf->name.'</strong>" added to row "<strong>'.$row->name.'</strong>" in room "<strong>'.$row->room->name.'</strong>" successfully.');
+        return back()->with('success', 'Shelf "<strong>'.e($shelf->name).'</strong>" added to row "<strong>'.e($row->name).'</strong>" in room "<strong>'.e($row->room->name).'</strong>" successfully.');
     }
 
     /**
@@ -308,7 +308,7 @@ class PhysicalLocationController extends Controller
 
         $box->load('shelf.row.room');
 
-        return back()->with('success', 'Box "<strong>'.$box->name.'</strong>" added successfully. Path: <strong>'.$box->__toString().'</strong>');
+        return back()->with('success', 'Box "<strong>'.e($box->name).'</strong>" added successfully. Path: <strong>'.e($box->__toString()).'</strong>');
     }
 
     public function bulkAddBoxes(Request $request)
@@ -649,7 +649,7 @@ class PhysicalLocationController extends Controller
             'name' => $validated['name'],
         ]);
 
-        return back()->with('success', 'Nom de boîte "' . $validated['name'] . '" ajouté avec succès.');
+        return back()->with('success', 'Nom de boîte "' . e($validated['name']) . '" ajouté avec succès.');
     }
 
     /**
