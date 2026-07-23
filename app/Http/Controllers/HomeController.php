@@ -1002,10 +1002,21 @@ class HomeController extends Controller
             })
             ->count();
 
+        $userId = auth()->id();
+
+        $myReviewsPendingCount = \App\Models\DocumentReviewer::where('reviewer_id', $userId)
+            ->where('status', 'pending')
+            ->count();
+
+        $myActiveDocumentsCount = Document::where('created_by', $userId)
+            ->whereIn('status', ['brouillon', 'en_relecture', 'valide'])
+            ->count();
+
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
             DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
             'expired' => $expiredCount,
+            'active_documents' => $myReviewsPendingCount + $myActiveDocumentsCount,
         ];
     }
 

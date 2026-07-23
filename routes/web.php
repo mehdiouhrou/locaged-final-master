@@ -71,6 +71,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Approvals page: access controlled by policy (approve/decline Document)
     Route::get('/documents/status', [DocumentController::class, 'showStatus'])->name('documents.status');
+    Route::get('/documents/my-reviews', [DocumentController::class, 'myReviews'])->name('documents.my-reviews');
+    Route::get('/documents/active', [DocumentController::class, 'myActiveDocuments'])->name('documents.active');
     Route::redirect('/activity-feed', '/notifications')->name('activity.feed');
 
     // Profile route: allow any authenticated user to view their own profile
@@ -206,6 +208,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents/{id}/unlock', [DocumentController::class, 'unlock'])->name('documents.unlock');
     Route::put('/documents/{id}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
     Route::put('/documents/{id}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
+    Route::put('/documents/{id}/reviewer-validate', [DocumentController::class, 'reviewerValidateAction'])->name('documents.reviewer-validate');
+    Route::put('/documents/{id}/reviewer-reject', [DocumentController::class, 'reviewerRejectAction'])->name('documents.reviewer-reject');
     Route::delete('/documents/{id}/permanent-delete', [DocumentController::class, 'permanentDelete'])->name('documents.permanent-delete');
     Route::get('/documents/{id}/metadata', [DocumentController::class, 'getMetadata'])->name('documents.metadata');
     Route::put('/documents/{id}/metadata', [DocumentController::class, 'updateMetadata'])->name('documents.metadata.update');

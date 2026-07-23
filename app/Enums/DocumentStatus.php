@@ -4,14 +4,14 @@ namespace App\Enums;
 
 enum DocumentStatus: string
 {
-    case Pending   = 'pending';
-    case Declined  = 'declined';
-    case Approved  = 'approved';
-    // case Locked    = 'locked';     // Commented out - may need later
-    // case Unlocked  = 'unlocked';   // Commented out - may need later
-    // case Moved     = 'moved';      // Commented out - may need later
-    case Archived  = 'archived';
-    case Destroyed = 'destroyed';
+    case Pending      = 'pending';
+    case Declined     = 'declined';
+    case Approved     = 'approved';
+    case Archived     = 'archived';
+    case Destroyed    = 'destroyed';
+    case Brouillon    = 'brouillon';
+    case EnRelecture  = 'en_relecture';
+    case Valide       = 'valide';
 
     /**
      * Get only the active statuses for filters (excluding archived/destroyed)
@@ -22,7 +22,22 @@ enum DocumentStatus: string
             self::Pending,
             self::Declined,
             self::Approved,
+            self::Brouillon,
+            self::EnRelecture,
+            self::Valide,
             // Note: 'expired' is handled separately via is_expired flag, not this enum
+        ];
+    }
+
+    /**
+     * Statuts du flux collaboratif (avant assignation catégorie et entrée dans le pipeline archive)
+     */
+    public static function collaborativeCases(): array
+    {
+        return [
+            self::Brouillon,
+            self::EnRelecture,
+            self::Valide,
         ];
     }
 

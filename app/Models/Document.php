@@ -34,6 +34,7 @@ class Document extends Model
         'metadata',
         'file_hash',
         'status',
+        'entry_type',
         'physical_location_id',
         'box_id',
         'box_folder_id',
@@ -471,6 +472,30 @@ class Document extends Model
     public function statusHistories(): HasMany
     {
         return $this->hasMany(DocumentStatusHistory::class, 'document_id')->orderBy('changed_at');
+    }
+
+    public function reviewers(): HasMany
+    {
+        return $this->hasMany(DocumentReviewer::class, 'document_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(DocumentComment::class, 'document_id')->latest();
+    }
+
+    public function allReviewersValidated(): bool
+    {
+        return $this->reviewers()->exists()
+            && $this->reviewers()->where('status', '!=', 'validated')->doesntExist();
+    }
+
+    public function resetReviewCycle(): void
+    {
+        $this->reviewers()->update([
+            'status' => 'pending',
+            'responded_at' => null,
+        ]);
     }
 
     public function latestVersion(): HasOne

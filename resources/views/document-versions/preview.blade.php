@@ -11,8 +11,15 @@
             'pending' => 'bg-warning-subtle text-warning-emphasis',
             'declined' => 'bg-danger-subtle text-danger-emphasis',
             'expired' => 'bg-secondary-subtle text-secondary-emphasis',
+            'brouillon' => 'bg-secondary-subtle text-secondary-emphasis',
+            'en_relecture' => 'bg-info-subtle text-info-emphasis',
+            'valide' => 'bg-primary-subtle text-primary-emphasis',
+            'archived' => 'bg-dark-subtle text-dark-emphasis',
+            'destroyed' => 'bg-dark-subtle text-dark-emphasis',
             default => 'bg-light text-dark',
         };
+        $isCollaborativePreArchive = ($document->entry_type ?? null) === 'collaborative'
+            && in_array($status, ['brouillon', 'en_relecture', 'valide'], true);
     @endphp
 
     <div class="container-fluid px-3 px-md-4 py-3">
@@ -110,6 +117,7 @@
                                 <dt class="col-6 text-muted">{{ __('Date d’expiration') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->expire_at?->format('d/m/Y') ?? '—' }}</dd>
 
+                                @unless($isCollaborativePreArchive)
                                 <dt class="col-6 text-muted">{{ __('Catégorie') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->category?->name ?? '—' }}</dd>
 
@@ -126,6 +134,7 @@
 
                                 <dt class="col-6 text-muted">{{ __('Empreinte (SHA-256)') }}</dt>
                                 <dd class="col-6 mb-0 text-break">{{ $document->file_hash ?? 'Non calculée' }}</dd>
+                                @endunless
 
                                 <dt class="col-6 text-muted">{{ __('Tags') }}</dt>
                                 <dd class="col-6 mb-0 text-break">
@@ -153,6 +162,56 @@
                         </div>
                     </div>
 
+                    @if($document->comments->isNotEmpty())
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des commentaires') }}</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->comments as $comment)
+                                        @php
+                                            $commentTypeLabel = $comment->type === 'reviewer_rejection' ? __('Rejet') : __('Resoumission');
+                                            $commentTypeBadge = $comment->type === 'reviewer_rejection' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-info-subtle text-info-emphasis';
+                                        @endphp
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-semibold">{{ $comment->user->full_name ?? '—' }}</span>
+                                                <span class="badge rounded-pill {{ $commentTypeBadge }}">{{ $commentTypeLabel }}</span>
+                                            </div>
+                                            <div class="small">{{ $comment->comment }}</div>
+                                            <div class="text-muted small mt-1">{{ $comment->created_at->format('d/m/Y H:i') }}</div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($document->documentVersions->count() > 1)
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Versions') }}</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->documentVersions as $version)
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">
+                                            <a href="{{ route('document-versions.preview', ['id' => $version->id]) }}"
+                                               class="text-decoration-none {{ $version->id === $doc->id ? 'fw-bold' : '' }}">
+                                                V{{ number_format($version->version_number, 1) }}
+                                                @if($version->id === $doc->id)
+                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ __('Consultée') }}</span>
+                                                @endif
+                                            </a>
+                                            <span class="text-muted small">{{ $version->uploaded_at?->format('d/m/Y H:i') }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des statuts') }}</h6>
@@ -162,6 +221,51 @@
                         </div>
                     </div>
 
+                    @if($document->reviewers->isNotEmpty())
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Relecteurs') }}</h6>
+                            </div>
+                            <div class="card-body py-3">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->reviewers as $reviewer)
+                                        @php
+                                            $reviewerBadge = match ($reviewer->status) {
+                                                'validated' => 'bg-success-subtle text-success-emphasis',
+                                                'rejected' => 'bg-danger-subtle text-danger-emphasis',
+                                                default => 'bg-secondary-subtle text-secondary-emphasis',
+                                            };
+                                            $reviewerLabel = match ($reviewer->status) {
+                                                'validated' => __('Validé'),
+                                                'rejected' => __('Rejeté'),
+                                                default => __('En attente'),
+                                            };
+                                        @endphp
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="fw-semibold">{{ $reviewer->reviewer->full_name ?? '—' }}</span>
+                                                <span class="badge rounded-pill {{ $reviewerBadge }}">{{ $reviewerLabel }}</span>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'brouillon' && $document->created_by === auth()->id())
+                        <div class="mb-3">
+                            @livewire('resubmit-document-form', ['document' => $document])
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'valide' && $document->created_by === auth()->id())
+                        <div class="mb-3">
+                            @livewire('assign-category-form', ['document' => $document])
+                        </div>
+                    @endif
+
+                    @unless($isCollaborativePreArchive)
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Suivi physique') }}</h6>
@@ -245,6 +349,7 @@
                             @endif
                         </div>
                     </div>
+                    @endunless
 
                     @if(($document->status ?? null) === 'pending')
                         <div class="card border-0 shadow-sm">
@@ -279,6 +384,39 @@
                                         {{ __('Approuver') }}
                                     </button>
                                 @endcan
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'en_relecture' && $document->reviewers()->where('reviewer_id', auth()->id())->where('status', 'pending')->exists())
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body d-flex gap-2 justify-content-end">
+                                <button
+                                    class="btn btn-sm btn-outline-danger trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.reviewer-reject', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Rejeter le document') }}"
+                                    data-body="{{ __('Merci de préciser le motif du rejet.') }}"
+                                    data-extra-fields='{{ json_encode([["type"=>"textarea","name"=>"reject_reason","label"=>__("Motif du rejet"),"required"=>true,"rows"=>4,"maxlength"=>5000,"placeholder"=>__("Décrivez la raison du rejet")]], JSON_UNESCAPED_UNICODE) }}'
+                                >
+                                    {{ __('Rejeter') }}
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-success trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.reviewer-validate', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Valider le document') }}"
+                                    data-body="{{ __('Confirmer la validation de ce document ?') }}"
+                                    data-button-class="btn-success"
+                                >
+                                    {{ __('Valider') }}
+                                </button>
                             </div>
                         </div>
                     @endif

@@ -97,6 +97,25 @@ class DocumentController extends Controller
         return view('documents.status', compact('documents'));
     }
 
+    public function myReviews(Request $request)
+    {
+        $documents = Document::with(['createdBy', 'reviewers'])
+            ->whereHas('reviewers', function ($q) {
+                $q->where('reviewer_id', auth()->id())
+                    ->where('status', 'pending');
+            })
+            ->where('status', 'en_relecture')
+            ->latest()
+            ->paginate(10);
+
+        return view('documents.my-reviews', compact('documents'));
+    }
+
+    public function myActiveDocuments(Request $request)
+    {
+        return view('documents.active');
+    }
+
     // Show create form
     public function create()
     {
@@ -354,6 +373,46 @@ class DocumentController extends Controller
         $doc->logAction('declined', null, ['decline_reason' => $declineReason !== '' ? $declineReason : null]);
 
         return back()->with('success', 'Document rejected.');
+    }
+
+    public function reviewerValidateAction(\App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $document = Document::findOrFail($id);
+
+        $isAssignedReviewer = $document->reviewers()
+            ->where('reviewer_id', auth()->id())
+            ->where('status', 'pending')
+            ->exists();
+
+        if (! $isAssignedReviewer) {
+            abort(403);
+        }
+
+        $service->reviewerValidate($document, auth()->user());
+
+        return back()->with('success', 'Document validé.');
+    }
+
+    public function reviewerRejectAction(Request $request, \App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $validated = $request->validate([
+            'reject_reason' => ['required', 'string', 'min:3', 'max:5000'],
+        ]);
+
+        $document = Document::findOrFail($id);
+
+        $isAssignedReviewer = $document->reviewers()
+            ->where('reviewer_id', auth()->id())
+            ->where('status', 'pending')
+            ->exists();
+
+        if (! $isAssignedReviewer) {
+            abort(403);
+        }
+
+        $service->reviewerReject($document, auth()->user(), $validated['reject_reason']);
+
+        return back()->with('success', 'Document rejeté.');
     }
 
     public function lock($id)

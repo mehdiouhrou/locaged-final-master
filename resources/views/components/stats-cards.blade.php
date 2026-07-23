@@ -40,19 +40,16 @@
     </a>
 
 
-    <a href="{{ route('documents.all', ['status' => \App\Enums\DocumentStatus::Approved->value, 'page_title' => 'approved_documents', 'show_expired' => 1, 'hide_status_filter' => 1]) }}" class="text-decoration-none text-reset">
+    <a href="{{ route('documents.active') }}" class="text-decoration-none text-reset">
     <div class="stat-card green">
         <div class="stat-icon">
-            <i class="fas fa-check-circle"></i>
+            <i class="fas fa-users"></i>
         </div>
         <div class="stat-content">
             <div class="d-flex justify-content-between">
-                <h3>{{ $statusSummary['approved'] }}</h3>
-                {{--   <span class="stat-change"
-                   >-0.01% <i class="fa-solid fa-arrow-trend-down"></i
-                       ></span>--}}
+                <h3>{{ $statusSummary['active_documents'] ?? 0 }}</h3>
             </div>
-            <p>{{ ui_t('pages.stats.approved') }}</p>
+            <p>Documents actifs</p>
         </div>
     </div>
     </a>
