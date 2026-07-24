@@ -17,6 +17,9 @@ Schedule::command('backup:monitor')->dailyAt('03:30');
 // Mark documents as expired based on expiration date (new is_expired flag)
 Schedule::command('documents:mark-expired')->dailyAt('00:30');
 
+// Clean cached Office->PDF upload previews (see PdfConversionService::convertOfficeAbsolutePathToPdf)
+Schedule::command('documents:clean-pdf-preview-cache')->dailyAt('04:00');
+
 Schedule::call(function () {
     $expiredDocuments =  \App\Models\Document::where('expire_at', '<=', now())
         ->get();

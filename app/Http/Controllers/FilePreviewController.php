@@ -65,7 +65,7 @@ class FilePreviewController extends Controller
                 return response()->file($pdfPath, [
                     'Content-Type' => 'application/pdf',
                     'Content-Disposition' => 'inline; filename="preview.pdf"',
-                ])->deleteFileAfterSend(true);
+                ]);
             }
         }
 
