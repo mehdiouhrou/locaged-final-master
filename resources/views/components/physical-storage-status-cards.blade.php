@@ -7,36 +7,33 @@
 
     @php
         $cardColors = [
-            ['bg' => '#fff7da', 'bar' => '#f0d672'],
-            ['bg' => '#e5f7f0', 'bar' => '#47a778'],
-            ['bg' => '#ffe5e7', 'bar' => '#e63946'],
-            ['bg' => '#e5f0ff', 'bar' => '#68a0fd'],
+            'total' => ['bg' => '#e5f0ff', 'bar' => '#68a0fd'],
+            'digital_only' => ['bg' => '#e5f7f0', 'bar' => '#47a778'],
         ];
         $iconFor = fn (string $key) => match ($key) {
             'digital_only' => "\u{1F4BB}",
             'total' => "\u{1F4E6}",
-            'approved' => "\u{2705}",
-            'pending' => "\u{23F3}",
-            'borrowed' => "\u{1F4E4}",
-            'expired' => "\u{23F0}",
             default => "\u{1F4C4}",
         };
     @endphp
 
     <div class="row g-3">
-        @foreach($physicalStorageCards as $index => $card)
-            @php $color = $cardColors[$index % count($cardColors)]; @endphp
-            <div class="col-6 col-md-4 col-lg-3">
+        @foreach($physicalStorageCards as $card)
+            @php $color = $cardColors[$card['key']] ?? ['bg' => '#f5f5f5', 'bar' => '#999999']; @endphp
+            <div class="col-md-6">
                 <a href="{{ $card['url'] }}" class="text-decoration-none">
-                    <div class="border rounded-3 p-3 h-100 position-relative" style="background-color: {{ $color['bg'] }};">
+                    <div class="border rounded-3 p-4 h-100 position-relative" style="background-color: {{ $color['bg'] }};">
                         <div class="position-absolute top-0 start-0 end-0" style="height: 4px; border-radius: 12px 12px 0 0; background-color: {{ $color['bar'] }};"></div>
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="fs-4" aria-hidden="true">{{ $iconFor($card['key']) }}</span>
-                            <div class="fw-semibold text-dark text-truncate" title="{{ $card['label'] }}">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <span class="fs-1" aria-hidden="true">{{ $iconFor($card['key']) }}</span>
+                            <div class="fw-semibold text-dark fs-5" title="{{ $card['label'] }}">
                                 {{ $card['label'] }}
                             </div>
                         </div>
-                        <div class="text-muted small">{{ $card['count'] }} {{ __('pages.dashboard.physical_storage.docs') }}</div>
+                        <div class="text-dark">
+                            <span class="fw-bold" style="font-size: 2rem;">{{ $card['count'] }}</span>
+                            <span class="text-muted ms-1">{{ __('pages.dashboard.physical_storage.docs') }}</span>
+                        </div>
                     </div>
                 </a>
             </div>

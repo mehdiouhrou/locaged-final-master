@@ -895,30 +895,15 @@ class HomeController extends Controller
             'show_expired' => 1,
         ];
 
-        $borrowedCount = 0;
-        if (
-            Schema::hasColumn('document_movements', 'borrowed_by_user_id')
-            && Schema::hasColumn('document_movements', 'borrower_name')
-            && Schema::hasColumn('document_movements', 'returned_at')
-        ) {
-            $borrowedCount = (clone $physical)->whereHas('documentMovements', function ($m) {
-                $m->openLoan();
-            })->count();
-        }
-
-        $expiredPhysicalCount = (clone $physical)->where(function ($w) {
-            $w->where(function ($d) {
-                $d->whereNotNull('expire_at')
-                    ->whereDate('expire_at', '<=', now());
-            });
-            if (Schema::hasColumn('documents', 'is_expired')) {
-                $w->orWhere('is_expired', true);
-            }
-        })->count();
-
         $digitalCount = (clone $visibleDocumentsQuery)->digitalOnly()->count();
 
         $definitions = [
+            [
+                'key' => 'total',
+                'label' => __('pages.dashboard.physical_storage.total'),
+                'count' => (clone $physical)->count(),
+                'params' => array_merge($base, ['page_title' => 'physical_all']),
+            ],
             [
                 'key' => 'digital_only',
                 'label' => __('pages.dashboard.physical_storage.digital_only'),
@@ -928,50 +913,6 @@ class HomeController extends Controller
                     'show_expired' => 1,
                     'page_title' => 'digital_only_docs',
                 ],
-            ],
-            [
-                'key' => 'total',
-                'label' => __('pages.dashboard.physical_storage.total'),
-                'count' => (clone $physical)->count(),
-                'params' => array_merge($base, ['page_title' => 'physical_all']),
-            ],
-            [
-                'key' => 'approved',
-                'label' => __('pages.dashboard.physical_storage.approved'),
-                'count' => (clone $physical)->where('status', DocumentStatus::Approved->value)->count(),
-                'params' => array_merge($base, [
-                    'status' => DocumentStatus::Approved->value,
-                    'hide_status_filter' => 1,
-                    'page_title' => 'physical_approved',
-                ]),
-            ],
-            [
-                'key' => 'pending',
-                'label' => __('pages.dashboard.physical_storage.pending'),
-                'count' => (clone $physical)->where('status', DocumentStatus::Pending->value)->count(),
-                'params' => array_merge($base, [
-                    'status' => DocumentStatus::Pending->value,
-                    'hide_status_filter' => 1,
-                    'page_title' => 'physical_pending',
-                ]),
-            ],
-            [
-                'key' => 'borrowed',
-                'label' => __('pages.dashboard.physical_storage.borrowed'),
-                'count' => $borrowedCount,
-                'params' => array_merge($base, [
-                    'on_loan' => 1,
-                    'page_title' => 'physical_borrowed',
-                ]),
-            ],
-            [
-                'key' => 'expired',
-                'label' => __('pages.dashboard.physical_storage.expired'),
-                'count' => $expiredPhysicalCount,
-                'params' => array_merge($base, [
-                    'status' => 'expired',
-                    'page_title' => 'physical_expired',
-                ]),
             ],
         ];
 
