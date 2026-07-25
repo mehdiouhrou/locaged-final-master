@@ -8,7 +8,7 @@ return [
     'status' => 'الحالة',
     'results' => 'النتائج',
     'view_results' => 'عرض النتائج',
-    'structure' => 'الهيكل',
+    'structure' => 'الفئة',
     'created_by' => 'أنشأ بواسطة',
     'created_at' => 'تاريخ الإنشاء',
     'expire_at' => 'تاريخ الانتهاء',

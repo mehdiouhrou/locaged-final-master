@@ -953,11 +953,16 @@ class HomeController extends Controller
             ->whereIn('status', ['brouillon', 'en_relecture', 'valide'])
             ->count();
 
+        $myPendingApprovalsCount = 0;
+        if (auth()->user() && (auth()->user()->can('approve', Document::class) || auth()->user()->can('decline', Document::class))) {
+            $myPendingApprovalsCount = (int) ($statusCounts['pending'] ?? 0);
+        }
+
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
             DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
             'expired' => $expiredCount,
-            'active_documents' => $myReviewsPendingCount + $myActiveDocumentsCount,
+            'active_documents' => $myReviewsPendingCount + $myActiveDocumentsCount + $myPendingApprovalsCount,
         ];
     }
 

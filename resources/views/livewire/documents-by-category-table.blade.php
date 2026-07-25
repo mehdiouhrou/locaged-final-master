@@ -303,7 +303,7 @@
                         <div>{{ $doc->latestVersion?->version_number }}</div>
                     </td> --}}
                     <td>
-                        <div>{{ $doc->department?->name }}</div>
+                        <div>{{ $doc->category?->name }}</div>
                     </td>
                     <td>
                         <div>{{ $doc->createdBy?->full_name }}</div>
