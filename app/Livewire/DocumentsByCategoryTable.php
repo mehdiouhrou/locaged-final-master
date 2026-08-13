@@ -192,7 +192,7 @@ class DocumentsByCategoryTable extends Component
         // This makes search/filtering always work even if the search engine
         // is not configured.
         $documentsQuery = Document::with([
-            'subcategory', 'department', 'box.shelf.row.room', 'createdBy', 'latestVersion', 'auditLogs.user',
+            'subcategory', 'department', 'box.shelf.row.room', 'boxFolder', 'createdBy', 'latestVersion', 'auditLogs.user',
         ]);
 
         if (Schema::hasColumn('documents', 'deleted_at')) {

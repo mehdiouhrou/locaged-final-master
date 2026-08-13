@@ -82,15 +82,17 @@ class DocumentController extends Controller
 
     public function showStatus(Request $request)
     {
-        if (! Gate::any(['approve', 'decline'], Document::class)) {
-            abort(403);
-        }
+        Gate::authorize('viewAny', Document::class);
 
         // Note: Expired documents are now always shown in pending approvals
         // The is_expired flag is maintained for visual indicators only
 
+        // Statuts combinés : "pending" (pipeline classique, visible par les approbateurs
+        // ou l'auteur - via le scope global du modèle) et "attente_archivage" (workflow
+        // collaboratif, visible par l'auteur / relecteurs / hiérarchie - via le même scope).
+        // Le scope global de Document filtre automatiquement ce que chaque utilisateur voit.
         $query = Document::with(['subcategory', 'department', 'box.shelf.row.room', 'createdBy'])
-            ->where('status', 'pending');
+            ->whereIn('status', ['pending', 'attente_archivage']);
 
         $documents = $query->latest()->paginate(10);
 
@@ -99,6 +101,8 @@ class DocumentController extends Controller
 
     public function myReviews(Request $request)
     {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+
         $documents = Document::with(['createdBy', 'reviewers'])
             ->whereHas('reviewers', function ($q) {
                 $q->where('reviewer_id', auth()->id())
@@ -113,6 +117,8 @@ class DocumentController extends Controller
 
     public function myActiveDocuments(Request $request)
     {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+
         return view('documents.active');
     }
 
@@ -120,6 +126,10 @@ class DocumentController extends Controller
     public function create()
     {
         Gate::authorize('create', Document::class);
+
+        if (request('mode') === 'collaboratif' && ! \App\Support\Branding::isCollaborativeModuleEnabled()) {
+            abort(403, "Le module Document actif n'est pas activé sur cette instance.");
+        }
 
         return view('documents.create');
     }
@@ -413,6 +423,23 @@ class DocumentController extends Controller
         $service->reviewerReject($document, auth()->user(), $validated['reject_reason']);
 
         return back()->with('success', 'Document rejeté.');
+    }
+
+    public function confirmArchiveAction(\App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $document = Document::findOrFail($id);
+
+        if ((int) $document->created_by !== (int) auth()->id()) {
+            abort(403);
+        }
+
+        try {
+            $service->confirmArchive($document, auth()->user());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Document archivé.');
     }
 
     public function lock($id)

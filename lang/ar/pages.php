@@ -873,7 +873,7 @@ return [
         ],
         'status' => [
             'approved' => 'تمت الموافقة',
-            'pending' => 'قيد الانتظار',
+            'pending' => 'قيد انتظار الأرشفة',
             'declined' => 'مرفوض',
             'archived' => 'مؤرشف',
             'destroyed' => 'مُتلف',

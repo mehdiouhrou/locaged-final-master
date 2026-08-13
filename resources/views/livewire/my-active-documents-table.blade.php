@@ -4,13 +4,6 @@
     @endif
 
     <ul class="nav nav-tabs mb-3">
-        @if ($canApprove)
-            <li class="nav-item">
-                <button type="button" class="nav-link {{ $activeTab === 'to_approve' ? 'active' : '' }}" wire:click="setTab('to_approve')">
-                    {{ __('À approuver') }} <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis ms-1">{{ $toApprove->count() }}</span>
-                </button>
-            </li>
-        @endif
         <li class="nav-item">
             <button type="button" class="nav-link {{ $activeTab === 'reviews' ? 'active' : '' }}" wire:click="setTab('reviews')">
                 {{ __('En relecture') }} <span class="badge rounded-pill bg-info-subtle text-info-emphasis ms-1">{{ $myReviews->count() }}</span>
@@ -22,12 +15,6 @@
             </button>
         </li>
     </ul>
-
-    @if ($activeTab === 'to_approve' && $canApprove)
-        @can('viewAny', \App\Models\Document::class)
-            <livewire:documents-table :showOnlyPendingApprovals="true" :key="'mytasks-approvals'" />
-        @endcan
-    @endif
 
     @if ($activeTab === 'reviews')
         @if ($myReviews->isEmpty())
@@ -48,7 +35,7 @@
                                 <td>
                                     @if ($document->latestVersion)
                                         <a href="{{ route('document-versions.preview', ['id' => $document->latestVersion->id]) }}"
-                                           target="_blank" rel="noopener" class="file-name fw-semibold text-decoration-none">
+                                           class="file-name fw-semibold text-decoration-none">
                                             {{ $document->title }}
                                         </a>
                                     @else
@@ -101,7 +88,7 @@
                                 <td>
                                     @if ($document->latestVersion)
                                         <a href="{{ route('document-versions.preview', ['id' => $document->latestVersion->id]) }}"
-                                           target="_blank" rel="noopener" class="file-name fw-semibold text-decoration-none">
+                                           class="file-name fw-semibold text-decoration-none">
                                             {{ $document->title }}
                                         </a>
                                     @else

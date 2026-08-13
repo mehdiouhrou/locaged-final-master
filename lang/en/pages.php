@@ -912,7 +912,7 @@ return [
         ],
         'status' => [
             'approved' => 'Approved',
-            'pending' => 'Pending',
+            'pending' => 'Pending Archiving',
             'declined' => 'Declined',
             'archived' => 'Archived',
             'destroyed' => 'Destroyed',

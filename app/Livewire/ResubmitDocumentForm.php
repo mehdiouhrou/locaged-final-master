@@ -27,6 +27,11 @@ class ResubmitDocumentForm extends Component
 
     public function submit(CollaborativeDocumentService $service)
     {
+        if (! in_array($this->document->status, ['brouillon'], true)) {
+            session()->flash('error', 'Ce document ne peut plus être resoumis (statut actuel non modifiable).');
+            return redirect()->route('documents.active');
+        }
+
         $this->validate();
 
         $filePath = Storage::disk('local')->putFileAs('', $this->file, $this->file->getClientOriginalName());

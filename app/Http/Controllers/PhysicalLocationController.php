@@ -81,6 +81,20 @@ class PhysicalLocationController extends Controller
                 ->keyBy('document_id');
         }
 
+        $expiredCount = 0;
+        if ($documentIds->isNotEmpty()) {
+            $expiredCount = \App\Models\Document::query()
+                ->whereIn('id', $documentIds->all())
+                ->where(function ($w) {
+                    $w->whereNotNull('expire_at')
+                        ->whereDate('expire_at', '<=', now());
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('documents', 'is_expired')) {
+                        $w->orWhere('is_expired', true);
+                    }
+                })
+                ->count();
+        }
+
         $kpis = [
             'rooms' => $rooms->count(),
             'rows' => $rooms->sum(fn ($room) => $room->rows->count()),
@@ -89,6 +103,7 @@ class PhysicalLocationController extends Controller
             'documents' => $documentIds->count(),
             'borrowed' => $openLoans->count(),
             'overdue' => $openLoans->filter(fn ($loan) => $loan->due_at && $loan->due_at->isPast())->count(),
+            'expired' => $expiredCount,
         ];
 
         $boxImportPreview = session('box_import_preview', []);

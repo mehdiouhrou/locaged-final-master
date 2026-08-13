@@ -50,6 +50,14 @@
                     </div>
                 </div>
             </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('pages.physical.kpi.expired') }}</div>
+                        <div class="fs-5 fw-bold text-danger">{{ $kpis['expired'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm mb-4">

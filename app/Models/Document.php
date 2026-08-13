@@ -173,6 +173,28 @@ class Document extends Model
                 });
             }
 
+            // Decision 28/07/2026 : un document 'attente_archivage' n'est visible que pour
+            // son auteur, ses relecteurs assignés, ou les rôles hiérarchiques (department/
+            // subdepartment, filtrés plus bas par leur propre department_id/service_id).
+            // Un simple accès catégorie ne suffit pas tant que le document n'est pas 'approved'.
+            if (! $user->can('view any document')) {
+                $attenteArchivage = DocumentStatus::AttenteArchivage->value;
+                $hasHierarchyAccess = $user->can('view department document')
+                    || $user->can('view subdepartment scoped documents');
+
+                $query->where(function ($w) use ($user, $attenteArchivage, $hasHierarchyAccess) {
+                    $w->where('documents.status', '!=', $attenteArchivage)
+                        ->orWhere('documents.created_by', $user->id)
+                        ->orWhereHas('reviewers', function ($rq) use ($user) {
+                            $rq->where('reviewer_id', $user->id);
+                        });
+
+                    if ($hasHierarchyAccess) {
+                        $w->orWhere('documents.status', $attenteArchivage);
+                    }
+                });
+            }
+
             // Bypass department/service scoping for roles that can view any document,
             // but still respect the destruction/expiry / destruction-queue filters.
             if ($user->can('view any document')) {
@@ -482,6 +504,11 @@ class Document extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(DocumentComment::class, 'document_id')->latest();
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(DocumentAttachment::class, 'document_id')->latest();
     }
 
     public function allReviewersValidated(): bool

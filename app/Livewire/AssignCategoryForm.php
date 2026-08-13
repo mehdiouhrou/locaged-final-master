@@ -148,6 +148,11 @@ class AssignCategoryForm extends Component
 
     public function submit(CollaborativeDocumentService $service)
     {
+        if ($this->document->status !== 'valide') {
+            session()->flash('error', 'La catégorie ne peut être assignée que sur un document clôturé.');
+            return redirect()->route('documents.active');
+        }
+
         $this->validate();
 
         $serviceId = $this->currentServiceId();
@@ -187,12 +192,12 @@ class AssignCategoryForm extends Component
         }
         $this->document->metadata = $meta;
 
-        $this->document->status = 'pending';
+        $this->document->status = 'attente_archivage';
         $this->document->save();
 
         $service->purgeIntermediateVersions($this->document);
 
-        session()->flash('success', 'Catégorie assignée, document envoyé en attente d\'approbation.');
+        session()->flash('success', 'Catégorie assignée. Vous pouvez maintenant confirmer l\'archivage une fois le document rangé physiquement.');
 
         return redirect()->route('documents.active');
     }

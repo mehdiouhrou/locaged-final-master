@@ -89,7 +89,7 @@
                     {{-- Document Title --}}
                     <div class="text-center">
                         <strong>{{ $doc->document->title }}</strong>
-                        <span class="ms-3 text-muted small">Version {{ $doc->version_number }}</span>
+                        <span class="ms-3 text-muted small">Version {{ (int) $doc->version_number }}</span>
                     </div>
 
                     {{-- Next Document Button --}}

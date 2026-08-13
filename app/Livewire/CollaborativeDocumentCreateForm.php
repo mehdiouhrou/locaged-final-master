@@ -16,6 +16,7 @@ class CollaborativeDocumentCreateForm extends Component
     use WithFileUploads;
 
     public string $title = '';
+    public string $description = '';
     public $file;
 
     public ?string $previewUrl = null;
@@ -23,6 +24,11 @@ class CollaborativeDocumentCreateForm extends Component
 
     public string $reviewerSearch = '';
     public array $selectedReviewers = []; // [ ['id' => int, 'full_name' => string, 'deadline' => ?string] ]
+
+    public function mount(): void
+    {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+    }
 
     public function updatedFile(): void
     {
@@ -32,6 +38,11 @@ class CollaborativeDocumentCreateForm extends Component
 
         if (! $this->file) {
             return;
+        }
+
+        if (trim($this->title) === '') {
+            $originalName = $this->file->getClientOriginalName();
+            $this->title = pathinfo($originalName, PATHINFO_FILENAME);
         }
 
         $absolutePath = $this->file->getRealPath();
@@ -122,9 +133,16 @@ class CollaborativeDocumentCreateForm extends Component
 
     public function submit(CollaborativeDocumentService $service)
     {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+
         $this->validate();
 
         $filePath = Storage::disk('local')->putFileAs('', $this->file, $this->file->getClientOriginalName());
+
+        $author = auth()->user();
+        $authorService = $author?->service_id
+            ? \App\Models\Service::with('subDepartment')->find($author->service_id)
+            : null;
 
         $document = Document::create([
             'uid' => (string) \Illuminate\Support\Str::uuid(),
@@ -132,6 +150,9 @@ class CollaborativeDocumentCreateForm extends Component
             'status' => 'brouillon',
             'entry_type' => 'collaborative',
             'created_by' => auth()->id(),
+            'service_id' => $author?->service_id,
+            'sub_department_id' => $authorService?->subDepartment?->id,
+            'department_id' => $authorService?->subDepartment?->department_id,
         ]);
 
         DocumentVersion::create([
@@ -141,6 +162,15 @@ class CollaborativeDocumentCreateForm extends Component
             'uploaded_by' => auth()->id(),
             'uploaded_at' => now(),
         ]);
+
+        if (trim($this->description) !== '') {
+            \App\Models\DocumentComment::create([
+                'document_id' => $document->id,
+                'user_id' => auth()->id(),
+                'type' => 'initial_description',
+                'comment' => $this->description,
+            ]);
+        }
 
         $reviewersPayload = collect($this->selectedReviewers)->map(fn ($r) => [
             'reviewer_id' => $r['id'],

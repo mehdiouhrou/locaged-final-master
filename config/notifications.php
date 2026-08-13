@@ -105,5 +105,11 @@ return [
             'body' => 'The document ":title" has been corrected and resubmitted for your review.',
             'icon' => 'assets/created.png',
         ],
+        'collab_document_archived' => [
+            'type' => 'success',
+            'title' => 'Document archived',
+            'body' => 'The document ":title" has been archived.',
+            'icon' => 'assets/approved.png',
+        ],
     ],
 ];

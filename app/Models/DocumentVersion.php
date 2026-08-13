@@ -48,18 +48,16 @@ class DocumentVersion extends Model
                 ->first();
 
             if ($latestVersion) {
-                // Increment by 0.1 and keep 1 decimal place
-                $documentVersion->version_number = round($latestVersion->version_number + 0.1, 1);
+                // Simple incrementing version numbers: V1, V2, V3...
+                $documentVersion->version_number = (int) $latestVersion->version_number + 1;
             } else {
-                // If no previous version exists, start at 1.0
-                $documentVersion->version_number = 1.0;
-
-
+                // If no previous version exists, start at 1
+                $documentVersion->version_number = 1;
             }
         });
 
         static::created(function ($documentVersion) {
-            if ($documentVersion->version_number == 1.0) {
+            if ($documentVersion->version_number == 1) {
                 // log new document created
                 $documentVersion->document->logAction('created');
             }

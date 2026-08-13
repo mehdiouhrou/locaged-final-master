@@ -1,4 +1,10 @@
-<div class="list-group-item py-2" wire:key="{{ $notification->id }}">
+@php
+    $notifVersionId = $notification->data['documentLatestVersionId'] ?? null;
+    $notifTargetUrl = $notifVersionId
+        ? route('document-versions.preview', ['id' => $notifVersionId])
+        : null;
+@endphp
+<div class="list-group-item py-2 @if($notifTargetUrl) notification-item-clickable @endif" wire:key="{{ $notification->id }}" @if($notifTargetUrl) wire:click="markAsReadAndRedirect('{{ $notification->id }}', '{{ $notifTargetUrl }}')" style="cursor: pointer;" @endif>
     <div class="d-flex align-items-start  gap-2">
         <img
             src="{{ (is_array($notification->data ?? null) && array_key_exists('icon', $notification->data)) ? asset($notification->data['icon']) : asset('assets/created.png') }}"
@@ -19,7 +25,7 @@
         </div>
 
         <div class="ms-2">  
-            <button wire:click="deleteNotification('{{ $notification->id }}')" class="btn btn-sm btn-link text-danger p-0" title="{{ ui_t('actions.delete') }}" aria-label="{{ ui_t('actions.delete') }} {{ ui_t('pages.notifications.notification') }}">
+            <button wire:click="deleteNotification('{{ $notification->id }}')" onclick="event.stopPropagation()" class="btn btn-sm btn-link text-danger p-0" title="{{ ui_t('actions.delete') }}" aria-label="{{ ui_t('actions.delete') }} {{ ui_t('pages.notifications.notification') }}">
                 <i class="fas fa-trash"></i>
             </button>
         </div>

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Document;
+use App\Models\DocumentAttachment;
 use App\Models\DocumentComment;
 use App\Models\DocumentReviewer;
 use App\Models\User;
@@ -126,6 +127,25 @@ class CollaborativeDocumentService
     }
 
     /**
+     * L'auteur confirme que le document a été rangé physiquement en salle d'archive.
+     * Passage manuel de 'attente_archivage' vers 'approved' (statut technique d'archivage actif).
+     * Aucune approbation hiérarchique n'intervient à cette étape (decision 28/07/2026).
+     */
+    public function confirmArchive(Document $document, User $author): void
+    {
+        if ($document->status !== 'attente_archivage') {
+            throw new \RuntimeException('Le document n\'est pas en attente d\'archivage.');
+        }
+
+        if ((int) $document->created_by !== (int) $author->id) {
+            throw new \RuntimeException('Seul l\'auteur du document peut confirmer son archivage.');
+        }
+
+        $document->status = 'approved';
+        $document->save();
+    }
+
+    /**
      * Purge toutes les versions sauf la plus récente. À appeler au moment de la bascule
      * finale vers le pipeline archive (une fois la catégorie assignée après 'valide').
      */
@@ -154,6 +174,34 @@ class CollaborativeDocumentService
 
                 $version->delete();
             });
+    }
+
+    /**
+     * Ajoute un complément de document (piece jointe annexe : preuve de paiement, lettre, etc.)
+     * pendant la phase collaborative pre-cloture. Uniquement l'auteur ou un relecteur assigne,
+     * uniquement tant que le document n'est pas encore cloture (decision 28/07/2026).
+     */
+    public function addAttachment(Document $document, User $user, string $label, string $filePath, ?string $fileType = null): DocumentAttachment
+    {
+        if (! in_array($document->status, ['brouillon', 'en_relecture'], true)) {
+            throw new \RuntimeException('Les complements ne peuvent être ajoutés qu\'avant la clôture du document.');
+        }
+
+        $isAuthor = (int) $document->created_by === (int) $user->id;
+        $isReviewer = $document->reviewers()->where('reviewer_id', $user->id)->exists();
+
+        if (! $isAuthor && ! $isReviewer) {
+            throw new \RuntimeException('Seuls l\'auteur et les relecteurs peuvent ajouter un complément.');
+        }
+
+        return DocumentAttachment::create([
+            'document_id' => $document->id,
+            'uploaded_by' => $user->id,
+            'label' => $label,
+            'file_path' => $filePath,
+            'file_type' => $fileType,
+            'uploaded_at' => now(),
+        ]);
     }
 
     protected function notify(User $user, Document $document, string $action): void

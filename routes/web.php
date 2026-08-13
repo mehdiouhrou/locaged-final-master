@@ -125,6 +125,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     // Master only : rôle « master » ou permission « view any role »
     Route::group(['middleware' => ['role_or_permission:master|view any role']], function () {
         Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
+        Route::put('/admin/master/collaborative-module', [MasterConsoleController::class, 'updateCollaborativeModule'])->name('master.console.collaborative-module');
         Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
         Route::resources([
             'roles' => \App\Http\Controllers\RoleController::class,
@@ -203,6 +204,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/users/{user}/image', [UserController::class, 'updateImage'])->name('users.updateImage');
 
     Route::get('/documents/{id}/download', DocumentDownloadController::class)->name('documents.download');
+    Route::get('/document-attachments/{id}/download', \App\Http\Controllers\DocumentAttachmentDownloadController::class)->name('document-attachments.download');
     Route::put('/documents/{id}/rename', [DocumentController::class, 'rename'])->name('documents.rename');
     Route::put('/documents/{id}/lock', [DocumentController::class, 'lock'])->name('documents.lock');
     Route::put('/documents/{id}/unlock', [DocumentController::class, 'unlock'])->name('documents.unlock');
@@ -210,6 +212,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents/{id}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
     Route::put('/documents/{id}/reviewer-validate', [DocumentController::class, 'reviewerValidateAction'])->name('documents.reviewer-validate');
     Route::put('/documents/{id}/reviewer-reject', [DocumentController::class, 'reviewerRejectAction'])->name('documents.reviewer-reject');
+    Route::put('/documents/{id}/confirm-archive', [DocumentController::class, 'confirmArchiveAction'])->name('documents.confirm-archive');
     Route::delete('/documents/{id}/permanent-delete', [DocumentController::class, 'permanentDelete'])->name('documents.permanent-delete');
     Route::get('/documents/{id}/metadata', [DocumentController::class, 'getMetadata'])->name('documents.metadata');
     Route::put('/documents/{id}/metadata', [DocumentController::class, 'updateMetadata'])->name('documents.metadata.update');

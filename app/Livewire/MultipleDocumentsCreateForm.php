@@ -1675,7 +1675,7 @@ class MultipleDocumentsCreateForm extends Component
                     'created_by' => auth()->id(),
                     'category_id' => $metadata['category_id'],
                     'subcategory_id' => $metadata['subcategory_id'],
-                    'created_at' => \Carbon\Carbon::parse($metadata['created_at']),
+                    'created_at' => \Carbon\Carbon::parse($metadata['created_at'])->setTimeFrom(now()),
                     'expire_at' => isset($metadata['expire_at']) ? \Carbon\Carbon::parse($metadata['expire_at']) : null,
                     'physical_location_id' => $metadata['physical_location_id'] ?? null, // Keep for backward compatibility
                     'box_id' => $metadata['box_id'] ?? null,

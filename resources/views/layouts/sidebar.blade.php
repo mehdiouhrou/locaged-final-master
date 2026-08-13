@@ -68,11 +68,19 @@
 
         @can('create', \App\Models\Document::class)
         <li class="mt-1">
-            <a href="{{ route('documents.create') }}" class="{{ request()->routeIs('documents.create') ? 'active' : '' }}">
+            <a href="{{ route('documents.create', ['mode' => 'archive']) }}" class="{{ request()->routeIs('documents.create') && request('mode') === 'archive' ? 'active' : '' }}">
                 <img src="{{ asset('assets/template/icons8_upload-2.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ ui_t('nav.upload') }}</span>
             </a>
         </li>
+        @if(\App\Support\Branding::isCollaborativeModuleEnabled())
+        <li class="mt-1">
+            <a href="{{ route('documents.create', ['mode' => 'collaboratif']) }}" class="{{ request()->routeIs('documents.create') && request('mode') === 'collaboratif' ? 'active' : '' }}">
+                <img src="{{ asset('assets/template/icons8_upload-2.svg') }}" class="me-3" />
+                <span class="sidebar-text">{{ __('Document actif (workflow)') }}</span>
+            </a>
+        </li>
+        @endif
         @endcan
 
         @if($showDocumentsNavGroup)
@@ -95,12 +103,17 @@
         </li>
         @endcanany
 
-        <li class="{{ request()->routeIs('notifications') || request()->routeIs('activity.feed') ? 'active' : '' }}">
-            <a href="{{ route('notifications') }}">
-                <img src="{{ asset('assets/template/notification.svg') }}" class="me-3" />
-                <span class="sidebar-text">{{ __('Fil d’événements') }}</span>
+        @if(\App\Support\Branding::isCollaborativeModuleEnabled())
+        <li class="{{ request()->routeIs('documents.active') ? 'active' : '' }}">
+            <a href="{{ route('documents.active') }}">
+                <img src="{{ asset('assets/template/verify.svg') }}" class="me-3" />
+                <span class="sidebar-text">{{ __('Mes tâches') }}</span>
+                @if(($sidebarMyTasksCount ?? 0) > 0)
+                    <span class="badge rounded-pill lgv2-sidebar-pill ms-auto">{{ $sidebarMyTasksCount }}</span>
+                @endif
             </a>
         </li>
+        @endif
 
         @php
             $myCategories = $sidebarMyCategories['items'] ?? [];

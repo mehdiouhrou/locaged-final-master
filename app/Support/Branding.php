@@ -277,6 +277,23 @@ class Branding
         $data['org_root_name'] = $clean !== '' ? $clean : 'Direction Générale';
         self::write($data);
     }
+
+    /**
+     * Module "Document actif" (workflow collaboratif) : désactivé par défaut,
+     * activable par instance via Console Master (master uniquement).
+     */
+    public static function isCollaborativeModuleEnabled(): bool
+    {
+        $data = self::read();
+        return (bool) ($data['collaborative_module_enabled'] ?? false);
+    }
+
+    public static function setCollaborativeModuleEnabled(bool $enabled): void
+    {
+        $data = self::read();
+        $data['collaborative_module_enabled'] = $enabled;
+        self::write($data);
+    }
 }
 
 

@@ -890,11 +890,6 @@ class HomeController extends Controller
     {
         $physical = (clone $visibleDocumentsQuery)->whereNotNull('box_id');
 
-        $base = [
-            'physical' => 1,
-            'show_expired' => 1,
-        ];
-
         $digitalCount = (clone $visibleDocumentsQuery)->digitalOnly()->count();
 
         $definitions = [
@@ -902,26 +897,21 @@ class HomeController extends Controller
                 'key' => 'total',
                 'label' => __('pages.dashboard.physical_storage.total'),
                 'count' => (clone $physical)->count(),
-                'params' => array_merge($base, ['page_title' => 'physical_all']),
+                'url' => route('physical-locations.index', ['view_only' => 1]),
             ],
             [
                 'key' => 'digital_only',
                 'label' => __('pages.dashboard.physical_storage.digital_only'),
                 'count' => $digitalCount,
-                'params' => [
+                'url' => route('documents.all', [
                     'digital_only' => 1,
                     'show_expired' => 1,
                     'page_title' => 'digital_only_docs',
-                ],
+                ]),
             ],
         ];
 
-        return collect($definitions)->map(function (array $row) {
-            $row['url'] = route('documents.all', $row['params']);
-            unset($row['params']);
-
-            return $row;
-        });
+        return collect($definitions);
     }
 
     private function getStatusSummary()
@@ -958,11 +948,19 @@ class HomeController extends Controller
             $myPendingApprovalsCount = (int) ($statusCounts['pending'] ?? 0);
         }
 
+        // Dashboard card "Tâches" : mes documents brouillon/en_relecture/valide + mes relectures en attente
+        $tasksCount = $myReviewsPendingCount + $myActiveDocumentsCount;
+
+        // Dashboard card "À archiver" : pipeline classique (pending) + workflow collaboratif (attente_archivage)
+        $toArchiveCount = (int) ($statusCounts['pending'] ?? 0) + (int) ($statusCounts['attente_archivage'] ?? 0);
+
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
             DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
             'expired' => $expiredCount,
             'active_documents' => $myReviewsPendingCount + $myActiveDocumentsCount + $myPendingApprovalsCount,
+            'tasks' => $tasksCount,
+            'to_archive' => $toArchiveCount,
         ];
     }
 

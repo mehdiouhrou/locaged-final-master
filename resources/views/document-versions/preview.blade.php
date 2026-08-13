@@ -171,8 +171,16 @@
                                 <ul class="list-group list-group-flush">
                                     @foreach($document->comments as $comment)
                                         @php
-                                            $commentTypeLabel = $comment->type === 'reviewer_rejection' ? __('Rejet') : __('Resoumission');
-                                            $commentTypeBadge = $comment->type === 'reviewer_rejection' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-info-subtle text-info-emphasis';
+                                            $commentTypeLabel = match ($comment->type) {
+                                                'reviewer_rejection' => __('Rejet'),
+                                                'initial_description' => __('Soumission initiale'),
+                                                default => __('Resoumission'),
+                                            };
+                                            $commentTypeBadge = match ($comment->type) {
+                                                'reviewer_rejection' => 'bg-danger-subtle text-danger-emphasis',
+                                                'initial_description' => 'bg-secondary-subtle text-secondary-emphasis',
+                                                default => 'bg-info-subtle text-info-emphasis',
+                                            };
                                         @endphp
                                         <li class="list-group-item px-0 py-2 border-0 border-bottom">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -199,7 +207,7 @@
                                         <li class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">
                                             <a href="{{ route('document-versions.preview', ['id' => $version->id]) }}"
                                                class="text-decoration-none {{ $version->id === $doc->id ? 'fw-bold' : '' }}">
-                                                V{{ number_format($version->version_number, 1) }}
+                                                V{{ (int) $version->version_number }}
                                                 @if($version->id === $doc->id)
                                                     <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ __('Consultée') }}</span>
                                                 @endif
@@ -250,6 +258,17 @@
                                     @endforeach
                                 </ul>
                             </div>
+                        </div>
+                    @endif
+
+                    @if($document->entry_type === 'collaborative')
+                        @php
+                            $canAddAttachment = in_array($document->status, ['brouillon', 'en_relecture'], true)
+                                && ((int) $document->created_by === (int) auth()->id()
+                                    || $document->reviewers()->where('reviewer_id', auth()->id())->exists());
+                        @endphp
+                        <div class="mb-3">
+                            @livewire('document-attachment-form', ['document' => $document, 'canAdd' => $canAddAttachment], key('attachments-'.$document->id))
                         </div>
                     @endif
 
@@ -416,6 +435,27 @@
                                     data-button-class="btn-success"
                                 >
                                     {{ __('Valider') }}
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'attente_archivage' && (int) $document->created_by === (int) auth()->id())
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body d-flex gap-2 justify-content-end align-items-center">
+                                <span class="text-muted small me-auto">{{ __('Une fois le document rangé physiquement, confirmez son archivage.') }}</span>
+                                <button
+                                    class="btn btn-sm btn-success trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.confirm-archive', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Confirmer l\'archivage') }}"
+                                    data-body="{{ __('Confirmez-vous que ce document a été rangé physiquement en salle d\'archive ?') }}"
+                                    data-button-class="btn-success"
+                                >
+                                    {{ __('Confirmer l\'archivage') }}
                                 </button>
                             </div>
                         </div>

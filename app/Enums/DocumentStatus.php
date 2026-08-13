@@ -12,6 +12,7 @@ enum DocumentStatus: string
     case Brouillon    = 'brouillon';
     case EnRelecture  = 'en_relecture';
     case Valide       = 'valide';
+    case AttenteArchivage = 'attente_archivage';
 
     /**
      * Get only the active statuses for filters (excluding archived/destroyed)
@@ -25,6 +26,7 @@ enum DocumentStatus: string
             self::Brouillon,
             self::EnRelecture,
             self::Valide,
+            self::AttenteArchivage,
             // Note: 'expired' is handled separately via is_expired flag, not this enum
         ];
     }

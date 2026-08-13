@@ -186,7 +186,8 @@ class DashboardActivityFeedService
             DocumentStatus::Destroyed => __('Détruit'),
             DocumentStatus::Brouillon => __('Brouillon'),
             DocumentStatus::EnRelecture => __('En relecture'),
-            DocumentStatus::Valide => __('Validé'),
+            DocumentStatus::Valide => __('Clôturé'),
+            DocumentStatus::AttenteArchivage => __('Prêt à archiver'),
         };
     }
 }

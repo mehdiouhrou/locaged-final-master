@@ -1,8 +1,8 @@
 <div class="position-relative" x-data="{ open: false }" @keydown.escape.window="open = false">
     <button type="button" class="btn p-0 border-0 bg-transparent position-relative" @click="open = !open" :aria-expanded="open ? 'true' : 'false'" aria-haspopup="true" aria-label="{{ ui_t('pages.notifications.title') }}">
         <i class="fas fa-bell fs-5"></i>
-        @if($notifications->count() > 0)
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $notifications->count() }}</span>
+        @if($unreadCount > 0)
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $unreadCount }}</span>
         @endif
     </button>
 
@@ -20,8 +20,8 @@
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-bell"></i>
                     <span class="fw-semibold">{{ ui_t('pages.notifications.title') }}</span>
-                    @if($notifications->count() > 0)
-                        <span class="badge bg-primary">{{ $notifications->count() }}</span>
+                    @if($unreadCount > 0)
+                        <span class="badge bg-primary">{{ $unreadCount }}</span>
                     @endif
                 </div>
                 @if($notifications->isNotEmpty())

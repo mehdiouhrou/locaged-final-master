@@ -233,7 +233,7 @@ class DocumentsTable extends Component
         // Optimized: removed heavy 'auditLogs.user' eager loading for performance
         // auditLogs are loaded lazily in the view only when needed
         $documentsQuery = Document::with([
-            'subcategory', 'department', 'box.shelf.row.room',
+            'subcategory', 'department', 'box.shelf.row.room', 'boxFolder',
             'createdBy', 'latestVersion'
         ]);
 
@@ -254,10 +254,10 @@ class DocumentsTable extends Component
         // Apply hierarchy filter (department / sub-department / service)
         $this->applyHierarchyToQuery($documentsQuery);
 
-        // Pending-approvals mode: default to pending status, but allow user filter
+        // Pending-approvals mode: default to pending + attente_archivage, but allow user filter
         if ($this->showOnlyPendingApprovals) {
             if ($this->status === '' || $this->status === null) {
-                $documentsQuery->where('status', 'pending');
+                $documentsQuery->whereIn('status', ['pending', 'attente_archivage']);
             }
 
             // For users who ONLY have "view own document" permission (no service/department/global view),

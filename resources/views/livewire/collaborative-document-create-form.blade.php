@@ -18,6 +18,12 @@
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label">Description / commentaire <span class="text-muted small">(optionnel)</span></label>
+                    <textarea class="form-control" rows="3" wire:model="description" placeholder="Contexte, précisions pour les relecteurs..."></textarea>
+                    @error('description') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">Relecteurs</label>
                     <input type="text" class="form-control" placeholder="Rechercher un utilisateur par nom..."
                            wire:model.live.debounce.400ms="reviewerSearch">

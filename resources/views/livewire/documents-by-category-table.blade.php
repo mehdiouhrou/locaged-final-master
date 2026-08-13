@@ -261,7 +261,6 @@
                 <th>{{ ui_t('tables.file_name') }}</th>
                 {{-- <th>{{ ui_t('tables.last_version') }}</th> --}}
                 <th>{{ ui_t('tables.structure') }}</th>
-                <th>{{ ui_t('tables.created_by') }}</th>
                 <th>{{ ui_t('tables.created_at') }}</th>
                 <th>{{ ui_t('tables.expire_at') ?? 'Expire at' }}</th>
                 <th>{{ ui_t('tables.status') }}</th>
@@ -300,16 +299,11 @@
                         </div>
                     </td>
                     {{-- <td>
-                        <div>{{ $doc->latestVersion?->version_number }}</div>
+                        <div>{{ $doc->latestVersion ? (int) $doc->latestVersion->version_number : null }}</div>
                     </td> --}}
                     <td>
                         <div>{{ $doc->category?->name }}</div>
                     </td>
-                    <td>
-                        <div>{{ $doc->createdBy?->full_name }}</div>
-                    </td>
-
-
                     <td>
                         <div class="file-date">{{ $doc->created_at->format('d/m/Y') }}
                             <br/>{{ $doc->created_at->format('H:i') }}</div>
@@ -354,6 +348,9 @@
                         <div>
                             @if($doc->box)
                                 <span class="text-muted small">{{ $doc->box->__toString() }}</span>
+                                @if($doc->boxFolder)
+                                    <span class="text-muted small"> → {{ $doc->boxFolder->name }}</span>
+                                @endif
                             @elseif($doc->isDigitalOnly())
                                 <span class="text-muted small fst-italic">{{ __('pages.documents.digital_only_location') }}</span>
                             @else
@@ -422,7 +419,7 @@
                                     @endcan
 
 
-                                    @if(auth()->user()?->can('view any role') || auth()->user()?->can('view organization wide reports') || auth()->user()?->can('view any department'))
+                                    @can('permanentDelete', $doc)
                                         <li class="pointer">
                                             <a class="dropdown-item trigger-action"
                                                data-id="{{ $doc->id }}"

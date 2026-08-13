@@ -893,7 +893,7 @@ return [
         ],
         'status' => [
             'approved' => 'Approuvé',
-            'pending' => 'En attente',
+            'pending' => 'En attente d\'archivage',
             'declined' => 'Refusé',
             'archived' => 'Archivé',
             'destroyed' => 'Détruit',
@@ -956,7 +956,7 @@ return [
     ],
 
     'status' => [
-        'title' => 'Documents en Attente',
+        'title' => 'À archiver',
         'file_name' => 'Nom du document',
         'author' => 'Auteur',
         'creation_date' => 'Date de création',
