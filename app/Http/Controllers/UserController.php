@@ -532,6 +532,58 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'Password updated successfully.');
     }
 
+    /**
+     * Admin-triggered password reset for another user. Two modes:
+     * - Email link (default): sends the standard Laravel reset link, admin never
+     *   sees the new password. Requires the user to have a working email address.
+     * - Manual (no_email=1): admin sets a temporary password directly, for users
+     *   without functional email access. The password is NEVER emailed (security
+     *   fix 21/08/2026) — the admin must communicate it out-of-band.
+     * Both modes: logs the action to the target user's audit trail (visible on
+     * their Activité page) and, when possible, notifies the user that their
+     * password was changed by an administrator.
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        Gate::authorize('resetPassword', $user);
+
+        $noEmail = $request->boolean('no_email');
+
+        if ($noEmail) {
+            $data = $request->validate([
+                'password' => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            ]);
+
+            $user->update([
+                'password' => Hash::make($data['password']),
+            ]);
+
+            \App\Services\AuditService::logUserAction('password_reset_manual', $user, [
+                'method' => 'manual',
+            ]);
+
+            try {
+                \Mail::to($user->email)->send(new \App\Mail\PasswordChangedByAdmin($user));
+            } catch (\Throwable $e) {
+                // Silently ignore: user may not have a functional email address (no-email mode).
+            }
+
+            return redirect()->back()->with('success', ui_t('pages.users_page.user_modal.reset_password.password_reset_manual_success'));
+        }
+
+        \App\Services\AuditService::logUserAction('password_reset_link_sent', $user, [
+            'method' => 'email_link',
+        ]);
+
+        $status = \Illuminate\Support\Facades\Password::sendResetLink(['email' => $user->email]);
+
+        if ($status !== \Illuminate\Support\Facades\Password::RESET_LINK_SENT) {
+            return redirect()->back()->with('error', __($status));
+        }
+
+        return redirect()->back()->with('success', ui_t('pages.users_page.user_modal.reset_password.password_reset_link_success'));
+    }
+
     public function updateImage(Request $request, User $user)
     {
         $actor = auth()->user();

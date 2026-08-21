@@ -201,6 +201,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::get('/document-versions/{documentId}/create', [DocumentVersionController::class, 'create'])->name('document-versions.document.create');
 
     Route::put('/users/{user}/password', [UserController::class, 'updatePassword'])->name('users.updatePassword');
+    Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::put('/users/{user}/image', [UserController::class, 'updateImage'])->name('users.updateImage');
 
     Route::get('/documents/{id}/download', DocumentDownloadController::class)->name('documents.download');

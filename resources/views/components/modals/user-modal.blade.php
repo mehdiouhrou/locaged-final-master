@@ -267,12 +267,16 @@
                 passwordConfirmInput.value = "";
             }
         } else {
-            // Editing existing user - always show password fields (optional), hide checkbox
+            // Editing existing user - password change removed from this form on
+            // 21/08/2026 per Mehdi: use the dedicated "Réinitialiser le mot de
+            // passe" button instead (audited, notifies user, supports no-email mode).
             setPasswordNowContainer.classList.add("d-none");
-            passwordFieldsContainer.classList.remove("d-none");
-            passwordConfirmFieldsContainer.classList.remove("d-none");
+            passwordFieldsContainer.classList.add("d-none");
+            passwordConfirmFieldsContainer.classList.add("d-none");
             passwordInput.required = false;
             passwordConfirmInput.required = false;
+            passwordInput.value = "";
+            passwordConfirmInput.value = "";
         }
     }
 

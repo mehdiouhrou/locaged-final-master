@@ -122,6 +122,59 @@ class AuditService
      *
      * @param  array<string, mixed>  $metadata
      */
+    /**
+     * Journalise une action effectuée SUR un utilisateur cible (ex: réinitialisation
+     * de mot de passe par un admin). user_id = utilisateur CIBLE (pour apparaître sur
+     * sa page Activité), l'auteur réel de l'action est dans metadata.performed_by_*.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function logUserAction(string $action, \App\Models\User $targetUser, array $metadata = []): void
+    {
+        DB::transaction(function () use ($action, $targetUser, $metadata): void {
+            $actor = auth()->user();
+
+            $metadata['performed_by_id'] = $actor?->id;
+            $metadata['performed_by_name'] = $actor?->full_name;
+
+            $row = [
+                'user_id' => $targetUser->id,
+                'user_name' => $targetUser->full_name,
+                'document_id' => null,
+                'version_id' => null,
+                'action' => $action,
+                'ip_address' => request()->ip(),
+                'occurred_at' => now(),
+            ];
+
+            if (Schema::hasColumn('audit_logs', 'user_agent')) {
+                $row['user_agent'] = request()->userAgent();
+            }
+            if (Schema::hasColumn('audit_logs', 'metadata')) {
+                $row['metadata'] = $metadata;
+            }
+
+            if (
+                Schema::hasColumn('audit_logs', 'entry_hash')
+                && Schema::hasColumn('audit_logs', 'previous_hash')
+                && Schema::hasColumn('audit_logs', 'hash_version')
+                && Schema::hasColumn('audit_logs', 'sealed_at')
+            ) {
+                $previousHash = AuditLog::withoutGlobalScopes()
+                    ->lockForUpdate()
+                    ->orderByDesc('id')
+                    ->value('entry_hash');
+
+                $row['hash_version'] = 'hmac-sha256-v1';
+                $row['previous_hash'] = $previousHash ?: null;
+                $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
+                $row['sealed_at'] = now();
+            }
+
+            AuditLog::withoutGlobalScopes()->create($row);
+        });
+    }
+
     public static function logCategoryAudit(string $action, array $metadata = []): void
     {
         DB::transaction(function () use ($action, $metadata): void {
