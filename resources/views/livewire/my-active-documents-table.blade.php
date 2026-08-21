@@ -3,6 +3,7 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
+    <div class="recent-files-section">
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
             <button type="button" class="nav-link {{ $activeTab === 'reviews' ? 'active' : '' }}" wire:click="setTab('reviews')">
@@ -44,7 +45,7 @@
                                 </td>
                                 <td>{{ $document->createdBy?->full_name ?? $document->createdBy?->name ?? __('Inconnu') }}</td>
                                 <td>
-                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">
+                                    <span class="status-badge {{ $document->status }}">
                                         {{ ui_t('pages.documents.status.' . $document->status) }}
                                     </span>
                                 </td>
@@ -77,12 +78,6 @@
                                     $lastRejection = $document->reviewers->sortByDesc('responded_at')->firstWhere('status', 'rejected');
                                     $rejectComment = $lastRejection->comment ?? null;
                                 }
-                                $statusBadge = match ($document->status) {
-                                    'brouillon' => 'bg-secondary-subtle text-secondary-emphasis',
-                                    'en_relecture' => 'bg-info-subtle text-info-emphasis',
-                                    'valide' => 'bg-primary-subtle text-primary-emphasis',
-                                    default => 'bg-secondary-subtle text-secondary-emphasis',
-                                };
                             @endphp
                             <tr>
                                 <td>
@@ -96,7 +91,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge rounded-pill {{ $statusBadge }}">
+                                    <span class="status-badge {{ $document->status }}">
                                         {{ ui_t('pages.documents.status.' . $document->status) }}
                                     </span>
                                 </td>
@@ -108,6 +103,7 @@
             </div>
         @endif
     @endif
+    </div>
 </div>
 
 <script>

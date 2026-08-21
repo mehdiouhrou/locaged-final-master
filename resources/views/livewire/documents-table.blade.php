@@ -177,8 +177,8 @@
                         <option value="video">{{ ui_t('filters.types.video') }}</option>
                         <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                     </select>
-                @else
-                    {{-- Approvals view: Modern hierarchy selector (Department → Sub-Department → Service) --}}
+                @elseif(false)
+                    {{-- Approvals view: Modern hierarchy selector (Department → Sub-Department → Service) - disabled per Mehdi, category filter used instead --}}
                     <div class="dropdown hierarchy-dropdown">
                         @php
                             // Determine selected label with breadcrumb path
@@ -322,7 +322,7 @@
                 @endunless
 
                 <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
-                    <option value="">{{ ui_t('filters.all_categories') }}</option>
+                    <option value="">{{ ui_t('filters.categories_short') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>

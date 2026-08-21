@@ -86,7 +86,7 @@
         @if($showDocumentsNavGroup)
         @can('viewAny', \App\Models\Document::class)
         <li>
-            <a href="{{ route('documents.all') }}" class="{{ request()->routeIs('documents.*') || request()->routeIs('document-versions.*') ? 'active' : '' }}">
+            <a href="{{ route('documents.all') }}" class="{{ (request()->routeIs('documents.*') && !request()->routeIs('documents.active') && !request()->routeIs('documents.status')) || request()->routeIs('document-versions.*') ? 'active' : '' }}">
                 <img src="{{ asset('assets/template/document-text.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ ui_t('nav.documents') }}</span>
             </a>
