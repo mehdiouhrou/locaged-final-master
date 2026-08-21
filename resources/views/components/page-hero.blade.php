@@ -8,6 +8,10 @@
     $heroClass = 'lgv2-page-hero' . ($dense ? ' lgv2-page-hero--dense' : '');
 @endphp
 
+@isset($breadcrumb)
+    {{ $breadcrumb }}
+@endisset
+
 <div {{ $attributes->merge(['class' => $heroClass]) }}>
     <div class="row align-items-start align-items-md-center g-2 g-md-3 flex-column flex-md-row">
         <div class="col min-w-0">
