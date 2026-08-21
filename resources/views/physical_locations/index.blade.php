@@ -295,7 +295,6 @@
                     </div>
                 </div>
             </div>
-            @endunless
 
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
@@ -458,6 +457,7 @@
                     </div>
                 </div>
             </div>
+            @endunless
         @endcan
 
         <!-- Hierarchical Tree View -->
@@ -473,7 +473,8 @@
                                 <span>📍 {{ __('pages.physical.fields.room') }}: {{ $room->name }}</span>
                                 <span class="badge bg-light text-dark">{{ $room->rows->count() }} {{ __('pages.physical.fields.row') }}(s)</span>
                             </button>
-                            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center">
+                                @unless(request('view_only'))
                                 @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
                                     <form method="POST" action="{{ route('physical-locations.destroy-room', $room->id) }}" 
                                           class="d-inline" onsubmit="return confirm('{{ __('pages.activity_log.are_you_sure') }}');">
@@ -483,6 +484,7 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                @endunless
                                 @endif
                             </div>
                         </div>
@@ -613,6 +615,7 @@
                                                                             </div>
                                                                         @endif
                                                                     </div>
+                                                                    @unless(request('view_only'))
                                                                     <div class="d-inline-flex gap-1">
                                                                         @can('create', \App\Models\PhysicalLocation::class)
                                                                             <button class="btn btn-sm btn-outline-primary" type="button" 
@@ -631,6 +634,7 @@
                                                                             </form>
                                                                         @endcan
                                                                     </div>
+                                                                    @endunless
                                                                 </li>
                                                             @endforeach
                                                         </ul>
