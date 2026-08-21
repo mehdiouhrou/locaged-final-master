@@ -389,7 +389,7 @@ class UserController extends Controller
         // NEW: Send appropriate email
         if ($setPasswordNow && $plainPassword) {
             // Admin set password: send credentials email
-            \Mail::to($user->email)->send(new \App\Mail\UserCreatedWithPassword($user, $plainPassword));
+            \Mail::to($user->email)->send(new \App\Mail\UserCreatedWithPassword($user));
         } else {
             // Admin didn't set password: send invitation email with setup link
             $setupUrl = \URL::temporarySignedRoute(

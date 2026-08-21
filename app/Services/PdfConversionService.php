@@ -36,8 +36,9 @@ class PdfConversionService
         $pdfPath = $pathInfo['dirname'] . '/' . $pdfFileName;
         $absolutePdfPath = $outputDir . '/' . $pdfFileName;
 
-        // Check if PDF already exists
-        if (Storage::disk('local')->exists($pdfPath)) {
+        // Check if PDF already exists AND is not empty/corrupted (a previous
+        // failed conversion could have left a 0-byte file on disk).
+        if (Storage::disk('local')->exists($pdfPath) && Storage::disk('local')->size($pdfPath) > 0) {
             return $pdfPath;
         }
 
@@ -127,7 +128,17 @@ class PdfConversionService
             
             // Load spreadsheet
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputPath);
-            
+
+            // Configure page setup for each sheet: fit all columns on page width,
+            // landscape orientation (Excel exports are usually wide with many columns).
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                $sheet->getPageSetup()
+                    ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+                    ->setFitToWidth(1)
+                    ->setFitToHeight(0)
+                    ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+            }
+
             // Configure PDF writer
             \PhpOffice\PhpSpreadsheet\IOFactory::registerWriter('Pdf', \PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf::class);
             $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Pdf');

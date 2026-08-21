@@ -26,11 +26,10 @@
         
         <div class="credentials">
             <p><strong>Email:</strong> <code>{{ $user->email }}</code></p>
-            <p><strong>Password:</strong> <code>{{ $password }}</code></p>
         </div>
         
         <div class="warning">
-            <p><strong>⚠️ Security Notice:</strong> Please change your password after your first login for security purposes.</p>
+            <p><strong>⚠️ Security Notice:</strong> For security reasons, your password was not included in this email. Please contact your system administrator to obtain it.</p>
         </div>
         
         <p>To access your account, visit:<br>

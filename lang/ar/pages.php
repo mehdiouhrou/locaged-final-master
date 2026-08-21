@@ -661,6 +661,8 @@ return [
         'view_document' => 'عرض الوثيقة',
         'marked_as_read' => 'تم التعليم كمقروء',
         'view_all' => 'عرض الكل',
+        'unread' => 'غير مقروء',
+        'empty' => 'لا توجد إشعارات حتى الآن.',
     ],
     'messages' => [
         'no_results' => 'لا توجد نتائج.',

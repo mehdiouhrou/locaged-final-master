@@ -738,8 +738,17 @@ class DocumentVersionController extends Controller
 
         $pdfPath = (new self())->getPdfConversionPath($doc->file_path);
 
-        if (!Storage::disk('local')->exists($pdfPath)) {
-            abort(404, 'PDF conversion not found.');
+        if (!Storage::disk('local')->exists($pdfPath) || Storage::disk('local')->size($pdfPath) === 0) {
+            // Fichier absent ou vide (conversion précédente échouée) : on retente la conversion.
+            Storage::disk('local')->delete($pdfPath);
+            $converter = app(\App\Services\PdfConversionService::class);
+            $regenerated = $converter->convertToPdf($doc->file_path);
+
+            if (!$regenerated || !Storage::disk('local')->exists($regenerated) || Storage::disk('local')->size($regenerated) === 0) {
+                abort(404, 'PDF conversion not found.');
+            }
+
+            $pdfPath = $regenerated;
         }
 
         return response()->file(

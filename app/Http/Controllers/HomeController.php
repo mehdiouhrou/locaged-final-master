@@ -107,8 +107,12 @@ class HomeController extends Controller
 
     public function notifications()
     {
-        // Notifications and event feed are unified in a single page.
-        return view('activity.feed');
+        $notifications = auth()->user()
+            ->notifications()
+            ->latest()
+            ->paginate(20);
+
+        return view('home.notifications', compact('notifications'));
     }
 
     /**

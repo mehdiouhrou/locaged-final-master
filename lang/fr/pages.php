@@ -659,6 +659,8 @@ return [
         'view_document' => 'Voir le document',
         'marked_as_read' => 'Marqué comme lu',
         'view_all' => 'Voir tout',
+        'unread' => 'Non lu',
+        'empty' => 'Aucune notification pour le moment.',
     ],
     'messages' => [
         'no_results' => 'Aucun résultat trouvé.',

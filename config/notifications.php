@@ -111,5 +111,11 @@ return [
             'body' => 'The document ":title" has been archived.',
             'icon' => 'assets/approved.png',
         ],
+        'loan_overdue' => [
+            'type' => 'danger',
+            'title' => 'Loan overdue',
+            'body' => 'The physical document ":title" you borrowed is overdue for return.',
+            'icon' => 'assets/declined.png',
+        ],
     ],
 ];

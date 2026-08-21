@@ -677,6 +677,8 @@ return [
         'view_document' => 'View Document',
         'marked_as_read' => 'Marked as read',
         'view_all' => 'View all',
+        'unread' => 'Unread',
+        'empty' => 'No notifications yet.',
     ],
     'messages' => [
         'no_results' => 'No results found.',

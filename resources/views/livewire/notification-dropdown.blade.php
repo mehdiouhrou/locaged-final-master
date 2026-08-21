@@ -24,9 +24,6 @@
                         <span class="badge bg-primary">{{ $unreadCount }}</span>
                     @endif
                 </div>
-                @if($notifications->isNotEmpty())
-                    <button wire:click="markAllAsRead" class="btn btn-link btn-sm text-decoration-none">{{ ui_t('pages.notifications.mark_all_as_read') }}</button>
-                @endif
             </div>
 
             <div class="list-group list-group-flush" style="max-height: 360px; overflow: auto;">

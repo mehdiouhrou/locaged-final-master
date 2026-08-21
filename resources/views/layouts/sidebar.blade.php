@@ -94,26 +94,30 @@
         @endcan
         @endif
 
-        @canany(['approve','decline'], \App\Models\Document::class)
-        <li class="{{ request()->routeIs('documents.status') ? 'active' : '' }}">
-            <a href="{{ route('documents.status') }}">
-                <img src="{{ asset('assets/template/verify.svg') }}" class="me-3" />
-                <span class="sidebar-text">{{ ui_t('nav.approvals') }}</span>
-            </a>
-        </li>
-        @endcanany
-
         @if(\App\Support\Branding::isCollaborativeModuleEnabled())
         <li class="{{ request()->routeIs('documents.active') ? 'active' : '' }}">
             <a href="{{ route('documents.active') }}">
                 <img src="{{ asset('assets/template/verify.svg') }}" class="me-3" />
-                <span class="sidebar-text">{{ __('Mes tâches') }}</span>
+                <span class="sidebar-text">{{ __('Tâches') }}</span>
                 @if(($sidebarMyTasksCount ?? 0) > 0)
                     <span class="badge rounded-pill lgv2-sidebar-pill ms-auto">{{ $sidebarMyTasksCount }}</span>
                 @endif
             </a>
         </li>
         @endif
+
+        @canany(['approve','decline'], \App\Models\Document::class)
+        <li class="{{ request()->routeIs('documents.status') || request()->routeIs('documents.all') && request('page_title') === 'pending_documents' ? 'active' : '' }}">
+            @if(auth()->user() && auth()->user()->can('view service document') && ! auth()->user()->can('access management sidebar'))
+                <a href="{{ route('documents.all', ['status' => \App\Enums\DocumentStatus::Pending->value, 'page_title' => 'pending_documents', 'show_expired' => 1, 'lock_status' => 1]) }}">
+            @else
+                <a href="{{ route('documents.status') }}">
+            @endif
+                <img src="{{ asset('assets/template/verify.svg') }}" class="me-3" />
+                <span class="sidebar-text">{{ __('À archiver') }}</span>
+            </a>
+        </li>
+        @endcanany
 
         @php
             $myCategories = $sidebarMyCategories['items'] ?? [];

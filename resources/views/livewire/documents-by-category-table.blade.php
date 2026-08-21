@@ -387,10 +387,10 @@
                                     </a>
                                 @endif
                             @endcan
-                            @can('viewAny', \App\Models\User::class)
-                            <button type="button" class="btn-table btn-table-logs toggle-log" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                            </button>
+                            @can('download',$doc)
+                            <a href="{{ route('documents.download',['id' => $doc->id]) }}" class="btn-table btn-table-logs" title="{{ ui_t('pages.documents.download') }}" aria-label="{{ ui_t('pages.documents.download') }}">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
                             @endcan
                             <div class="dropdown">
                                 <button class="btn-table btn-table-more" type="button"
@@ -451,18 +451,6 @@
                                     @endif
 
 
-                                        @can('download',$doc)
-                                    <li class="pointer">
-                                        <a class="dropdown-item" href="#"
-                                           onclick="event.preventDefault(); showDocumentMetadata({{ $doc->id }})">
-                                            <i class="fa-solid fa-info-circle"></i> {{ ui_t('pages.upload.show_metadata') }}
-                                        </a>
-                                    </li>
-                                    <li class="pointer"><a class="dropdown-item"
-                                                           href="{{ route('documents.download',['id' => $doc->id]) }}"><i
-                                                class="fa-solid fa-download"></i> {{ ui_t('pages.documents.download') }}</a>
-                                    </li>
-                                        @endcan
                                     {{--
                                                                         <li><a class="dropdown-item" href="#"><i class="fa-regular fa-star"></i> {{ ui_t('pages.documents.favorite.add') }}</a></li>
                                     --}}

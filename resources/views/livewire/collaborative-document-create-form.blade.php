@@ -85,7 +85,9 @@
             <div class="card border-0 shadow-sm" style="height: 80vh;">
                 <div class="card-body" style="height: 100%; overflow-y: auto;">
                     @if ($previewType === 'pdf')
-                        <div id="upload-pdfjs-viewer"></div>
+                        <div wire:ignore class="w-100 h-100">
+                            <div id="upload-pdfjs-viewer" class="w-100"></div>
+                        </div>
                     @elseif ($previewType === 'image' && $previewUrl)
                         <img src="{{ $previewUrl }}" class="img-fluid rounded" alt="Aperçu">
                     @elseif ($previewType === 'other')

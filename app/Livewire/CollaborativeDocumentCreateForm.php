@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\User;
 use App\Services\CollaborativeDocumentService;
+use App\Services\PdfConversionService;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -61,10 +62,14 @@ class CollaborativeDocumentCreateForm extends Component
         }
 
         $mime = $this->file->getMimeType();
+        $ext = strtolower(pathinfo($this->file->getClientOriginalName(), PATHINFO_EXTENSION));
         if (is_string($mime)) {
             if (str_starts_with($mime, 'image/')) {
                 $this->previewType = 'image';
             } elseif ($mime === 'application/pdf') {
+                $this->previewType = 'pdf';
+            } elseif (in_array($ext, PdfConversionService::TEMP_UPLOAD_OFFICE_EXTENSIONS, true) && $this->previewUrl) {
+                // Le serveur convertit Office → PDF sur preview.temp ; PDF.js charge la même URL.
                 $this->previewType = 'pdf';
             } else {
                 $this->previewType = 'other';

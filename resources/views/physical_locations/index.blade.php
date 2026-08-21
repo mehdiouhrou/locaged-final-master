@@ -35,7 +35,7 @@
                 </div>
             </div>
             <div class="col-6 col-md-3 col-xl-2">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="borrowed" role="button" style="cursor: pointer;">
                     <div class="card-body py-3">
                         <div class="text-muted small">{{ __('pages.physical.kpi.borrowed') }}</div>
                         <div class="fs-5 fw-bold text-warning">{{ $kpis['borrowed'] ?? 0 }}</div>
@@ -43,7 +43,7 @@
                 </div>
             </div>
             <div class="col-6 col-md-3 col-xl-2">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="overdue" role="button" style="cursor: pointer;">
                     <div class="card-body py-3">
                         <div class="text-muted small">{{ __('pages.physical.kpi.overdue') }}</div>
                         <div class="fs-5 fw-bold text-danger">{{ $kpis['overdue'] ?? 0 }}</div>
@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="col-6 col-md-3 col-xl-2">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="expired" role="button" style="cursor: pointer;">
                     <div class="card-body py-3">
                         <div class="text-muted small">{{ __('pages.physical.kpi.expired') }}</div>
                         <div class="fs-5 fw-bold text-danger">{{ $kpis['expired'] ?? 0 }}</div>
@@ -83,7 +83,7 @@
                             <option value="available">{{ __('pages.physical.status.available') }}</option>
                             <option value="borrowed">{{ __('pages.physical.status.borrowed') }}</option>
                             <option value="overdue">{{ __('pages.physical.status.overdue') }}</option>
-                            <option value="empty">{{ __('pages.physical.status.empty') }}</option>
+                            <option value="expired">{{ __('pages.physical.status.expired') }}</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-2 d-flex align-items-end">
@@ -462,7 +462,7 @@
 
         <!-- Hierarchical Tree View -->
         <div class="mt-4">
-            <h5 class="mb-3">{{ __('pages.physical.actions.location_structure') }}</h5>
+            <h5 class="mb-3" id="physicalLocationsStructure">{{ __('pages.physical.actions.location_structure') }}</h5>
             
             @if(isset($rooms) && $rooms->count() > 0)
                 <div class="accordion" id="roomsAccordion">
@@ -527,6 +527,12 @@
                                                                         return $openLoans->get($doc->id);
                                                                     })->filter();
                                                                     $hasOverdue = $boxOpenLoans->contains(fn ($loan) => $loan->due_at && $loan->due_at->isPast());
+                                                                    $hasExpired = $boxDocuments->contains(function ($doc) {
+                                                                        if ($doc->expire_at && $doc->expire_at->lessThanOrEqualTo(now())) {
+                                                                            return true;
+                                                                        }
+                                                                        return (bool) ($doc->is_expired ?? false);
+                                                                    });
                                                                     $boxStatus = 'available';
                                                                     if ($boxDocuments->count() === 0) {
                                                                         $boxStatus = 'empty';
@@ -550,6 +556,7 @@
                                                                 @endphp
                                                                 <li class="mb-2 p-2 bg-light rounded d-flex justify-content-between align-items-start location-box-item"
                                                                     data-filter-status="{{ $boxStatus }}"
+                                                                    data-filter-expired="{{ $hasExpired ? '1' : '0' }}"
                                                                     data-filter-text="{{ strtolower($box->name.' '.$box->description.' '.$box->__toString().' '.$boxDocuments->pluck('title')->implode(' ')) }}">
                                                                     <div class="me-2">
                                                                         <strong>📦 {{ $box->name }}</strong>
@@ -879,10 +886,12 @@
                         let boxMatchCount = 0;
                         rowWrap.querySelectorAll('.location-box-item').forEach(function (boxItem) {
                             const text = (boxItem.dataset.filterText || '').toLowerCase();
-                            const statusMatch = status === 'all' || boxItem.dataset.filterStatus === status;
+                            const statusMatch = status === 'all'
+                                || (status === 'expired' ? boxItem.dataset.filterExpired === '1' : boxItem.dataset.filterStatus === status);
                             const textMatch = term === '' || text.includes(term);
                             const showBox = statusMatch && textMatch;
-                            boxItem.style.display = showBox ? '' : 'none';
+                            boxItem.classList.toggle('d-flex', showBox);
+                            boxItem.classList.toggle('d-none', !showBox);
                             if (showBox) {
                                 boxMatchCount += 1;
                             }
@@ -934,6 +943,20 @@
                 if (roomSelect) roomSelect.value = 'all';
                 if (statusSelect) statusSelect.value = 'all';
                 applyLocationFilters();
+            });
+
+            document.querySelectorAll('.kpi-clickable-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    const filterValue = card.dataset.kpiFilter;
+                    if (statusSelect && filterValue) {
+                        statusSelect.value = filterValue;
+                        applyLocationFilters();
+                    }
+                    const structureSection = document.getElementById('physicalLocationsStructure');
+                    if (structureSection) {
+                        structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
             });
         });
 

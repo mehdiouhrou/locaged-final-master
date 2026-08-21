@@ -195,3 +195,6 @@ Artisan::command('documents:queue-destructions', function () {
 
     return 0;
 })->describe('Queue destruction requests for all expired documents.');
+
+// Notify borrowers of overdue physical document loans (immediately, then weekly reminders)
+Schedule::command('documents:notify-overdue-loans')->dailyAt('05:00');

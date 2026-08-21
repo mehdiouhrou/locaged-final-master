@@ -640,8 +640,17 @@ class Document extends Model
 
         AuditService::log($action, $this, $resolvedVersionId, $metadata);
 
-        // Only send notifications if the document creator exists
-        // Load the relationship if not already loaded
+        // Decision 13/08/2026 (Mehdi): personal notifications are limited to actions
+        // directly relevant to documents the user created or is assigned to. All other
+        // actions (viewed, download, moved, renamed, locked, unlocked, expired,
+        // archived, destroyed, permanently_deleted, borrowed, returned, etc.) stay in
+        // the audit trail only (AuditService::log above), no notification is sent.
+        $notifiableActions = ['created', 'approved', 'declined'];
+
+        if (! in_array($action, $notifiableActions, true)) {
+            return;
+        }
+
         $creator = $this->createdBy;
 
         if ($creator) {
@@ -652,23 +661,6 @@ class Document extends Model
                 $resolvedVersionId
             );
             $notificationService->notifyBasedOnAction($action);
-
-            if (in_array($action, ['expired', 'moved'])) {
-                $notificationService->notifyAdmins($action);
-            }
-        } elseif (in_array($action, ['expired', 'moved'])) {
-            // If creator doesn't exist but action requires admin notification,
-            // create a minimal notification service just for admin notifications
-            // We need to use a valid user, so use the current authenticated user
-            if (auth()->check()) {
-                $notificationService = new NotificationService(
-                    $this->title,
-                    auth()->user(),
-                    $this->id,
-                    $resolvedVersionId
-                );
-                $notificationService->notifyAdmins($action);
-            }
         }
 
     }
