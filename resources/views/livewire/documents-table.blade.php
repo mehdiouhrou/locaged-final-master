@@ -157,7 +157,7 @@
             <div class="table-filters">
                 @unless($this->showOnlyPendingApprovals)
                     <select class="form-select" wire:model.change="status" @if($this->lockStatusFilter) disabled @endif>
-                        <option value="all">{{ ui_t('filters.all') }}</option>
+                        <option value="all">{{ ui_t('filters.all_statuses') }}</option>
                         @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                             @if(!in_array($status->value, ['archived', 'destroyed']))
                                 <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
@@ -167,8 +167,8 @@
 
                     </select>
 
-                    {{-- In normal documents view, keep the File Type filter --}}
-                    <select class="form-select" wire:model.change="fileType">
+                    {{-- File Type filter hidden from UI (no added value per Mehdi) --}}
+                    <select class="form-select d-none" wire:model.change="fileType">
                         <option value="">{{ ui_t('filters.file_type') }}</option>
                         <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                         <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -322,7 +322,7 @@
                 @endunless
 
                 <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
-                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="">{{ ui_t('filters.all_categories') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>

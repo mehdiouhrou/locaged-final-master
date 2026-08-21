@@ -132,14 +132,14 @@
             </div>
             <div class="table-filters">
                 <select class="form-select" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
-                    <option value="all">{{ ui_t('filters.all') }}</option>
+                    <option value="all">{{ ui_t('filters.all_statuses') }}</option>
                     @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                         <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
                     @endforeach
                     <option value="expired">{{ ui_t('pages.documents.status.expired') }}</option>
                 </select>
 
-                <select class="form-select" wire:model.change="fileType">
+                <select class="form-select d-none" wire:model.change="fileType">
                     <option value="">{{ ui_t('filters.file_type') }}</option>
                     <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                     <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -150,7 +150,7 @@
                 </select>
 
                 <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
-                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="">{{ ui_t('filters.categories_short') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -240,11 +240,11 @@
                 <!-- Per-page selector -->
                 <div class="ms-2">
                     <select class="form-select" wire:model.change="perPage" style="min-width: 110px;">
-                        <option value="10">10 per page</option>
-                        <option value="50">50 per page</option>
-                        <option value="100">100 per page</option>
-                        <option value="250">250 per page</option>
-                        <option value="500">500 per page</option>
+                        <option value="10">10 {{ ui_t('filters.per_page') }}</option>
+                        <option value="50">50 {{ ui_t('filters.per_page') }}</option>
+                        <option value="100">100 {{ ui_t('filters.per_page') }}</option>
+                        <option value="250">250 {{ ui_t('filters.per_page') }}</option>
+                        <option value="500">500 {{ ui_t('filters.per_page') }}</option>
                     </select>
                 </div>
 
