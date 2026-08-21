@@ -956,6 +956,8 @@
                                 @elseif($doc->status === 'brouillon') brouillon
                                 @elseif($doc->status === 'en_relecture') en_relecture
                                 @elseif($doc->status === 'valide') valide
+                                @elseif($doc->status === 'attente_archivage') attente_archivage
+                                @elseif($doc->status === 'destroyed') destroyed
                                 @else approved
                                 @endif border-0">
                                 {{ ui_t('pages.documents.status.' . $doc->status) }}
@@ -1932,12 +1934,13 @@
             'pending': 'warning',
             'declined': 'danger',
             'refused': 'danger',
-            'expired': 'secondary',
+            'expired': 'danger',
             'destroyed': 'dark',
-            'archived': 'secondary',
+            'archived': 'success',
             'brouillon': 'secondary',
             'en_relecture': 'info',
-            'valide': 'primary'
+            'valide': 'primary',
+            'attente_archivage': 'warning'
         };
         return colors[status] || 'secondary';
     }

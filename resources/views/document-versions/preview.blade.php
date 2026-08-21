@@ -8,13 +8,14 @@
         $isBorrowed = isset($currentLoan) && $currentLoan;
         $statusBadgeClass = match ($status) {
             'approved' => 'bg-success-subtle text-success-emphasis',
+            'archived' => 'bg-success-subtle text-success-emphasis',
             'pending' => 'bg-warning-subtle text-warning-emphasis',
+            'attente_archivage' => 'bg-warning-subtle text-warning-emphasis',
             'declined' => 'bg-danger-subtle text-danger-emphasis',
-            'expired' => 'bg-secondary-subtle text-secondary-emphasis',
+            'expired' => 'bg-danger-subtle text-danger-emphasis',
             'brouillon' => 'bg-secondary-subtle text-secondary-emphasis',
             'en_relecture' => 'bg-info-subtle text-info-emphasis',
             'valide' => 'bg-primary-subtle text-primary-emphasis',
-            'archived' => 'bg-dark-subtle text-dark-emphasis',
             'destroyed' => 'bg-dark-subtle text-dark-emphasis',
             default => 'bg-light text-dark',
         };
@@ -142,21 +143,6 @@
                                         $tagNames = $document->tags?->pluck('name')->filter()->values() ?? collect();
                                     @endphp
                                     {{ $tagNames->isNotEmpty() ? $tagNames->join(', ') : '—' }}
-                                </dd>
-
-                                <dt class="col-6 text-muted">{{ __('Mots-clés') }}</dt>
-                                <dd class="col-6 mb-0 text-break">
-                                    @php
-                                        $rawKeywords = data_get($document->metadata, 'keywords');
-                                        if (is_array($rawKeywords)) {
-                                            $keywordsText = collect($rawKeywords)->filter()->implode(', ');
-                                        } elseif (is_string($rawKeywords)) {
-                                            $keywordsText = trim($rawKeywords);
-                                        } else {
-                                            $keywordsText = '';
-                                        }
-                                    @endphp
-                                    {{ $keywordsText !== '' ? $keywordsText : '—' }}
                                 </dd>
                             </dl>
                         </div>
