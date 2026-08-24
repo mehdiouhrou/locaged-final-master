@@ -6,6 +6,7 @@ use App\Models\Box;
 use App\Models\BoxFolder;
 use App\Models\Category;
 use App\Models\Document;
+use App\Models\DocumentReviewer;
 use App\Models\DocumentMovement;
 use App\Models\PhysicalLocation;
 use App\Services\DocumentSearchService;
@@ -466,6 +467,11 @@ class DocumentsByCategoryTable extends Component
                             }
                             $version->delete();
                         }
+
+                        // Nettoyage : annule les reviews en attente liées à ce document (évite les compteurs fantômes)
+                        DocumentReviewer::where('document_id', $document->id)
+                            ->where('status', 'pending')
+                            ->delete();
 
                         $document->delete();
                     });

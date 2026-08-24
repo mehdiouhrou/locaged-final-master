@@ -7,6 +7,7 @@ use App\Exports\DocumentsReportExport;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentReviewer;
 use App\Models\DocumentVersion;
 use App\Models\Service;
 use App\Models\Subcategory;
@@ -534,6 +535,11 @@ class DocumentController extends Controller
 
                 $version->delete();
             }
+
+            // Nettoyage : annule les reviews en attente liées à ce document (évite les compteurs fantômes)
+            DocumentReviewer::where('document_id', $document->id)
+                ->where('status', 'pending')
+                ->delete();
 
             $document->delete();
         });
