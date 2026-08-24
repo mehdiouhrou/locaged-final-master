@@ -127,27 +127,34 @@
                         <option value="">{{ ui_t('pages.activity.filters.all_actions') }}</option>
                         @if($logType === 'documents')
                             <option value="created">{{ ui_t('pages.activity.actions.created') }}</option>
-                            <option value="updated">{{ ui_t('pages.activity.actions.updated') }}</option>
+                            <option value="metadata_updated">{{ ui_t('pages.activity.actions.metadata_updated') }}</option>
                             <option value="approved">{{ ui_t('pages.activity.actions.approved') }}</option>
                             <option value="declined">{{ ui_t('pages.activity.actions.declined') }}</option>
                             <option value="archived">{{ ui_t('pages.activity.actions.archived') }}</option>
-                            <option value="deleted">{{ ui_t('pages.activity.actions.deleted') }}</option>
                             <option value="permanently_deleted">{{ ui_t('pages.activity.actions.permanently_deleted') }}</option>
-                            <option value="downloaded">{{ ui_t('pages.activity.actions.downloaded') }}</option>
+                            <option value="download">{{ ui_t('pages.activity.actions.download') }}</option>
                             <option value="viewed">{{ ui_t('pages.activity.actions.viewed') }}</option>
                             <option value="renamed">{{ ui_t('pages.activity.actions.renamed') }}</option>
-                            <option value="unlocked">{{ ui_t('pages.activity.actions.unlocked') }}</option>
                             <option value="moved">{{ ui_t('pages.activity.actions.moved') }}</option>
-                            <option value="destroyed">{{ ui_t('pages.activity.actions.destroyed') }}</option>
-                            <option value="failed_access">{{ ui_t('pages.activity.actions.failed_access') }}</option>
+                            <option value="borrowed">{{ ui_t('pages.activity.actions.borrowed') }}</option>
+                            <option value="returned">{{ ui_t('pages.activity.actions.returned') }}</option>
+                            <option value="expiration_postponed">{{ ui_t('pages.activity.actions.expiration_postponed') }}</option>
                             <option value="category_created">{{ ui_t('pages.activity.actions.category_created') }}</option>
                             <option value="category_updated">{{ ui_t('pages.activity.actions.category_updated') }}</option>
                             <option value="category_deleted">{{ ui_t('pages.activity.actions.category_deleted') }}</option>
+                            <option value="document_submitted_for_review">{{ ui_t('pages.activity.actions.document_submitted_for_review') }}</option>
+                            <option value="reviewer_assigned">{{ ui_t('pages.activity.actions.reviewer_assigned') }}</option>
+                            <option value="reviewer_validated">{{ ui_t('pages.activity.actions.reviewer_validated') }}</option>
+                            <option value="sent_back_to_draft">{{ ui_t('pages.activity.actions.sent_back_to_draft') }}</option>
+                            <option value="document_resubmitted">{{ ui_t('pages.activity.actions.document_resubmitted') }}</option>
+                            <option value="archiving_confirmed">{{ ui_t('pages.activity.actions.archiving_confirmed') }}</option>
+                            <option value="export_requested">{{ ui_t('pages.activity.actions.export_requested') }}</option>
+                            <option value="export_downloaded">{{ ui_t('pages.activity.actions.export_downloaded') }}</option>
                         @else
                             <option value="login_success">{{ __('Login success') }}</option>
                             <option value="login_failed">{{ __('Login failed') }}</option>
                             <option value="logout">{{ __('Logout') }}</option>
-                            <option value="disconnection">{{ __('Disconnection') }}</option>
+                            <option value="account_locked">{{ __('Account locked') }}</option>
                         @endif
                     </select>
                 </div>
@@ -254,6 +261,54 @@
                                             @if($log->document->department)
                                                 <div class="text-muted small">{{ $log->document->department->name }}</div>
                                             @endif
+                                            @if($log->action === 'expiration_postponed')
+                                                @php $meta = $log->metadata ?? []; @endphp
+                                                <div class="small mt-1">
+                                                    @if(!empty($meta['amount']) && !empty($meta['unit']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            <span class="fw-semibold">{{ ui_t('pages.destructions.postpone.time_unit') }}</span> :
+                                                            {{ $meta['amount'] }} {{ ui_t('pages.destructions.postpone.' . $meta['unit']) }}
+                                                        </div>
+                                                    @endif
+                                                    @if(!empty($meta['previous_expire_at']) && !empty($meta['new_expire_at']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            <span class="text-danger">{{ \Carbon\Carbon::parse($meta['previous_expire_at'])->format('d/m/Y') }}</span>
+                                                            <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem;"></i>
+                                                            <span class="text-success">{{ \Carbon\Carbon::parse($meta['new_expire_at'])->format('d/m/Y') }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            @if($log->action === 'borrowed')
+                                                @php $meta = $log->metadata ?? []; @endphp
+                                                <div class="small mt-1">
+                                                    @if(!empty($meta['borrower_name']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            <span class="fw-semibold">{{ ui_t('pages.documents.move.borrower_name') }}</span> : {{ $meta['borrower_name'] }}
+                                                        </div>
+                                                    @endif
+                                                    @if(!empty($meta['borrowed_at']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            {{ ui_t('pages.activity.actions.borrowed') }} : {{ \Carbon\Carbon::parse($meta['borrowed_at'])->format('d/m/Y H:i') }}
+                                                        </div>
+                                                    @endif
+                                                    @if(!empty($meta['due_at']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            {{ ui_t('pages.documents.move.due_at') }} : {{ \Carbon\Carbon::parse($meta['due_at'])->format('d/m/Y') }}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            @if($log->action === 'returned')
+                                                @php $meta = $log->metadata ?? []; @endphp
+                                                <div class="small mt-1">
+                                                    @if(!empty($meta['returned_at']))
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            {{ ui_t('pages.activity.actions.returned') }} : {{ \Carbon\Carbon::parse($meta['returned_at'])->format('d/m/Y H:i') }}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         @elseif(in_array($log->action, ['category_created', 'category_updated', 'category_deleted'], true))
                                             @php
                                                 $meta = $log->metadata ?? [];
@@ -264,6 +319,61 @@
                                             @endphp
                                             <div class="fw-semibold">{{ \Str::limit((string) $catLabel, 60) }}</div>
                                             <div class="text-muted small">{{ __('pages.upload.category') }}</div>
+                                            @if($log->action === 'category_updated' && !empty($meta['changes']))
+                                                <div class="small mt-1">
+                                                    @foreach($meta['changes'] as $field => $change)
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            <span class="fw-semibold">{{ ui_t('pages.category_fields.' . $field) }}</span> :
+                                                            <span class="text-danger">{{ $change['old'] ?? '—' }}</span>
+                                                            <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem;"></i>
+                                                            <span class="text-success">{{ $change['new'] ?? '—' }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        @elseif(in_array($log->action, ['box_created', 'box_moved', 'box_deleted'], true))
+                                            @php $meta = $log->metadata ?? []; @endphp
+                                            <div class="fw-semibold">{{ $meta['box_number'] ?? $meta['box_number_new'] ?? ('#' . ($meta['box_id'] ?? '')) }}</div>
+                                            <div class="text-muted small">{{ ui_t('pages.physical_locations.box') }}</div>
+                                            @if($log->action === 'box_moved')
+                                                <div class="small mt-1">
+                                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                                        <span class="text-danger">{{ $meta['location_old'] ?? '—' }}</span>
+                                                        <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem;"></i>
+                                                        <span class="text-success">{{ $meta['location_new'] ?? '—' }}</span>
+                                                    </div>
+                                                </div>
+                                            @elseif(!empty($meta['location']))
+                                                <div class="text-muted" style="font-size: 0.75rem;">{{ $meta['location'] }}</div>
+                                            @endif
+                                        @elseif(in_array($log->action, ['user_created', 'user_updated', 'user_deleted', 'user_role_changed'], true))
+                                            @php
+                                                $meta = $log->metadata ?? [];
+                                                $userLabel = $log->user_name ?? ($meta['full_name'] ?? ('#' . ($meta['user_id'] ?? '')));
+                                            @endphp
+                                            <div class="fw-semibold">{{ \Str::limit((string) $userLabel, 60) }}</div>
+                                            <div class="text-muted small">{{ ui_t('pages.user_fields.full_name') }}</div>
+                                            @if($log->action === 'user_updated' && !empty($meta['changes']))
+                                                <div class="small mt-1">
+                                                    @foreach($meta['changes'] as $field => $change)
+                                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                                            <span class="fw-semibold">{{ ui_t('pages.user_fields.' . $field) }}</span> :
+                                                            <span class="text-danger">{{ $change['old'] ?? '—' }}</span>
+                                                            <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem;"></i>
+                                                            <span class="text-success">{{ $change['new'] ?? '—' }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            @if($log->action === 'user_role_changed')
+                                                <div class="small mt-1">
+                                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                                        <span class="text-danger">{{ $meta['previous_role'] ?? '—' }}</span>
+                                                        <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem;"></i>
+                                                        <span class="text-success">{{ $meta['new_role'] ?? '—' }}</span>
+                                                    </div>
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="text-muted">{{ ui_t('pages.activity.table.na') }}</span>
                                         @endif

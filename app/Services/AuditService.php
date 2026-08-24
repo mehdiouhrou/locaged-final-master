@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\Document;
+use App\Models\User;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -11,28 +12,39 @@ use Illuminate\Support\Facades\Schema;
 class AuditService
 {
     /**
-     * @param  array<string, mixed>  $metadata
+     * Point d\'entree central. Toutes les autres methodes du service sont des
+     * wrappers fins autour de record(). Ne retourne jamais silencieusement :
+     * toute action journalisee doit produire une ligne, avec ou sans document
+     * associe, via document_id/version_id OU subject_type/subject_id.
+     *
+     * @param  array<string, mixed>  $options
      */
-    public static function log(string $action, Document $document, ?int $versionId = null, array $metadata = []): void
+    public static function record(string $action, array $options = []): void
     {
-        if (! $versionId) {
-            return;
-        }
+        DB::transaction(function () use ($action, $options): void {
+            $actor = $options['actor'] ?? auth()->user();
 
-        DB::transaction(function () use ($action, $document, $versionId, $metadata): void {
             $row = [
-                'user_id' => auth()->id(),
-                'user_name' => auth()->check() ? auth()->user()->full_name : null,
-                'document_id' => $document->id,
-                'version_id' => $versionId,
+                'user_id' => array_key_exists('user_id', $options) ? $options['user_id'] : $actor?->id,
+                'user_name' => array_key_exists('user_name', $options) ? $options['user_name'] : $actor?->full_name,
+                'document_id' => $options['document_id'] ?? null,
+                'version_id' => $options['version_id'] ?? null,
                 'action' => $action,
-                'ip_address' => request()->ip(),
+                'ip_address' => $options['ip_address'] ?? request()->ip(),
                 'occurred_at' => now(),
             ];
 
-            if (Schema::hasColumn('audit_logs', 'user_agent')) {
-                $row['user_agent'] = request()->userAgent();
+            if (Schema::hasColumn('audit_logs', 'subject_type')) {
+                $row['subject_type'] = $options['subject_type'] ?? null;
             }
+            if (Schema::hasColumn('audit_logs', 'subject_id')) {
+                $row['subject_id'] = $options['subject_id'] ?? null;
+            }
+            if (Schema::hasColumn('audit_logs', 'user_agent')) {
+                $row['user_agent'] = $options['user_agent'] ?? request()->userAgent();
+            }
+
+            $metadata = $options['metadata'] ?? [];
             if ($metadata !== [] && Schema::hasColumn('audit_logs', 'metadata')) {
                 $row['metadata'] = $metadata;
             }
@@ -42,24 +54,100 @@ class AuditService
                 && Schema::hasColumn('audit_logs', 'previous_hash')
                 && Schema::hasColumn('audit_logs', 'hash_version')
                 && Schema::hasColumn('audit_logs', 'sealed_at')
+                && Schema::hasTable('audit_chain_state')
             ) {
-                $previousHash = AuditLog::withoutGlobalScopes()
+                $chainState = DB::table('audit_chain_state')
                     ->lockForUpdate()
-                    ->orderByDesc('id')
-                    ->value('entry_hash');
+                    ->find(1);
 
-                $row['hash_version'] = 'hmac-sha256-v1';
+                $previousHash = $chainState->last_hash ?? null;
+
+                $row['hash_version'] = 'hmac-sha256-v2';
                 $row['previous_hash'] = $previousHash ?: null;
                 $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
                 $row['sealed_at'] = now();
+
+                DB::table('audit_chain_state')
+                    ->where('id', 1)
+                    ->update([
+                        'last_hash' => $row['entry_hash'],
+                        'updated_at' => now(),
+                    ]);
             }
 
-            AuditLog::create($row);
+            AuditLog::withoutGlobalScopes()->create($row);
         });
     }
 
     /**
-     * Trace après suppression définitive (forceDelete) : sans FK document/version (lignes cibles supprimées).
+     * Journalise une action rattachee a un "sujet" generique (authentification,
+     * partage de categorie, workflow collaboratif, export, emplacement physique...)
+     * plutot qu\'a un document. subject_type identifie le domaine (ex:
+     * \'authentication\', \'category_share\', \'workflow\', \'export\',
+     * \'physical_location\'), subject_id l\'identifiant de l\'entite concernee
+     * (peut etre null, ex: tentative de login echouee sans user connu).
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function logSubject(
+        string $action,
+        string $subjectType,
+        ?int $subjectId = null,
+        array $metadata = [],
+        ?User $actor = null,
+        ?int $userId = null,
+        ?string $userName = null
+    ): void {
+        $actor = $actor ?? auth()->user();
+
+        self::record($action, [
+            'user_id' => $userId ?? $actor?->id,
+            'user_name' => $userName ?? $actor?->full_name,
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    /**
+     * Compare deux jeux d\'attributs (avant/apres) et retourne uniquement les champs
+     * qui ont reellement change, sous une forme exploitable directement dans metadata.
+     * Usage : capturer $before = $model->only($fields) AVANT le save(), puis appeler
+     * diff($before, $model->only($fields), $fields) APRES le save().
+     *
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @param  array<int, string>  $fields
+     * @return array<string, array{old: mixed, new: mixed}>
+     */
+    public static function diff(array $before, array $after, array $fields): array
+    {
+        $changes = [];
+        foreach ($fields as $field) {
+            $old = $before[$field] ?? null;
+            $new = $after[$field] ?? null;
+            if ($old != $new) {
+                $changes[$field] = ['old' => $old, 'new' => $new];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function log(string $action, Document $document, ?int $versionId = null, array $metadata = []): void
+    {
+        self::record($action, [
+            'document_id' => $document->id,
+            'version_id' => $versionId,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    /**
+     * Trace apres suppression definitive (forceDelete) : sans FK document/version (lignes cibles supprimees).
      *
      * @param  array<string, mixed>  $metadata
      */
@@ -69,153 +157,49 @@ class AuditService
         ?string $filePath,
         ?int $userId = null
     ): void {
-        DB::transaction(function () use ($documentId, $title, $filePath, $userId): void {
-            $metadata = [
+        $actor = $userId ? User::query()->find($userId) : null;
+
+        self::record('document_permanently_destroyed', [
+            'user_id' => $userId,
+            'user_name' => $actor?->full_name,
+            'metadata' => [
                 'document_id' => $documentId,
                 'title' => $title,
                 'file_path' => $filePath,
                 'destroyed_at' => now()->toIso8601String(),
-            ];
-
-            $actor = $userId ? \App\Models\User::query()->find($userId) : null;
-
-            $row = [
-                'user_id' => $userId,
-                'user_name' => $actor?->full_name,
-                'document_id' => null,
-                'version_id' => null,
-                'action' => 'document_permanently_destroyed',
-                'ip_address' => request()->ip(),
-                'occurred_at' => now(),
-            ];
-
-            if (Schema::hasColumn('audit_logs', 'user_agent')) {
-                $row['user_agent'] = request()->userAgent();
-            }
-            if (Schema::hasColumn('audit_logs', 'metadata')) {
-                $row['metadata'] = $metadata;
-            }
-
-            if (
-                Schema::hasColumn('audit_logs', 'entry_hash')
-                && Schema::hasColumn('audit_logs', 'previous_hash')
-                && Schema::hasColumn('audit_logs', 'hash_version')
-                && Schema::hasColumn('audit_logs', 'sealed_at')
-            ) {
-                $previousHash = AuditLog::withoutGlobalScopes()
-                    ->lockForUpdate()
-                    ->orderByDesc('id')
-                    ->value('entry_hash');
-
-                $row['hash_version'] = 'hmac-sha256-v1';
-                $row['previous_hash'] = $previousHash ?: null;
-                $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
-                $row['sealed_at'] = now();
-            }
-
-            AuditLog::withoutGlobalScopes()->create($row);
-        });
+            ],
+        ]);
     }
 
     /**
-     * Journal d’activité : événements sur les catégories (sans document lié).
+     * Journalise une action effectuee SUR un utilisateur cible (ex: reinitialisation
+     * de mot de passe par un admin). user_id = utilisateur CIBLE (pour apparaitre sur
+     * sa page Activite), l\'auteur reel de l\'action est dans metadata.performed_by_*.
      *
      * @param  array<string, mixed>  $metadata
      */
-    /**
-     * Journalise une action effectuée SUR un utilisateur cible (ex: réinitialisation
-     * de mot de passe par un admin). user_id = utilisateur CIBLE (pour apparaître sur
-     * sa page Activité), l'auteur réel de l'action est dans metadata.performed_by_*.
-     *
-     * @param  array<string, mixed>  $metadata
-     */
-    public static function logUserAction(string $action, \App\Models\User $targetUser, array $metadata = []): void
+    public static function logUserAction(string $action, User $targetUser, array $metadata = []): void
     {
-        DB::transaction(function () use ($action, $targetUser, $metadata): void {
-            $actor = auth()->user();
+        $actor = auth()->user();
 
-            $metadata['performed_by_id'] = $actor?->id;
-            $metadata['performed_by_name'] = $actor?->full_name;
+        $metadata['performed_by_id'] = $actor?->id;
+        $metadata['performed_by_name'] = $actor?->full_name;
 
-            $row = [
-                'user_id' => $targetUser->id,
-                'user_name' => $targetUser->full_name,
-                'document_id' => null,
-                'version_id' => null,
-                'action' => $action,
-                'ip_address' => request()->ip(),
-                'occurred_at' => now(),
-            ];
-
-            if (Schema::hasColumn('audit_logs', 'user_agent')) {
-                $row['user_agent'] = request()->userAgent();
-            }
-            if (Schema::hasColumn('audit_logs', 'metadata')) {
-                $row['metadata'] = $metadata;
-            }
-
-            if (
-                Schema::hasColumn('audit_logs', 'entry_hash')
-                && Schema::hasColumn('audit_logs', 'previous_hash')
-                && Schema::hasColumn('audit_logs', 'hash_version')
-                && Schema::hasColumn('audit_logs', 'sealed_at')
-            ) {
-                $previousHash = AuditLog::withoutGlobalScopes()
-                    ->lockForUpdate()
-                    ->orderByDesc('id')
-                    ->value('entry_hash');
-
-                $row['hash_version'] = 'hmac-sha256-v1';
-                $row['previous_hash'] = $previousHash ?: null;
-                $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
-                $row['sealed_at'] = now();
-            }
-
-            AuditLog::withoutGlobalScopes()->create($row);
-        });
+        self::record($action, [
+            'user_id' => $targetUser->id,
+            'user_name' => $targetUser->full_name,
+            'metadata' => $metadata,
+        ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public static function logCategoryAudit(string $action, array $metadata = []): void
     {
-        DB::transaction(function () use ($action, $metadata): void {
-            $actor = auth()->user();
-
-            $row = [
-                'user_id' => auth()->id(),
-                'user_name' => $actor?->full_name,
-                'document_id' => null,
-                'version_id' => null,
-                'action' => $action,
-                'ip_address' => request()->ip(),
-                'occurred_at' => now(),
-            ];
-
-            if (Schema::hasColumn('audit_logs', 'user_agent')) {
-                $row['user_agent'] = request()->userAgent();
-            }
-            if ($metadata !== [] && Schema::hasColumn('audit_logs', 'metadata')) {
-                $row['metadata'] = $metadata;
-            }
-
-            if (
-                Schema::hasColumn('audit_logs', 'entry_hash')
-                && Schema::hasColumn('audit_logs', 'previous_hash')
-                && Schema::hasColumn('audit_logs', 'hash_version')
-                && Schema::hasColumn('audit_logs', 'sealed_at')
-            ) {
-                $previousHash = AuditLog::withoutGlobalScopes()
-                    ->lockForUpdate()
-                    ->orderByDesc('id')
-                    ->value('entry_hash');
-
-                $row['hash_version'] = 'hmac-sha256-v1';
-                $row['previous_hash'] = $previousHash ?: null;
-                $row['entry_hash'] = self::computeEntryHash($row, $row['previous_hash']);
-                $row['sealed_at'] = now();
-            }
-
-            AuditLog::withoutGlobalScopes()->create($row);
-        });
+        self::record($action, [
+            'metadata' => $metadata,
+        ]);
     }
 
     public static function computeEntryHash(array $row, ?string $previousHash): string
@@ -225,6 +209,8 @@ class AuditService
             'user_name' => $row['user_name'] ?? null,
             'document_id' => $row['document_id'] ?? null,
             'version_id' => $row['version_id'] ?? null,
+            'subject_type' => $row['subject_type'] ?? null,
+            'subject_id' => $row['subject_id'] ?? null,
             'action' => $row['action'] ?? null,
             'ip_address' => $row['ip_address'] ?? null,
             'user_agent' => $row['user_agent'] ?? null,

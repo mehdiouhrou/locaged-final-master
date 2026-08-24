@@ -41,7 +41,22 @@ class CollaborativeDocumentService
             $document->save();
         });
 
+        \App\Services\AuditService::log('document_submitted_for_review', $document, null, [
+            'reviewer_ids' => array_column($reviewers, 'reviewer_id'),
+        ]);
+
         foreach ($document->reviewers()->with('reviewer')->get() as $documentReviewer) {
+            \App\Services\AuditService::logSubject(
+                action: 'reviewer_assigned',
+                subjectType: 'document_reviewer',
+                subjectId: $documentReviewer->id,
+                metadata: [
+                    'document_id' => $document->id,
+                    'reviewer_id' => $documentReviewer->reviewer_id,
+                    'reviewer_name' => $documentReviewer->reviewer?->full_name,
+                    'deadline' => $documentReviewer->deadline?->toDateTimeString(),
+                ],
+            );
             $this->notify($documentReviewer->reviewer, $document, 'collab_reviewer_assigned');
         }
     }
@@ -56,6 +71,11 @@ class CollaborativeDocumentService
         $documentReviewer->update([
             'status' => 'validated',
             'responded_at' => now(),
+        ]);
+
+        \App\Services\AuditService::log('reviewer_validated', $document, null, [
+            'reviewer_id' => $reviewer->id,
+            'reviewer_name' => $reviewer->full_name,
         ]);
 
         if ($document->allReviewersValidated()) {
@@ -90,6 +110,12 @@ class CollaborativeDocumentService
         $document->status = 'brouillon';
         $document->save();
 
+        \App\Services\AuditService::log('sent_back_to_draft', $document, null, [
+            'reviewer_id' => $reviewer->id,
+            'reviewer_name' => $reviewer->full_name,
+            'reason' => $comment,
+        ]);
+
         $this->notify($document->createdBy, $document, 'collab_document_rejected');
     }
 
@@ -121,6 +147,10 @@ class CollaborativeDocumentService
         $document->status = 'en_relecture';
         $document->save();
 
+        \App\Services\AuditService::log('document_resubmitted', $document, null, [
+            'comment' => $comment !== '' ? $comment : null,
+        ]);
+
         foreach ($document->reviewers()->with('reviewer')->get() as $documentReviewer) {
             $this->notify($documentReviewer->reviewer, $document, 'collab_resubmitted');
         }
@@ -141,8 +171,15 @@ class CollaborativeDocumentService
             throw new \RuntimeException('Seul l\'auteur du document peut confirmer son archivage.');
         }
 
+        $previousStatus = $document->status;
         $document->status = 'approved';
         $document->save();
+
+        \App\Services\AuditService::log('archiving_confirmed', $document, null, [
+            'confirmed_by' => $author->id,
+            'confirmed_by_name' => $author->full_name,
+            'previous_status' => $previousStatus,
+        ]);
     }
 
     /**

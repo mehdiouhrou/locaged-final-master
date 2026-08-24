@@ -134,9 +134,13 @@ class DocumentDestructionRequestController extends Controller
 
         // Immediately mark document as destroyed (physical copy removed, keep location unchanged)
         $document = $req->document;
+        $previousStatus = $document->status;
         $document->status = \App\Enums\DocumentStatus::Destroyed;
         $document->save();
-        $document->logAction('destroyed');
+        $document->logAction('destroyed', null, [
+            'destruction_request_id' => $req->id,
+            'previous_status' => $previousStatus,
+        ]);
         $action = 'destruction requested';
 
         $admins = User::role('admin')->get();
@@ -192,13 +196,19 @@ class DocumentDestructionRequestController extends Controller
 
         $destruction = DocumentDestructionRequest::findOrFail($id);
 
+        $previousStatus = $destruction->document->status;
+
         $destruction->document->status = DocumentStatus::Destroyed;
         $destruction->document->save();
 
         $destruction->status = DocumentDestructionStatus::Accepted;
         $destruction->save();
 
-        $destruction->document->logAction('destroyed');
+        $destruction->document->logAction('destroyed', null, [
+            'destruction_request_id' => $destruction->id,
+            'previous_status' => $previousStatus,
+            'approved_by' => auth()->id(),
+        ]);
 
         try {
             app(DestructionCertificateService::class)->issueForApproval($destruction, auth()->user());
@@ -248,6 +258,7 @@ class DocumentDestructionRequestController extends Controller
 
         // Store original expiry
         $originalExpiry = $document->expire_at->copy();
+        $originalStatus = $document->status;
 
         // Add time based on unit
         switch ($unit) {
@@ -282,7 +293,15 @@ class DocumentDestructionRequestController extends Controller
         $document->save();
 
         // Log the action (let Document::logAction resolve the version id itself)
-        $document->logAction('expiration_postponed');
+        $document->logAction('expiration_postponed', null, [
+            'amount' => $amount,
+            'unit' => $unit,
+            'previous_expire_at' => $originalExpiry->toDateTimeString(),
+            'new_expire_at' => $document->expire_at->toDateTimeString(),
+            'previous_status' => $originalStatus,
+            'new_status' => $document->status,
+            'destruction_request_id' => $destruction->id,
+        ]);
 
         // Mark destruction request as postponed
         $destruction->status = DocumentDestructionStatus::Postponed;
@@ -319,6 +338,9 @@ class DocumentDestructionRequestController extends Controller
         $amount = (int) $validated['amount'];
         $unit = $validated['unit'];
 
+        $originalExpiry = $document->expire_at->copy();
+        $originalStatus = $document->status;
+
         // Add time based on unit
         switch ($unit) {
             case 'minutes':
@@ -352,7 +374,14 @@ class DocumentDestructionRequestController extends Controller
         $document->save();
 
         // Log the action
-        $document->logAction('expiration_postponed');
+        $document->logAction('expiration_postponed', null, [
+            'amount' => $amount,
+            'unit' => $unit,
+            'previous_expire_at' => $originalExpiry->toDateTimeString(),
+            'new_expire_at' => $document->expire_at->toDateTimeString(),
+            'previous_status' => $originalStatus,
+            'new_status' => $document->status,
+        ]);
 
         $translatedUnit = ui_t("pages.destructions.postpone.{$unit}");
 

@@ -633,12 +633,14 @@ class Document extends Model
     {
         $resolvedVersionId = $versionId ?? $this->latestVersion?->id;
 
-        // If we somehow don't have a version, skip audit/notifications to avoid DB constraint errors.
+        // version_id is nullable on audit_logs: always audit, even without a version.
+        AuditService::log($action, $this, $resolvedVersionId, $metadata);
+
+        // Notifications need a resolved version id to build the link; skip only the
+        // notification step (not the audit above) when none is available.
         if (! $resolvedVersionId) {
             return;
         }
-
-        AuditService::log($action, $this, $resolvedVersionId, $metadata);
 
         // Decision 13/08/2026 (Mehdi): personal notifications are limited to actions
         // directly relevant to documents the user created or is assigned to. All other

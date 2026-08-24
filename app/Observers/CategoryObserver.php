@@ -9,13 +9,18 @@ class CategoryObserver
 {
     public function created(Category $category): void
     {
-        AuditService::logCategoryAudit('category_created', [
-            'category_id' => $category->id,
-            'name' => $category->name,
-            'expiry_value' => $category->expiry_value,
-            'expiry_unit' => $category->expiry_unit,
-            'created_by' => auth()->id(),
-        ]);
+        AuditService::logSubject(
+            action: 'category_created',
+            subjectType: 'category',
+            subjectId: $category->id,
+            metadata: [
+                'category_id' => $category->id,
+                'name' => $category->name,
+                'expiry_value' => $category->expiry_value,
+                'expiry_unit' => $category->expiry_unit,
+                'created_by' => auth()->id(),
+            ],
+        );
     }
 
     public function updated(Category $category): void
@@ -32,20 +37,32 @@ class CategoryObserver
             $before[$attr] = $category->getOriginal($attr);
         }
 
-        AuditService::logCategoryAudit('category_updated', [
-            'category_id' => $category->id,
-            'before' => $before,
-            'after' => $changes,
-        ]);
+        $diff = AuditService::diff($before, $changes, array_keys($changes));
+
+        AuditService::logSubject(
+            action: 'category_updated',
+            subjectType: 'category',
+            subjectId: $category->id,
+            metadata: [
+                'category_id' => $category->id,
+                'name' => $category->name,
+                'changes' => $diff,
+            ],
+        );
     }
 
     public function deleted(Category $category): void
     {
-        AuditService::logCategoryAudit('category_deleted', [
-            'category_id' => $category->id,
-            'name' => $category->name,
-            'expiry_value' => $category->expiry_value,
-            'expiry_unit' => $category->expiry_unit,
-        ]);
+        AuditService::logSubject(
+            action: 'category_deleted',
+            subjectType: 'category',
+            subjectId: $category->id,
+            metadata: [
+                'category_id' => $category->id,
+                'name' => $category->name,
+                'expiry_value' => $category->expiry_value,
+                'expiry_unit' => $category->expiry_unit,
+            ],
+        );
     }
 }

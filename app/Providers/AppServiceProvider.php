@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\User;
 use App\Observers\CategoryObserver;
 use App\Observers\DocumentObserver;
+use App\Observers\UserObserver;
 use App\Policies\RolePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
 
         Document::observe(DocumentObserver::class);
         Category::observe(CategoryObserver::class);
+        User::observe(UserObserver::class);
 
         View::composer('layouts.sidebar', \App\View\Composers\SidebarComposer::class);
 

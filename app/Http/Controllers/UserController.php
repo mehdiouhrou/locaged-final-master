@@ -379,6 +379,11 @@ class UserController extends Controller
                 ]);
             }
             $user->assignRole($role->name);
+
+            \App\Services\AuditService::logUserAction('user_role_changed', $user, [
+                'previous_role' => null,
+                'new_role' => $role->name,
+            ]);
         }
 
         // Sync multiple departments
@@ -471,6 +476,8 @@ class UserController extends Controller
         $services        = $data['services'] ?? null;
         unset($data['departments'], $data['sub_departments'], $data['services']);
 
+        $previousRoles = $user->getRoleNames()->implode(', ');
+
         $user->update($data);
 
         // Support role coming as role_id (existing) or role (modal select)
@@ -483,6 +490,13 @@ class UserController extends Controller
                 ]);
             }
             $user->syncRoles($role->name);
+
+            if ($previousRoles !== $role->name) {
+                \App\Services\AuditService::logUserAction('user_role_changed', $user, [
+                    'previous_role' => $previousRoles ?: null,
+                    'new_role' => $role->name,
+                ]);
+            }
         }
 
         // Sync multiple departments (may be optional depending on role)

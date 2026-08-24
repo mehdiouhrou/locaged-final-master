@@ -161,6 +161,17 @@ class PhysicalLocationController extends Controller
                 'description' => $validated['description'] ?? null,
             ]);
 
+            \App\Services\AuditService::logSubject(
+                action: 'box_created',
+                subjectType: 'box',
+                subjectId: $box->id,
+                metadata: [
+                    'box_id' => $box->id,
+                    'box_number' => $box->name,
+                    'location' => (string) $box,
+                ],
+            );
+
             DB::commit();
 
             return back()->with('success', 'Location path created successfully: <strong>'.e($box->__toString()).'</strong>');
@@ -575,6 +586,8 @@ class PhysicalLocationController extends Controller
             $oldShelf = $box->shelf;
             $oldRow = $oldShelf->row;
             $oldRoom = $oldRow->room;
+            $oldLocationLabel = (string) $box;
+            $oldBoxNumber = $box->box_number;
 
             // Find or create the new path structure
             $room = Room::firstOrCreate(['name' => $validated['room_name']], [
@@ -624,6 +637,21 @@ class PhysicalLocationController extends Controller
                     }
                 }
             }
+
+            $box->refresh();
+
+            \App\Services\AuditService::logSubject(
+                action: 'box_moved',
+                subjectType: 'box',
+                subjectId: $box->id,
+                metadata: [
+                    'box_id' => $box->id,
+                    'box_number_old' => $oldBoxNumber,
+                    'box_number_new' => $box->box_number,
+                    'location_old' => $oldLocationLabel,
+                    'location_new' => (string) $box,
+                ],
+            );
 
             DB::commit();
 
@@ -691,6 +719,17 @@ class PhysicalLocationController extends Controller
         if ($box->documents()->count() > 0) {
             return back()->withErrors(['error' => 'Cannot delete box with documents. Move documents first.']);
         }
+
+        \App\Services\AuditService::logSubject(
+            action: 'box_deleted',
+            subjectType: 'box',
+            subjectId: $box->id,
+            metadata: [
+                'box_id' => $box->id,
+                'box_number' => $box->box_number,
+                'location' => (string) $box,
+            ],
+        );
 
         $box->delete();
 

@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Models\AuthenticationLog;
+use App\Services\AuditService;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Request;
 
@@ -20,6 +21,18 @@ class LogLogout
                 'user_agent' => Request::userAgent(),
                 'occurred_at' => now(),
             ]);
+
+            AuditService::logSubject(
+                action: 'logout',
+                subjectType: 'authentication',
+                subjectId: $event->user->id,
+                metadata: [
+                    'email' => $event->user->email,
+                ],
+                actor: $event->user,
+                userId: $event->user->id,
+                userName: $event->user->full_name,
+            );
         }
     }
 }

@@ -44,7 +44,16 @@ class DocumentMovementController extends Controller
         $data['moved_at'] = now();
         DocumentMovement::create($data);
 
-        $document->logAction('moved');
+        $fromBox = $data['moved_from_box_id'] ? \App\Models\Box::find($data['moved_from_box_id']) : null;
+        $toBox = \App\Models\Box::find($data['moved_to_box_id']);
+
+        $document->logAction('moved', null, [
+            'moved_from_box_id' => $data['moved_from_box_id'],
+            'moved_to_box_id' => $data['moved_to_box_id'],
+            'moved_from_box_label' => $fromBox ? (string) $fromBox : null,
+            'moved_to_box_label' => $toBox ? (string) $toBox : null,
+            'movement_type' => $data['movement_type'],
+        ]);
 
 
         return redirect()->back()->with('success', 'Document moved successfully.');
@@ -104,6 +113,7 @@ class DocumentMovementController extends Controller
         $document->logAction('borrowed', $document->latestVersion?->id, [
             'movement_id' => $movement->id,
             'borrower_name' => $borrowerName,
+            'borrowed_at' => $movement->moved_at?->toDateTimeString(),
             'due_at' => $movement->due_at?->toDateTimeString(),
         ]);
 
@@ -157,6 +167,7 @@ class DocumentMovementController extends Controller
             'movement_ids' => $closedIds,
             'closed_movements' => count($closedIds),
             'returned_by_user_id' => Auth::id(),
+            'returned_at' => $returnPayload['returned_at']->toDateTimeString(),
         ]);
 
         return back()->with('success', __('Document physique marqué comme retourné.'));
