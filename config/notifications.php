@@ -81,5 +81,41 @@ return [
             'body' => 'The document ":title" has been moved.',
             'icon' => 'assets/created.png',
         ],
+        'collab_reviewer_assigned' => [
+            'type' => 'info',
+            'title' => 'Review requested',
+            'body' => 'You have been assigned as a reviewer for ":title".',
+            'icon' => 'assets/created.png',
+        ],
+        'collab_document_rejected' => [
+            'type' => 'danger',
+            'title' => 'Document rejected',
+            'body' => 'The document ":title" has been rejected by a reviewer.',
+            'icon' => 'assets/declined.png',
+        ],
+        'collab_document_validated' => [
+            'type' => 'success',
+            'title' => 'Document validated',
+            'body' => 'All reviewers have validated ":title". You can now assign a category.',
+            'icon' => 'assets/approved.png',
+        ],
+        'collab_resubmitted' => [
+            'type' => 'info',
+            'title' => 'Document resubmitted for review',
+            'body' => 'The document ":title" has been corrected and resubmitted for your review.',
+            'icon' => 'assets/created.png',
+        ],
+        'collab_document_archived' => [
+            'type' => 'success',
+            'title' => 'Document archived',
+            'body' => 'The document ":title" has been archived.',
+            'icon' => 'assets/approved.png',
+        ],
+        'loan_overdue' => [
+            'type' => 'danger',
+            'title' => 'Loan overdue',
+            'body' => 'The physical document ":title" you borrowed is overdue for return.',
+            'icon' => 'assets/declined.png',
+        ],
     ],
 ];

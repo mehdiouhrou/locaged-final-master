@@ -9,6 +9,7 @@ use Livewire\Component;
 class NotificationDropdown extends Component
 {
     public $notifications = [];
+    public int $unreadCount = 0;
     public User $user;
 
     public function mount()
@@ -33,6 +34,7 @@ class NotificationDropdown extends Component
     {
         $user = auth()->user();
         $this->notifications = $user ? $user->unreadNotifications()->latest()->limit(10)->get() : collect();
+        $this->unreadCount = $user ? $user->unreadNotifications()->count() : 0;
     }
 
     public function markAllAsRead()
@@ -47,6 +49,14 @@ class NotificationDropdown extends Component
     {
         auth()->user()?->notifications()->where('id', $id)->delete();
         $this->fetchNotifications();
+    }
+
+    public function markAsReadAndRedirect($id, $url)
+    {
+        auth()->user()?->notifications()->where('id', $id)->first()?->markAsRead();
+        $this->fetchNotifications();
+
+        return $this->redirect($url);
     }
 
     public function render()

@@ -34,6 +34,7 @@ class Document extends Model
         'metadata',
         'file_hash',
         'status',
+        'entry_type',
         'physical_location_id',
         'box_id',
         'box_folder_id',
@@ -168,6 +169,28 @@ class Document extends Model
                         ->orWhere('documents.created_by', $user->id);
                     if ($user->can('approve document') || $user->can('decline document')) {
                         $w->orWhere('documents.status', $pending);
+                    }
+                });
+            }
+
+            // Decision 28/07/2026 : un document 'attente_archivage' n'est visible que pour
+            // son auteur, ses relecteurs assignés, ou les rôles hiérarchiques (department/
+            // subdepartment, filtrés plus bas par leur propre department_id/service_id).
+            // Un simple accès catégorie ne suffit pas tant que le document n'est pas 'approved'.
+            if (! $user->can('view any document')) {
+                $attenteArchivage = DocumentStatus::AttenteArchivage->value;
+                $hasHierarchyAccess = $user->can('view department document')
+                    || $user->can('view subdepartment scoped documents');
+
+                $query->where(function ($w) use ($user, $attenteArchivage, $hasHierarchyAccess) {
+                    $w->where('documents.status', '!=', $attenteArchivage)
+                        ->orWhere('documents.created_by', $user->id)
+                        ->orWhereHas('reviewers', function ($rq) use ($user) {
+                            $rq->where('reviewer_id', $user->id);
+                        });
+
+                    if ($hasHierarchyAccess) {
+                        $w->orWhere('documents.status', $attenteArchivage);
                     }
                 });
             }
@@ -473,6 +496,35 @@ class Document extends Model
         return $this->hasMany(DocumentStatusHistory::class, 'document_id')->orderBy('changed_at');
     }
 
+    public function reviewers(): HasMany
+    {
+        return $this->hasMany(DocumentReviewer::class, 'document_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(DocumentComment::class, 'document_id')->latest();
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(DocumentAttachment::class, 'document_id')->latest();
+    }
+
+    public function allReviewersValidated(): bool
+    {
+        return $this->reviewers()->exists()
+            && $this->reviewers()->where('status', '!=', 'validated')->doesntExist();
+    }
+
+    public function resetReviewCycle(): void
+    {
+        $this->reviewers()->update([
+            'status' => 'pending',
+            'responded_at' => null,
+        ]);
+    }
+
     public function latestVersion(): HasOne
     {
         return $this->hasOne(DocumentVersion::class, 'document_id')->orderByDesc('version_number');
@@ -574,6 +626,11 @@ class Document extends Model
             ->orderBy('occurred_at', 'desc');
     }
 
+    public function loanRequests(): HasMany
+    {
+        return $this->hasMany(\App\Models\LoanRequest::class, 'document_id');
+    }
+
     /**
      * @param  array<string, mixed>  $metadata
      */
@@ -581,15 +638,26 @@ class Document extends Model
     {
         $resolvedVersionId = $versionId ?? $this->latestVersion?->id;
 
-        // If we somehow don't have a version, skip audit/notifications to avoid DB constraint errors.
+        // version_id is nullable on audit_logs: always audit, even without a version.
+        AuditService::log($action, $this, $resolvedVersionId, $metadata);
+
+        // Notifications need a resolved version id to build the link; skip only the
+        // notification step (not the audit above) when none is available.
         if (! $resolvedVersionId) {
             return;
         }
 
-        AuditService::log($action, $this, $resolvedVersionId, $metadata);
+        // Decision 13/08/2026 (Mehdi): personal notifications are limited to actions
+        // directly relevant to documents the user created or is assigned to. All other
+        // actions (viewed, download, moved, renamed, locked, unlocked, expired,
+        // archived, destroyed, permanently_deleted, borrowed, returned, etc.) stay in
+        // the audit trail only (AuditService::log above), no notification is sent.
+        $notifiableActions = ['created', 'approved', 'declined'];
 
-        // Only send notifications if the document creator exists
-        // Load the relationship if not already loaded
+        if (! in_array($action, $notifiableActions, true)) {
+            return;
+        }
+
         $creator = $this->createdBy;
 
         if ($creator) {
@@ -600,23 +668,6 @@ class Document extends Model
                 $resolvedVersionId
             );
             $notificationService->notifyBasedOnAction($action);
-
-            if (in_array($action, ['expired', 'moved'])) {
-                $notificationService->notifyAdmins($action);
-            }
-        } elseif (in_array($action, ['expired', 'moved'])) {
-            // If creator doesn't exist but action requires admin notification,
-            // create a minimal notification service just for admin notifications
-            // We need to use a valid user, so use the current authenticated user
-            if (auth()->check()) {
-                $notificationService = new NotificationService(
-                    $this->title,
-                    auth()->user(),
-                    $this->id,
-                    $resolvedVersionId
-                );
-                $notificationService->notifyAdmins($action);
-            }
         }
 
     }

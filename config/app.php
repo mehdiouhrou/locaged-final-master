@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'Europe/Paris'),
+    'timezone' => env('APP_TIMEZONE', 'Africa/Casablanca'),
 
     /*
     |--------------------------------------------------------------------------

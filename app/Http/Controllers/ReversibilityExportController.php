@@ -23,7 +23,25 @@ class ReversibilityExportController extends Controller
             return back()->withErrors(['error' => 'Aucun document ne correspond à ces critères.']);
         }
 
+        \App\Services\AuditService::logSubject(
+            action: 'export_requested',
+            subjectType: 'reversibility_export',
+            metadata: [
+                'document_count' => $documents->count(),
+                'scope' => 'filtered',
+            ],
+        );
+
         $zipPath = $service->generate($documents);
+
+        \App\Services\AuditService::logSubject(
+            action: 'export_downloaded',
+            subjectType: 'reversibility_export',
+            metadata: [
+                'document_count' => $documents->count(),
+                'scope' => 'filtered',
+            ],
+        );
 
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
@@ -41,7 +59,27 @@ class ReversibilityExportController extends Controller
             ->with(['category', 'subcategory', 'department', 'service.subDepartment.department', 'box', 'boxFolder', 'createdBy', 'latestVersion', 'tags'])
             ->get();
 
+        \App\Services\AuditService::logSubject(
+            action: 'export_requested',
+            subjectType: 'reversibility_export',
+            metadata: [
+                'document_count' => $documents->count(),
+                'document_ids' => $ids,
+                'scope' => 'selected',
+            ],
+        );
+
         $zipPath = $service->generate($documents);
+
+        \App\Services\AuditService::logSubject(
+            action: 'export_downloaded',
+            subjectType: 'reversibility_export',
+            metadata: [
+                'document_count' => $documents->count(),
+                'document_ids' => $ids,
+                'scope' => 'selected',
+            ],
+        );
 
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }

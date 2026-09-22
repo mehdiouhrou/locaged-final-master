@@ -1,76 +1,79 @@
 @extends('layouts.app')
 
 @section('content')
-
-    <div class="activity-log px-4 px-md-0">
-
-
-        <div class="d-md-flex justify-content-between my-3">
-            <h5><i class="fa-solid fa-briefcase me-2"></i>{{ ui_t('pages.user_activity.title') }}</h5>
-
+    <div class="mt-5">
+        <div class="d-flex justify-content-between mb-5">
+            <div class="d-flex align-items-center all-cat">
+                <a href="{{ route('users.index') }}">
+                    <h4 class="me-3">{{ ui_t('pages.users_page.users') }} <i class="fa-solid fa-angle-right"></i></h4>
+                </a>
+                <h5 class="me-3">{{ $user->full_name }}</h5>
+            </div>
+            @can('view', $user)
+                <a href="{{ route('users.show', ['user' => $user->id]) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-circle-user me-1"></i>{{ ui_t('pages.user_activity.profile') }}
+                </a>
+            @endcan
         </div>
 
-        <table class="files-table">
-            <thead>
-            <tr>
-                <th>
-                    <div class="img-history d-flex align-items-center">
-                        <div class="me-2">
-                            <img
-                                src="{{ asset('assets/1627f3a870e9b56d751d07f53392d7a84aa55817.jpg') }}"
-                                alt="user"
-                            />
-                        </div>
-                        <div>{{ $user->full_name }} </div>
-                    </div>
-                </th>
-                <th >
-                    <div >
-                        {{ $user->role }}
-                    </div>
-                </th>
-
-                @can('view',$user)
-                <th class="text-muted">
-                    <a href="{{ route('users.show',['user' => $user->id]) }}" class="btn">
-                        <i class="fa-solid fa-circle-exclamation me-2 "></i>{{ ui_t('pages.user_activity.profile') }}
-                    </a>
-                </th>
-                @endcan
-            </tr>
-            </thead>
-        </table>
-
-        @foreach($auditLogs as $log)
-            <!-- Approved -->
-            <div class="px-5 pt-2">
-                <div class="activity-step">
-                    <div class="icon-box border rounded-5">
-                        <i class="fas fa-check fa-2xl"></i>
-                    </div>
-                    <div class="ms-4">
-                        <strong>{{ $log->action }} {{ $log->document?->title }}</strong>
-                        <div class="activity-meta">
-                            <i class="fa-solid fa-clock fa-sm me-2"></i>{{ optional($log->occurred_at)->format('Y-m-d H:i') }}
-                        </div>
-                        <div class="d-flex align-items-center mt-2">
-                            <img
-                                src="{{ asset('assets/Group 8 (2).svg') }}"
-
-                                alt="te"
-                            />
-                            <div class="ms-2 " >
-                                <div >{{ $log->document?->title ?? ui_t('pages.user_activity.document_unavailable') }}</div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="recent-files-section">
+            <div class="d-flex align-items-center mb-4">
+                <img
+                    src="{{ $user->avatar_url ?? asset('assets/user.png') }}"
+                    alt="{{ $user->full_name }}"
+                    class="rounded-circle me-3"
+                    style="width: 48px; height: 48px; object-fit: cover;"
+                    onerror="this.onerror=null;this.src='{{ asset('assets/user.png') }}';"
+                />
+                <div>
+                    <div class="fw-bold fs-5">{{ $user->full_name }}</div>
+                    <div class="text-muted small">{{ $user->role }}</div>
                 </div>
             </div>
-        @endforeach
 
-        <x-pagination  :items="$auditLogs" />
+            @if($auditLogs->isEmpty())
+                <p class="text-muted mb-0">{{ ui_t('pages.user_activity.no_activity') ?? __('Aucune activité pour le moment.') }}</p>
+            @else
+                <div class="files-table-container">
+                    <table class="files-table table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ ui_t('pages.activity.table.date_time') }}</th>
+                                <th>{{ ui_t('pages.activity.table.action') }}</th>
+                                <th>{{ ui_t('pages.activity.table.document') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($auditLogs as $log)
+                                <tr>
+                                    <td>
+                                        <div class="small">
+                                            <div class="fw-semibold">{{ $log->occurred_at?->format('Y-m-d') }}</div>
+                                            <div class="text-muted">{{ $log->occurred_at?->format('H:i:s') }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge
+                                            @if(in_array($log->action, ['created', 'approved', 'updated', 'downloaded', 'viewed', 'renamed', 'unlocked', 'moved', 'viewed_ocr', 'category_created', 'category_updated'])) bg-success-subtle text-success
+                                            @elseif(in_array($log->action, ['declined', 'failed_access'])) bg-danger-subtle text-danger
+                                            @elseif(in_array($log->action, ['permanently_deleted', 'destroyed', 'deleted', 'category_deleted'])) bg-dark-subtle text-dark
+                                            @elseif(in_array($log->action, ['archived', 'locked'])) bg-warning-subtle text-warning
+                                            @else bg-secondary-subtle text-secondary
+                                            @endif rounded-pill px-2 py-1">
+                                            {{ ui_t('pages.activity.actions.' . $log->action) ?? ucfirst(str_replace('_', ' ', $log->action)) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ $log->document?->title ?? ui_t('pages.user_activity.document_unavailable') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">
+                    <x-pagination :items="$auditLogs" />
+                </div>
+            @endif
+        </div>
     </div>
-
-
-
 @endsection

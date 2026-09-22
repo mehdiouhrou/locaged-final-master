@@ -81,6 +81,43 @@ class PhysicalLocationController extends Controller
                 ->keyBy('document_id');
         }
 
+        $activeLoanRequestsByDocument = collect();
+        if ($documentIds->isNotEmpty()) {
+            $activeLoanRequestsByDocument = \App\Models\LoanRequest::query()
+                ->whereIn('document_id', $documentIds->all())
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->get()
+                ->unique('document_id')
+                ->keyBy('document_id');
+        }
+
+        $boxIds = $allBoxes->pluck('id');
+        $activeLoanRequestsByBox = collect();
+        if ($boxIds->isNotEmpty()) {
+            $activeLoanRequestsByBox = \App\Models\LoanRequest::query()
+                ->whereIn('box_id', $boxIds->all())
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->get()
+                ->unique('box_id')
+                ->keyBy('box_id');
+        }
+
+        $expiredCount = 0;
+        if ($documentIds->isNotEmpty()) {
+            $expiredCount = \App\Models\Document::query()
+                ->whereIn('id', $documentIds->all())
+                ->where(function ($w) {
+                    $w->whereNotNull('expire_at')
+                        ->whereDate('expire_at', '<=', now());
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('documents', 'is_expired')) {
+                        $w->orWhere('is_expired', true);
+                    }
+                })
+                ->count();
+        }
+
         $kpis = [
             'rooms' => $rooms->count(),
             'rows' => $rooms->sum(fn ($room) => $room->rows->count()),
@@ -89,11 +126,12 @@ class PhysicalLocationController extends Controller
             'documents' => $documentIds->count(),
             'borrowed' => $openLoans->count(),
             'overdue' => $openLoans->filter(fn ($loan) => $loan->due_at && $loan->due_at->isPast())->count(),
+            'expired' => $expiredCount,
         ];
 
         $boxImportPreview = session('box_import_preview', []);
 
-        return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview'));
+        return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview', 'activeLoanRequestsByDocument', 'activeLoanRequestsByBox'));
     }
 
     public function store(Request $request)
@@ -146,9 +184,20 @@ class PhysicalLocationController extends Controller
                 'description' => $validated['description'] ?? null,
             ]);
 
+            \App\Services\AuditService::logSubject(
+                action: 'box_created',
+                subjectType: 'box',
+                subjectId: $box->id,
+                metadata: [
+                    'box_id' => $box->id,
+                    'box_number' => $box->name,
+                    'location' => (string) $box,
+                ],
+            );
+
             DB::commit();
 
-            return back()->with('success', 'Location path created successfully: <strong>'.$box->__toString().'</strong>');
+            return back()->with('success', 'Location path created successfully: <strong>'.e($box->__toString()).'</strong>');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -174,7 +223,7 @@ class PhysicalLocationController extends Controller
 
         $room = Room::create($validated);
 
-        return back()->with('success', 'Room "<strong>'.$room->name.'</strong>" created successfully.');
+        return back()->with('success', 'Room "<strong>'.e($room->name).'</strong>" created successfully.');
     }
 
     /**
@@ -248,7 +297,7 @@ class PhysicalLocationController extends Controller
 
         $room = Room::find($validated['room_id']);
 
-        return back()->with('success', 'Row "<strong>'.$row->name.'</strong>" added to room "<strong>'.$room->name.'</strong>" successfully.');
+        return back()->with('success', 'Row "<strong>'.e($row->name).'</strong>" added to room "<strong>'.e($room->name).'</strong>" successfully.');
     }
 
     /**
@@ -281,7 +330,7 @@ class PhysicalLocationController extends Controller
 
         $row = Row::with('room')->find($validated['row_id']);
 
-        return back()->with('success', 'Shelf "<strong>'.$shelf->name.'</strong>" added to row "<strong>'.$row->name.'</strong>" in room "<strong>'.$row->room->name.'</strong>" successfully.');
+        return back()->with('success', 'Shelf "<strong>'.e($shelf->name).'</strong>" added to row "<strong>'.e($row->name).'</strong>" in room "<strong>'.e($row->room->name).'</strong>" successfully.');
     }
 
     /**
@@ -294,31 +343,21 @@ class PhysicalLocationController extends Controller
         $validated = $request->validate([
             'service_id' => 'nullable|exists:services,id',
             'shelf_id' => 'required|exists:shelves,id',
-            'name' => 'required|string|max:255',
-            'box_number' => 'nullable|string|max:255|unique:boxes,box_number',
+            'box_number' => 'required|string|max:255|unique:boxes,box_number',
             'description' => 'nullable|string',
         ]);
-
-        // Check if box with same name already exists in this shelf
-        $existingBox = Box::where('shelf_id', $validated['shelf_id'])
-            ->where('name', $validated['name'])
-            ->first();
-
-        if ($existingBox) {
-            return back()->withErrors(['error' => 'A box with this name already exists in the selected shelf.']);
-        }
 
         $box = Box::create([
             'shelf_id' => $validated['shelf_id'],
             'service_id' => $validated['service_id'] ?? null,
-            'name' => $validated['name'],
-            'box_number' => $validated['box_number'] ?? null,
+            'name' => $validated['box_number'],
+            'box_number' => $validated['box_number'],
             'description' => $validated['description'] ?? null,
         ]);
 
         $box->load('shelf.row.room');
 
-        return back()->with('success', 'Box "<strong>'.$box->name.'</strong>" added successfully. Path: <strong>'.$box->__toString().'</strong>');
+        return back()->with('success', 'Box "<strong>'.e($box->name).'</strong>" added successfully. Path: <strong>'.e($box->__toString()).'</strong>');
     }
 
     public function bulkAddBoxes(Request $request)
@@ -559,8 +598,7 @@ class PhysicalLocationController extends Controller
             'room_name' => 'required|string|max:255',
             'row_name' => 'required|string|max:255',
             'shelf_name' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
-            'box_number' => 'nullable|string|max:255|unique:boxes,box_number,' . $box->id,
+            'box_number' => 'required|string|max:255|unique:boxes,box_number,' . $box->id,
             'description' => 'nullable|string',
         ]);
 
@@ -571,6 +609,8 @@ class PhysicalLocationController extends Controller
             $oldShelf = $box->shelf;
             $oldRow = $oldShelf->row;
             $oldRoom = $oldRow->room;
+            $oldLocationLabel = (string) $box;
+            $oldBoxNumber = $box->box_number;
 
             // Find or create the new path structure
             $room = Room::firstOrCreate(['name' => $validated['room_name']], [
@@ -587,24 +627,12 @@ class PhysicalLocationController extends Controller
                 'name' => $validated['shelf_name'],
             ]);
 
-            // Check if a box with this name already exists in the target shelf (excluding current box)
-            $existingBox = Box::where('shelf_id', $shelf->id)
-                ->where('name', $validated['name'])
-                ->where('id', '!=', $box->id)
-                ->first();
-
-            if ($existingBox) {
-                DB::rollBack();
-
-                return back()->withErrors(['error' => ui_t('errors.physical_location.box_name_duplicate')]);
-            }
-
             // Move the box to the new shelf and update details
             $box->update([
                 'shelf_id' => $shelf->id,
                 'service_id' => $validated['service_id'] ?? null,
-                'name' => $validated['name'],
-                'box_number' => $validated['box_number'] ?? null,
+                'name' => $validated['box_number'],
+                'box_number' => $validated['box_number'],
                 'description' => $validated['description'] ?? null,
             ]);
 
@@ -632,6 +660,21 @@ class PhysicalLocationController extends Controller
                     }
                 }
             }
+
+            $box->refresh();
+
+            \App\Services\AuditService::logSubject(
+                action: 'box_moved',
+                subjectType: 'box',
+                subjectId: $box->id,
+                metadata: [
+                    'box_id' => $box->id,
+                    'box_number_old' => $oldBoxNumber,
+                    'box_number_new' => $box->box_number,
+                    'location_old' => $oldLocationLabel,
+                    'location_new' => (string) $box,
+                ],
+            );
 
             DB::commit();
 
@@ -672,7 +715,7 @@ class PhysicalLocationController extends Controller
             'name' => $validated['name'],
         ]);
 
-        return back()->with('success', 'Nom de boîte "' . $validated['name'] . '" ajouté avec succès.');
+        return back()->with('success', 'Nom de boîte "' . e($validated['name']) . '" ajouté avec succès.');
     }
 
     /**
@@ -699,6 +742,17 @@ class PhysicalLocationController extends Controller
         if ($box->documents()->count() > 0) {
             return back()->withErrors(['error' => 'Cannot delete box with documents. Move documents first.']);
         }
+
+        \App\Services\AuditService::logSubject(
+            action: 'box_deleted',
+            subjectType: 'box',
+            subjectId: $box->id,
+            metadata: [
+                'box_id' => $box->id,
+                'box_number' => $box->box_number,
+                'location' => (string) $box,
+            ],
+        );
 
         $box->delete();
 

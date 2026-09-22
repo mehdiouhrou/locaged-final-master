@@ -59,6 +59,24 @@ class MasterConsoleController extends Controller
             'maxUsers' => $maxUsers,
             'orgRootName' => Branding::getOrgRootName(),
             'appTimezone' => Branding::getTimezone(),
+            'collaborativeModuleEnabled' => Branding::isCollaborativeModuleEnabled(),
         ]);
+    }
+
+    /**
+     * Active/désactive le module "Document actif" (workflow collaboratif) pour cette instance.
+     */
+    public function updateCollaborativeModule(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->hasRole('master'), 403);
+
+        $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        Branding::setCollaborativeModuleEnabled((bool) $request->boolean('enabled'));
+
+        return back()->with('success', __('Paramètre du module mis à jour.'));
     }
 }

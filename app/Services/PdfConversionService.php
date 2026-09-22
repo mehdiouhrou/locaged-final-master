@@ -36,8 +36,9 @@ class PdfConversionService
         $pdfPath = $pathInfo['dirname'] . '/' . $pdfFileName;
         $absolutePdfPath = $outputDir . '/' . $pdfFileName;
 
-        // Check if PDF already exists
-        if (Storage::disk('local')->exists($pdfPath)) {
+        // Check if PDF already exists AND is not empty/corrupted (a previous
+        // failed conversion could have left a 0-byte file on disk).
+        if (Storage::disk('local')->exists($pdfPath) && Storage::disk('local')->size($pdfPath) > 0) {
             return $pdfPath;
         }
 
@@ -127,7 +128,17 @@ class PdfConversionService
             
             // Load spreadsheet
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($inputPath);
-            
+
+            // Configure page setup for each sheet: fit all columns on page width,
+            // landscape orientation (Excel exports are usually wide with many columns).
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                $sheet->getPageSetup()
+                    ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+                    ->setFitToWidth(1)
+                    ->setFitToHeight(0)
+                    ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+            }
+
             // Configure PDF writer
             \PhpOffice\PhpSpreadsheet\IOFactory::registerWriter('Pdf', \PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf::class);
             $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Pdf');
@@ -161,7 +172,9 @@ class PdfConversionService
 
     /**
      * Convert a readable absolute path (e.g. Livewire temp upload) to a PDF under storage/app/tmp/pdf-preview.
-     * Returns absolute path to the PDF, or null. Caller should unlink the PDF after streaming.
+     * Returns absolute path to the PDF, or null. The PDF is cached and reused across requests for the
+     * same source file (keyed by a deterministic hash of path+size+mtime); cleanup is handled by the
+     * documents:clean-pdf-preview-cache scheduled command, not by the caller.
      */
     public function convertOfficeAbsolutePathToPdf(string $absolutePath, string $extension): ?string
     {
@@ -180,13 +193,20 @@ class PdfConversionService
             return null;
         }
 
-        $id = (string) Str::uuid();
+        $stat = @stat($absolutePath);
+        $cacheSeed = $absolutePath.'|'.($stat['size'] ?? 0).'|'.($stat['mtime'] ?? 0);
+        $id = hash('sha256', $cacheSeed);
+
+        $expectedPdf = $tmpBase.DIRECTORY_SEPARATOR.$id.'.pdf';
+
+        if (file_exists($expectedPdf) && filesize($expectedPdf) > 0) {
+            return $expectedPdf;
+        }
+
         $workInput = $tmpBase.DIRECTORY_SEPARATOR.$id.'.'.$extension;
         if (! @copy($absolutePath, $workInput)) {
             return null;
         }
-
-        $expectedPdf = $tmpBase.DIRECTORY_SEPARATOR.$id.'.pdf';
 
         try {
             if (in_array($extension, ['xlsx', 'xls', 'csv'], true)) {

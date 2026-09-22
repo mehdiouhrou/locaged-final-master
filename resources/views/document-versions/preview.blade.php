@@ -8,11 +8,19 @@
         $isBorrowed = isset($currentLoan) && $currentLoan;
         $statusBadgeClass = match ($status) {
             'approved' => 'bg-success-subtle text-success-emphasis',
+            'archived' => 'bg-success-subtle text-success-emphasis',
             'pending' => 'bg-warning-subtle text-warning-emphasis',
+            'attente_archivage' => 'bg-warning-subtle text-warning-emphasis',
             'declined' => 'bg-danger-subtle text-danger-emphasis',
-            'expired' => 'bg-secondary-subtle text-secondary-emphasis',
+            'expired' => 'bg-danger-subtle text-danger-emphasis',
+            'brouillon' => 'bg-secondary-subtle text-secondary-emphasis',
+            'en_relecture' => 'bg-info-subtle text-info-emphasis',
+            'valide' => 'bg-primary-subtle text-primary-emphasis',
+            'destroyed' => 'bg-dark-subtle text-dark-emphasis',
             default => 'bg-light text-dark',
         };
+        $isCollaborativePreArchive = ($document->entry_type ?? null) === 'collaborative'
+            && in_array($status, ['brouillon', 'en_relecture', 'valide'], true);
     @endphp
 
     <div class="container-fluid px-3 px-md-4 py-3">
@@ -110,6 +118,7 @@
                                 <dt class="col-6 text-muted">{{ __('Date d’expiration') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->expire_at?->format('d/m/Y') ?? '—' }}</dd>
 
+                                @unless($isCollaborativePreArchive)
                                 <dt class="col-6 text-muted">{{ __('Catégorie') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->category?->name ?? '—' }}</dd>
 
@@ -126,6 +135,7 @@
 
                                 <dt class="col-6 text-muted">{{ __('Empreinte (SHA-256)') }}</dt>
                                 <dd class="col-6 mb-0 text-break">{{ $document->file_hash ?? 'Non calculée' }}</dd>
+                                @endunless
 
                                 <dt class="col-6 text-muted">{{ __('Tags') }}</dt>
                                 <dd class="col-6 mb-0 text-break">
@@ -134,24 +144,67 @@
                                     @endphp
                                     {{ $tagNames->isNotEmpty() ? $tagNames->join(', ') : '—' }}
                                 </dd>
-
-                                <dt class="col-6 text-muted">{{ __('Mots-clés') }}</dt>
-                                <dd class="col-6 mb-0 text-break">
-                                    @php
-                                        $rawKeywords = data_get($document->metadata, 'keywords');
-                                        if (is_array($rawKeywords)) {
-                                            $keywordsText = collect($rawKeywords)->filter()->implode(', ');
-                                        } elseif (is_string($rawKeywords)) {
-                                            $keywordsText = trim($rawKeywords);
-                                        } else {
-                                            $keywordsText = '';
-                                        }
-                                    @endphp
-                                    {{ $keywordsText !== '' ? $keywordsText : '—' }}
-                                </dd>
                             </dl>
                         </div>
                     </div>
+
+                    @if($document->comments->isNotEmpty())
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des commentaires') }}</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->comments as $comment)
+                                        @php
+                                            $commentTypeLabel = match ($comment->type) {
+                                                'reviewer_rejection' => __('Rejet'),
+                                                'initial_description' => __('Soumission initiale'),
+                                                default => __('Resoumission'),
+                                            };
+                                            $commentTypeBadge = match ($comment->type) {
+                                                'reviewer_rejection' => 'bg-danger-subtle text-danger-emphasis',
+                                                'initial_description' => 'bg-secondary-subtle text-secondary-emphasis',
+                                                default => 'bg-info-subtle text-info-emphasis',
+                                            };
+                                        @endphp
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-semibold">{{ $comment->user->full_name ?? '—' }}</span>
+                                                <span class="badge rounded-pill {{ $commentTypeBadge }}">{{ $commentTypeLabel }}</span>
+                                            </div>
+                                            <div class="small">{{ $comment->comment }}</div>
+                                            <div class="text-muted small mt-1">{{ $comment->created_at->format('d/m/Y H:i') }}</div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($document->documentVersions->count() > 1)
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Versions') }}</h6>
+                            </div>
+                            <div class="card-body py-2">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->documentVersions as $version)
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">
+                                            <a href="{{ route('document-versions.preview', ['id' => $version->id]) }}"
+                                               class="text-decoration-none {{ $version->id === $doc->id ? 'fw-bold' : '' }}">
+                                                V{{ (int) $version->version_number }}
+                                                @if($version->id === $doc->id)
+                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ __('Consultée') }}</span>
+                                                @endif
+                                            </a>
+                                            <span class="text-muted small">{{ $version->uploaded_at?->format('d/m/Y H:i') }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
@@ -162,6 +215,62 @@
                         </div>
                     </div>
 
+                    @if($document->reviewers->isNotEmpty())
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Relecteurs') }}</h6>
+                            </div>
+                            <div class="card-body py-3">
+                                <ul class="list-group list-group-flush">
+                                    @foreach($document->reviewers as $reviewer)
+                                        @php
+                                            $reviewerBadge = match ($reviewer->status) {
+                                                'validated' => 'bg-success-subtle text-success-emphasis',
+                                                'rejected' => 'bg-danger-subtle text-danger-emphasis',
+                                                default => 'bg-secondary-subtle text-secondary-emphasis',
+                                            };
+                                            $reviewerLabel = match ($reviewer->status) {
+                                                'validated' => __('Validé'),
+                                                'rejected' => __('Rejeté'),
+                                                default => __('En attente'),
+                                            };
+                                        @endphp
+                                        <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="fw-semibold">{{ $reviewer->reviewer->full_name ?? '—' }}</span>
+                                                <span class="badge rounded-pill {{ $reviewerBadge }}">{{ $reviewerLabel }}</span>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($document->entry_type === 'collaborative')
+                        @php
+                            $canAddAttachment = in_array($document->status, ['brouillon', 'en_relecture'], true)
+                                && ((int) $document->created_by === (int) auth()->id()
+                                    || $document->reviewers()->where('reviewer_id', auth()->id())->exists());
+                        @endphp
+                        <div class="mb-3">
+                            @livewire('document-attachment-form', ['document' => $document, 'canAdd' => $canAddAttachment], key('attachments-'.$document->id))
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'brouillon' && $document->created_by === auth()->id())
+                        <div class="mb-3">
+                            @livewire('resubmit-document-form', ['document' => $document])
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'valide' && $document->created_by === auth()->id())
+                        <div class="mb-3">
+                            @livewire('assign-category-form', ['document' => $document])
+                        </div>
+                    @endif
+
+                    @unless($isCollaborativePreArchive)
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Suivi physique') }}</h6>
@@ -182,33 +291,31 @@
                                     <div><strong>{{ __('Date emprunt') }}:</strong> {{ $currentLoan->moved_at?->format('d/m/Y H:i') ?? '—' }}</div>
                                     <div><strong>{{ __('Retour prévu') }}:</strong> {{ $currentLoan->due_at?->format('d/m/Y H:i') ?? '—' }}</div>
                                 </div>
-
-                                @can('create', \App\Models\DocumentMovement::class)
-                                    <form method="POST" action="{{ route('documents.return', $document) }}" class="mb-2">
-                                        @csrf
-                                        <label class="form-label small mb-1">{{ __('Note de retour (optionnel)') }}</label>
-                                        <textarea name="return_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('État du dossier au retour') }}"></textarea>
-                                        <button type="submit" class="btn btn-sm btn-outline-success w-100">
-                                            <i class="fa-solid fa-box-open me-1"></i>{{ __('Marquer comme retourné') }}
-                                        </button>
-                                    </form>
-                                @endcan
+                                <p class="text-muted mb-0 small">{{ __('Le retour physique est enregistré par le responsable des emprunts.') }}</p>
+                            @elseif(isset($activeLoanRequest) && $activeLoanRequest)
+                                <div class="border rounded-2 p-2 mb-3">
+                                    @if($activeLoanRequest->status === 'requested')
+                                        <span class="badge bg-warning text-dark mb-2">{{ __('Demande en attente d’approbation') }}</span>
+                                    @elseif($activeLoanRequest->status === 'approved')
+                                        <span class="badge bg-info text-dark mb-2">{{ __('Demande approuvée — en attente de retrait') }}</span>
+                                    @endif
+                                    <div class="text-muted small">{{ __('Motif') }}: {{ $activeLoanRequest->reason }}</div>
+                                </div>
                             @else
-                                @can('create', \App\Models\DocumentMovement::class)
-                                    <form method="POST" action="{{ route('documents.borrow', $document) }}" class="mb-2">
+                                @can('create', \App\Models\LoanRequest::class)
+                                    <form method="POST" action="{{ route('loan-requests.store') }}" class="mb-2">
                                         @csrf
-                                        <label class="form-label small mb-1">{{ __('Nom de l’emprunteur') }}</label>
-                                        <input type="text" name="borrower_name" class="form-control form-control-sm mb-2" required placeholder="{{ __('Ex: Nom / Service externe') }}">
-                                        <label class="form-label small mb-1">{{ __('Date prévue de retour (optionnel)') }}</label>
-                                        <input type="datetime-local" name="due_at" class="form-control form-control-sm mb-2">
-                                        <label class="form-label small mb-1">{{ __('Motif (optionnel)') }}</label>
-                                        <textarea name="movement_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('Pourquoi ce dossier est emprunté ?') }}"></textarea>
+                                        <input type="hidden" name="document_id" value="{{ $document->id }}">
+                                        <label class="form-label small mb-1">{{ __('Motif de la demande') }}</label>
+                                        <textarea name="reason" rows="2" class="form-control form-control-sm mb-2" required placeholder="{{ __('Pourquoi souhaitez-vous emprunter ce dossier ?') }}"></textarea>
+                                        <label class="form-label small mb-1">{{ __('Durée souhaitée en jours (optionnel)') }}</label>
+                                        <input type="number" name="requested_duration_days" min="1" max="365" class="form-control form-control-sm mb-2">
                                         <button type="submit" class="btn btn-sm btn-outline-warning w-100">
-                                            <i class="fa-solid fa-hand me-1"></i>{{ __('Enregistrer un emprunt') }}
+                                            <i class="fa-solid fa-hand me-1"></i>{{ __('Demander l’emprunt') }}
                                         </button>
                                     </form>
                                 @else
-                                    <p class="text-muted mb-0">{{ __('Vous n’avez pas les droits pour enregistrer un emprunt.') }}</p>
+                                    <p class="text-muted mb-0">{{ __('Vous n’avez pas les droits pour demander un emprunt.') }}</p>
                                 @endcan
                             @endif
 
@@ -245,6 +352,7 @@
                             @endif
                         </div>
                     </div>
+                    @endunless
 
                     @if(($document->status ?? null) === 'pending')
                         <div class="card border-0 shadow-sm">
@@ -279,6 +387,60 @@
                                         {{ __('Approuver') }}
                                     </button>
                                 @endcan
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'en_relecture' && $document->reviewers()->where('reviewer_id', auth()->id())->where('status', 'pending')->exists())
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body d-flex gap-2 justify-content-end">
+                                <button
+                                    class="btn btn-sm btn-outline-danger trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.reviewer-reject', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Rejeter le document') }}"
+                                    data-body="{{ __('Merci de préciser le motif du rejet.') }}"
+                                    data-extra-fields='{{ json_encode([["type"=>"textarea","name"=>"reject_reason","label"=>__("Motif du rejet"),"required"=>true,"rows"=>4,"maxlength"=>5000,"placeholder"=>__("Décrivez la raison du rejet")]], JSON_UNESCAPED_UNICODE) }}'
+                                >
+                                    {{ __('Rejeter') }}
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-success trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.reviewer-validate', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Valider le document') }}"
+                                    data-body="{{ __('Confirmer la validation de ce document ?') }}"
+                                    data-button-class="btn-success"
+                                >
+                                    {{ __('Valider') }}
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if(($document->status ?? null) === 'attente_archivage' && (int) $document->created_by === (int) auth()->id())
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body d-flex gap-2 justify-content-end align-items-center">
+                                <span class="text-muted small me-auto">{{ __('Une fois le document rangé physiquement, confirmez son archivage.') }}</span>
+                                <button
+                                    class="btn btn-sm btn-success trigger-action"
+                                    data-id="{{ $document->id }}"
+                                    data-name="{{ $document->title }}"
+                                    data-url="{{ route('documents.confirm-archive', $document->id) }}"
+                                    data-method="PUT"
+                                    data-button-text="{{ ui_t('actions.confirm') }}"
+                                    data-title="{{ __('Confirmer l\'archivage') }}"
+                                    data-body="{{ __('Confirmez-vous que ce document a été rangé physiquement en salle d\'archive ?') }}"
+                                    data-button-class="btn-success"
+                                >
+                                    {{ __('Confirmer l\'archivage') }}
+                                </button>
                             </div>
                         </div>
                     @endif

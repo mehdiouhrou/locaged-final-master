@@ -378,6 +378,11 @@ class DocumentVersionController extends Controller
             // ouvert peut être au-delà de cette fenêtre et le bandeau restait « Disponible ».
             $currentLoan = $document->currentOpenLoan();
 
+            $activeLoanRequest = \App\Models\LoanRequest::where('document_id', $document->id)
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->first();
+
             return view('document-versions.preview', [
                 'fileUrl'              => $fileUrl,
                 'fileType'             => $fileType,
@@ -395,6 +400,7 @@ class DocumentVersionController extends Controller
                 'tags'               => $tags,
                 'physicalMovements'  => $physicalMovements,
                 'currentLoan'        => $currentLoan,
+                'activeLoanRequest'  => $activeLoanRequest,
                 // Approval navigation
                 'isApprovalContext'  => $isApprovalContext,
                 'prevApprovalUrl'    => $prevApprovalUrl,
@@ -738,8 +744,17 @@ class DocumentVersionController extends Controller
 
         $pdfPath = (new self())->getPdfConversionPath($doc->file_path);
 
-        if (!Storage::disk('local')->exists($pdfPath)) {
-            abort(404, 'PDF conversion not found.');
+        if (!Storage::disk('local')->exists($pdfPath) || Storage::disk('local')->size($pdfPath) === 0) {
+            // Fichier absent ou vide (conversion précédente échouée) : on retente la conversion.
+            Storage::disk('local')->delete($pdfPath);
+            $converter = app(\App\Services\PdfConversionService::class);
+            $regenerated = $converter->convertToPdf($doc->file_path);
+
+            if (!$regenerated || !Storage::disk('local')->exists($regenerated) || Storage::disk('local')->size($regenerated) === 0) {
+                abort(404, 'PDF conversion not found.');
+            }
+
+            $pdfPath = $regenerated;
         }
 
         return response()->file(

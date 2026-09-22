@@ -323,7 +323,7 @@ class MultipleDocumentsCreateForm extends Component
         }
 
         if (empty($this->currentInfo['created_at'])) {
-            $this->currentInfo['created_at'] = now()->format('Y-m-d\TH:i');
+            $this->currentInfo['created_at'] = now()->format('Y-m-d');
         }
 
         // Clear any stale duplicate decisions when loading file info
@@ -1019,7 +1019,7 @@ class MultipleDocumentsCreateForm extends Component
             // Subcategory is now optional; can be omitted when not relevant
             'currentInfo.subcategory_id' => 'nullable|exists:subcategories,id',
             'currentInfo.color' => 'required|string',
-            'currentInfo.created_at' => 'required|date_format:Y-m-d\TH:i',
+            'currentInfo.created_at' => 'required|date_format:Y-m-d',
             'currentInfo.expire_at' => 'required|date|after:currentInfo.created_at',
             'currentInfo.tag_ids' => 'array',
             'currentInfo.tag_ids.*' => 'integer|exists:tags,id',
@@ -1675,7 +1675,7 @@ class MultipleDocumentsCreateForm extends Component
                     'created_by' => auth()->id(),
                     'category_id' => $metadata['category_id'],
                     'subcategory_id' => $metadata['subcategory_id'],
-                    'created_at' => \Carbon\Carbon::parse($metadata['created_at']),
+                    'created_at' => \Carbon\Carbon::parse($metadata['created_at'])->setTimeFrom(now()),
                     'expire_at' => isset($metadata['expire_at']) ? \Carbon\Carbon::parse($metadata['expire_at']) : null,
                     'physical_location_id' => $metadata['physical_location_id'] ?? null, // Keep for backward compatibility
                     'box_id' => $metadata['box_id'] ?? null,

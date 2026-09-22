@@ -215,4 +215,16 @@ class UserPolicy
         }
         return $user->can('update user'); // admins/managers
     }
+
+    /**
+     * Admin-triggered password reset (email link or manual set) for ANOTHER user.
+     * Never allows an admin to change their own password this way (use updatePassword/self-service instead).
+     */
+    public function resetPassword(User $user, User $model): bool
+    {
+        if ($user->id === $model->id) {
+            return false;
+        }
+        return $user->can('update user');
+    }
 }

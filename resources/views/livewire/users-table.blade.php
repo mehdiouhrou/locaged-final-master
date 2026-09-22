@@ -117,7 +117,16 @@
                                         {{ ui_t('pages.users_page.edit') }}
                                     </button>
                                 @endcan
+                                @can('resetPassword', $user)
+                                    <button type="button"
+                                            class="btn btn-sm btn-action js-reset-password-btn"
+                                            data-url="{{ route('users.reset-password', $user->id) }}"
+                                            data-user-name="{{ $user->full_name }}">
+                                        {{ ui_t('pages.users_page.reset_password.button') }}
+                                    </button>
+                                @endcan
                                 @can('delete', $user)
+                                    @if($user->active)
                             <button type="button"
                                     data-id="{{ $user->id }}"
                                     data-name="{{ $user->name }}"
@@ -129,6 +138,7 @@
                                     data-body="{{ ui_t('pages.users_page.delete_user_body') }}">
                                 {{ ui_t('pages.users_page.delete') }}
                             </button>
+                                    @endif
                                 @endcan
                                 @can('update', $user)
                                     @if(! $user->active)
@@ -150,6 +160,7 @@
 
         @include('components.modals.confirm-modal')
         @include('components.modals.user-modal')
+        @include('components.modals.reset-password-modal')
         <x-pagination :items="$users"></x-pagination>
     </div>
 

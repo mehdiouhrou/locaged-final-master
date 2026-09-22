@@ -107,8 +107,12 @@ class HomeController extends Controller
 
     public function notifications()
     {
-        // Notifications and event feed are unified in a single page.
-        return view('activity.feed');
+        $notifications = auth()->user()
+            ->notifications()
+            ->latest()
+            ->paginate(20);
+
+        return view('home.notifications', compact('notifications'));
     }
 
     /**
@@ -890,97 +894,28 @@ class HomeController extends Controller
     {
         $physical = (clone $visibleDocumentsQuery)->whereNotNull('box_id');
 
-        $base = [
-            'physical' => 1,
-            'show_expired' => 1,
-        ];
-
-        $borrowedCount = 0;
-        if (
-            Schema::hasColumn('document_movements', 'borrowed_by_user_id')
-            && Schema::hasColumn('document_movements', 'borrower_name')
-            && Schema::hasColumn('document_movements', 'returned_at')
-        ) {
-            $borrowedCount = (clone $physical)->whereHas('documentMovements', function ($m) {
-                $m->openLoan();
-            })->count();
-        }
-
-        $expiredPhysicalCount = (clone $physical)->where(function ($w) {
-            $w->where(function ($d) {
-                $d->whereNotNull('expire_at')
-                    ->whereDate('expire_at', '<=', now());
-            });
-            if (Schema::hasColumn('documents', 'is_expired')) {
-                $w->orWhere('is_expired', true);
-            }
-        })->count();
-
         $digitalCount = (clone $visibleDocumentsQuery)->digitalOnly()->count();
 
         $definitions = [
             [
-                'key' => 'digital_only',
-                'label' => __('pages.dashboard.physical_storage.digital_only'),
-                'count' => $digitalCount,
-                'params' => [
-                    'digital_only' => 1,
-                    'show_expired' => 1,
-                    'page_title' => 'digital_only_docs',
-                ],
-            ],
-            [
                 'key' => 'total',
                 'label' => __('pages.dashboard.physical_storage.total'),
                 'count' => (clone $physical)->count(),
-                'params' => array_merge($base, ['page_title' => 'physical_all']),
+                'url' => route('physical-locations.index', ['view_only' => 1]),
             ],
             [
-                'key' => 'approved',
-                'label' => __('pages.dashboard.physical_storage.approved'),
-                'count' => (clone $physical)->where('status', DocumentStatus::Approved->value)->count(),
-                'params' => array_merge($base, [
-                    'status' => DocumentStatus::Approved->value,
-                    'hide_status_filter' => 1,
-                    'page_title' => 'physical_approved',
-                ]),
-            ],
-            [
-                'key' => 'pending',
-                'label' => __('pages.dashboard.physical_storage.pending'),
-                'count' => (clone $physical)->where('status', DocumentStatus::Pending->value)->count(),
-                'params' => array_merge($base, [
-                    'status' => DocumentStatus::Pending->value,
-                    'hide_status_filter' => 1,
-                    'page_title' => 'physical_pending',
-                ]),
-            ],
-            [
-                'key' => 'borrowed',
-                'label' => __('pages.dashboard.physical_storage.borrowed'),
-                'count' => $borrowedCount,
-                'params' => array_merge($base, [
-                    'on_loan' => 1,
-                    'page_title' => 'physical_borrowed',
-                ]),
-            ],
-            [
-                'key' => 'expired',
-                'label' => __('pages.dashboard.physical_storage.expired'),
-                'count' => $expiredPhysicalCount,
-                'params' => array_merge($base, [
-                    'status' => 'expired',
-                    'page_title' => 'physical_expired',
+                'key' => 'digital_only',
+                'label' => __('pages.dashboard.physical_storage.digital_only'),
+                'count' => $digitalCount,
+                'url' => route('documents.all', [
+                    'digital_only' => 1,
+                    'show_expired' => 1,
+                    'page_title' => 'digital_only_docs',
                 ]),
             ],
         ];
 
-        return collect($definitions)->map(function (array $row) {
-            $row['url'] = route('documents.all', $row['params']);
-            unset($row['params']);
-
-            return $row;
-        });
+        return collect($definitions);
     }
 
     private function getStatusSummary()
@@ -1002,10 +937,34 @@ class HomeController extends Controller
             })
             ->count();
 
+        $userId = auth()->id();
+
+        $myReviewsPendingCount = \App\Models\DocumentReviewer::where('reviewer_id', $userId)
+            ->where('status', 'pending')
+            ->count();
+
+        $myActiveDocumentsCount = Document::where('created_by', $userId)
+            ->whereIn('status', ['brouillon', 'en_relecture', 'valide'])
+            ->count();
+
+        $myPendingApprovalsCount = 0;
+        if (auth()->user() && (auth()->user()->can('approve', Document::class) || auth()->user()->can('decline', Document::class))) {
+            $myPendingApprovalsCount = (int) ($statusCounts['pending'] ?? 0);
+        }
+
+        // Dashboard card "Tâches" : mes documents brouillon/en_relecture/valide + mes relectures en attente
+        $tasksCount = $myReviewsPendingCount + $myActiveDocumentsCount;
+
+        // Dashboard card "À archiver" : pipeline classique (pending) + workflow collaboratif (attente_archivage)
+        $toArchiveCount = (int) ($statusCounts['pending'] ?? 0) + (int) ($statusCounts['attente_archivage'] ?? 0);
+
         return [
             DocumentStatus::Approved->value => $statusCounts['approved'] ?? 0,
             DocumentStatus::Pending->value => $statusCounts['pending'] ?? 0,
             'expired' => $expiredCount,
+            'active_documents' => $myReviewsPendingCount + $myActiveDocumentsCount + $myPendingApprovalsCount,
+            'tasks' => $tasksCount,
+            'to_archive' => $toArchiveCount,
         ];
     }
 

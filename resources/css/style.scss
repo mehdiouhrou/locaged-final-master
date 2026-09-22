@@ -895,14 +895,36 @@ body {
   font-weight: 500;
 }
 
-.status-badge.approved {
-  background-color: #61c393;
+// Flux collaboratif : brouillon -> en_relecture -> valide (Clôturé) -> attente_archivage (Prêt à archiver) -> approved (Archivé)
+.status-badge.brouillon {
+  background-color: #adb5bd;
   color: black;
 }
 
+.status-badge.en_relecture {
+  background-color: #6ec6e8;
+  color: black;
+}
+
+.status-badge.valide {
+  background-color: #4a5fc1;
+  color: white;
+}
+
+.status-badge.attente_archivage {
+  background-color: #f0a83a;
+  color: white;
+}
+
+.status-badge.approved {
+  background-color: #1e7d4f;
+  color: white;
+}
+
+// Flux classique : pending -> approved / declined -> archived
 .status-badge.pending {
-  background-color: #f0d672;
-  color: #7a6f44;
+  background-color: #f0a83a;
+  color: white;
 }
 
 .status-badge.declined {
@@ -911,7 +933,12 @@ body {
 }
 
 .status-badge.archived {
-  background-color: #6c757d;
+  background-color: #1e7d4f;
+  color: white;
+}
+
+.status-badge.destroyed {
+  background-color: #2b2f33;
   color: white;
 }
 

@@ -119,6 +119,9 @@
                 <li class="nav-item">
                     <a class="nav-link py-1 px-2 rounded-2 small" href="#master-reversibility">Export réversibilité</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-2 rounded-2 small" href="#master-modules">Modules</a>
+                </li>
             </ul>
         </nav>
 
@@ -145,6 +148,12 @@
         <section id="master-reversibility" class="card border-0 shadow-sm mb-5 scroll-margin-top">
             <div class="card-body p-4">
                 @include('master.partials.reversibility')
+            </div>
+        </section>
+
+        <section id="master-modules" class="card border-0 shadow-sm mb-5 scroll-margin-top">
+            <div class="card-body p-4">
+                @include('master.partials.modules')
             </div>
         </section>
     </div>

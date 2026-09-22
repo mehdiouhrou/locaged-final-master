@@ -142,7 +142,7 @@
                         <div class="col-md-6">
                             <label for="created_at" class="form-label">{{ __('pages.upload.date_and_time') }} <span class="text-danger">*</span></label>
                             <input
-                                type="datetime-local"
+                                type="date"
                                 class="form-control @error('currentInfo.created_at') is-invalid @enderror"
                                 id="created_at"
                                 wire:model.change="currentInfo.created_at"

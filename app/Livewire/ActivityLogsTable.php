@@ -242,6 +242,10 @@ class ActivityLogsTable extends Component
             ])
             // Exclude OCR view activity from logs
             ->where('action', '!=', 'viewed_ocr')
+            // Authentication events live in the dedicated "Activité de connexion" tab only
+            ->where(function ($q) {
+                $q->whereNull('subject_type')->orWhere('subject_type', '!=', 'authentication');
+            })
             // Super Admin: hide logs from master users
             ->when($isSuperAdminNotMaster, function($q) {
                 $q->whereDoesntHave('user.roles', function($r) {

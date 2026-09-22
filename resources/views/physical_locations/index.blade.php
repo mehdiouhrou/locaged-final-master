@@ -35,7 +35,7 @@
                 </div>
             </div>
             <div class="col-6 col-md-3 col-xl-2">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="borrowed" role="button" style="cursor: pointer;">
                     <div class="card-body py-3">
                         <div class="text-muted small">{{ __('pages.physical.kpi.borrowed') }}</div>
                         <div class="fs-5 fw-bold text-warning">{{ $kpis['borrowed'] ?? 0 }}</div>
@@ -43,10 +43,18 @@
                 </div>
             </div>
             <div class="col-6 col-md-3 col-xl-2">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="overdue" role="button" style="cursor: pointer;">
                     <div class="card-body py-3">
                         <div class="text-muted small">{{ __('pages.physical.kpi.overdue') }}</div>
                         <div class="fs-5 fw-bold text-danger">{{ $kpis['overdue'] ?? 0 }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
+                <div class="card border-0 shadow-sm h-100 kpi-clickable-card" data-kpi-filter="expired" role="button" style="cursor: pointer;">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ __('pages.physical.kpi.expired') }}</div>
+                        <div class="fs-5 fw-bold text-danger">{{ $kpis['expired'] ?? 0 }}</div>
                     </div>
                 </div>
             </div>
@@ -75,7 +83,7 @@
                             <option value="available">{{ __('pages.physical.status.available') }}</option>
                             <option value="borrowed">{{ __('pages.physical.status.borrowed') }}</option>
                             <option value="overdue">{{ __('pages.physical.status.overdue') }}</option>
-                            <option value="empty">{{ __('pages.physical.status.empty') }}</option>
+                            <option value="expired">{{ __('pages.physical.status.expired') }}</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-2 d-flex align-items-end">
@@ -271,14 +279,9 @@
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="add_box_name" class="form-label">{{ __('pages.physical.actions.box_name') }} <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="add_box_name" name="name" 
-                                           placeholder="{{ __('pages.physical.placeholders.box_example') }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="add_box_number" class="form-label">Numéro de boîte</label>
+                                    <label for="add_box_number" class="form-label">Numéro de boîte <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="add_box_number" name="box_number"
-                                           placeholder="ex. BOX-001">
+                                           placeholder="ex. BOX-001" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="add_box_description" class="form-label">{{ __('pages.physical.fields.description_optional') }}</label>
@@ -292,7 +295,6 @@
                     </div>
                 </div>
             </div>
-            @endunless
 
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
@@ -455,11 +457,12 @@
                     </div>
                 </div>
             </div>
+            @endunless
         @endcan
 
         <!-- Hierarchical Tree View -->
         <div class="mt-4">
-            <h5 class="mb-3">{{ __('pages.physical.actions.location_structure') }}</h5>
+            <h5 class="mb-3" id="physicalLocationsStructure">{{ __('pages.physical.actions.location_structure') }}</h5>
             
             @if(isset($rooms) && $rooms->count() > 0)
                 <div class="accordion" id="roomsAccordion">
@@ -470,7 +473,8 @@
                                 <span>📍 {{ __('pages.physical.fields.room') }}: {{ $room->name }}</span>
                                 <span class="badge bg-light text-dark">{{ $room->rows->count() }} {{ __('pages.physical.fields.row') }}(s)</span>
                             </button>
-                            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center">
+                                @unless(request('view_only'))
                                 @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
                                     <form method="POST" action="{{ route('physical-locations.destroy-room', $room->id) }}" 
                                           class="d-inline" onsubmit="return confirm('{{ __('pages.activity_log.are_you_sure') }}');">
@@ -480,6 +484,7 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                @endunless
                                 @endif
                             </div>
                         </div>
@@ -524,6 +529,12 @@
                                                                         return $openLoans->get($doc->id);
                                                                     })->filter();
                                                                     $hasOverdue = $boxOpenLoans->contains(fn ($loan) => $loan->due_at && $loan->due_at->isPast());
+                                                                    $hasExpired = $boxDocuments->contains(function ($doc) {
+                                                                        if ($doc->expire_at && $doc->expire_at->lessThanOrEqualTo(now())) {
+                                                                            return true;
+                                                                        }
+                                                                        return (bool) ($doc->is_expired ?? false);
+                                                                    });
                                                                     $boxStatus = 'available';
                                                                     if ($boxDocuments->count() === 0) {
                                                                         $boxStatus = 'empty';
@@ -547,6 +558,7 @@
                                                                 @endphp
                                                                 <li class="mb-2 p-2 bg-light rounded d-flex justify-content-between align-items-start location-box-item"
                                                                     data-filter-status="{{ $boxStatus }}"
+                                                                    data-filter-expired="{{ $hasExpired ? '1' : '0' }}"
                                                                     data-filter-text="{{ strtolower($box->name.' '.$box->description.' '.$box->__toString().' '.$boxDocuments->pluck('title')->implode(' ')) }}">
                                                                     <div class="me-2">
                                                                         <strong>📦 {{ $box->name }}</strong>
@@ -578,24 +590,20 @@
                                                                                 @foreach($boxDocuments->take(3) as $doc)
                                                                                     @php
                                                                                         $docLoan = $openLoans->get($doc->id);
+                                                                                        $docLoanRequest = $activeLoanRequestsByDocument->get($doc->id);
                                                                                     @endphp
                                                                                     <div class="d-flex flex-wrap align-items-center gap-2">
                                                                                         <span class="small text-muted text-truncate" style="max-width: 240px;" title="{{ $doc->title }}">{{ $doc->title }}</span>
                                                                                         @if($docLoan)
                                                                                             <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('pages.physical.loan_active') }}</span>
-                                                                                            @can('create', \App\Models\DocumentMovement::class)
-                                                                                                <form method="POST" action="{{ route('documents.return', $doc) }}" class="d-inline">
-                                                                                                    @csrf
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-success px-2 py-0">{{ __('pages.physical.return_document') }}</button>
-                                                                                                </form>
-                                                                                            @endcan
+                                                                                        @elseif($docLoanRequest)
+                                                                                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ __('Demande en cours') }}</span>
                                                                                         @else
-                                                                                            @can('create', \App\Models\DocumentMovement::class)
-                                                                                                <form method="POST" action="{{ route('documents.borrow', $doc) }}" class="d-inline">
-                                                                                                    @csrf
-                                                                                                    <input type="hidden" name="borrower_name" value="{{ auth()->user()->full_name }}">
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-warning px-2 py-0">{{ __('pages.physical.borrow_document') }}</button>
-                                                                                                </form>
+                                                                                            @can('create', \App\Models\LoanRequest::class)
+                                                                                                <button type="button" class="btn btn-xs btn-outline-warning px-2 py-0"
+                                                                                                        data-bs-toggle="modal" data-bs-target="#requestDocLoanModal{{ $doc->id }}">
+                                                                                                    {{ __('pages.physical.borrow_document') }}
+                                                                                                </button>
                                                                                             @endcan
                                                                                         @endif
                                                                                     </div>
@@ -603,12 +611,26 @@
                                                                             </div>
                                                                         @endif
                                                                     </div>
+                                                                    @unless(request('view_only'))
                                                                     <div class="d-inline-flex gap-1">
                                                                         @can('create', \App\Models\PhysicalLocation::class)
                                                                             <button class="btn btn-sm btn-outline-primary" type="button" 
                                                                                     data-bs-toggle="modal" data-bs-target="#editBoxModal{{ $box->id }}">
                                                                                 <i class="fas fa-edit"></i> {{ __('pages.physical.actions.edit') }}
                                                                             </button>
+                                                                        @endcan
+                                                                        @can('create', \App\Models\LoanRequest::class)
+                                                                            @php
+                                                                                $boxLoanRequest = $activeLoanRequestsByBox->get($box->id ?? null);
+                                                                            @endphp
+                                                                            @if($boxLoanRequest)
+                                                                                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis align-self-center">{{ __('Demande en cours') }}</span>
+                                                                            @else
+                                                                                <button class="btn btn-sm btn-outline-warning" type="button"
+                                                                                        data-bs-toggle="modal" data-bs-target="#requestBoxLoanModal{{ $box->id }}">
+                                                                                    <i class="fas fa-hand"></i> {{ __('Demander l’emprunt') }}
+                                                                                </button>
+                                                                            @endif
                                                                         @endcan
                                                                         @can('delete physical location')
                                                                             <form method="POST" action="{{ route('physical-locations.destroy-box', $box->id) }}" 
@@ -621,6 +643,7 @@
                                                                             </form>
                                                                         @endcan
                                                                     </div>
+                                                                    @endunless
                                                                 </li>
                                                             @endforeach
                                                         </ul>
@@ -655,6 +678,34 @@
             @foreach($room->rows as $row)
                 @foreach($row->shelves as $shelf)
                     @foreach($shelf->boxes as $box)
+                        <div class="modal fade" id="requestBoxLoanModal{{ $box->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ route('loan-requests.store') }}">
+                                        @csrf
+                                        <input type="hidden" name="box_id" value="{{ $box->id }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ __('Demander l’emprunt de la boîte') }} {{ $box->name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('Motif de la demande') }} <span class="text-danger">*</span></label>
+                                                <textarea name="reason" rows="3" class="form-control" required placeholder="{{ __('Pourquoi souhaitez-vous emprunter cette boîte ?') }}"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('Durée souhaitée en jours (optionnel)') }}</label>
+                                                <input type="number" name="requested_duration_days" min="1" max="365" class="form-control">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Annuler') }}</button>
+                                            <button type="submit" class="btn btn-warning">{{ __('Envoyer la demande') }}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                         <div class="modal fade" id="editBoxModal{{ $box->id }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">
@@ -691,14 +742,9 @@
                                                        value="{{ $shelf->name }}" required>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="box_name_edit{{ $box->id }}" class="form-label">{{ __('pages.physical.actions.box_name') }}</label>
-                                                <input type="text" class="form-control" id="box_name_edit{{ $box->id }}" 
-                                                       name="name" value="{{ $box->name }}" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="box_number_edit{{ $box->id }}" class="form-label">Numéro de boîte</label>
+                                                <label for="box_number_edit{{ $box->id }}" class="form-label">Numéro de boîte <span class="text-danger">*</span></label>
                                                 <input type="text" class="form-control" id="box_number_edit{{ $box->id }}"
-                                                       name="box_number" value="{{ $box->box_number }}" placeholder="ex. BOX-001">
+                                                       name="box_number" value="{{ $box->box_number }}" placeholder="ex. BOX-001" required>
                                             </div>
 
                                             {{-- Service (optional) --}}
@@ -740,32 +786,6 @@
                                                           name="description" rows="2">{{ $box->description }}</textarea>
                                             </div>
 
-                                            <div class="mb-3">
-                                                <label class="form-label">Noms de boîte (dossiers)</label>
-                                                <ul class="list-group mb-2">
-                                                    @forelse($box->boxFolders as $folder)
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-                                                            <span>{{ $folder->name }}</span>
-                                                            <form action="{{ route('boxes.folders.destroy', $folder) }}" method="POST" class="m-0" onsubmit="return confirm('Supprimer ce nom de boîte ?');">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                    @empty
-                                                        <li class="list-group-item text-muted py-1">Aucun nom de boîte pour le moment.</li>
-                                                    @endforelse
-                                                </ul>
-                                                <form action="{{ route('boxes.folders.store', $box) }}" method="POST" class="d-flex gap-2">
-                                                    @csrf
-                                                    <input type="text" class="form-control form-control-sm" name="name" placeholder="ex. Comité technique" required>
-                                                    <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
-                                                        <i class="fas fa-plus"></i> Ajouter
-                                                    </button>
-                                                </form>
-                                            </div>
                                             <p class="text-muted small">
                                                 <strong>{{ __('pages.physical.actions.full_path') }}</strong>
                                                 <span id="edit_box_full_path_{{ $box->id }}">{{ $box->__toString() }}</span>
@@ -776,6 +796,34 @@
                                             <button type="submit" class="btn btn-primary">{{ __('pages.physical.actions.update') }}</button>
                                         </div>
                                     </form>
+                                    <div class="modal-body pt-0">
+                                        <div class="mb-3">
+                                            <label class="form-label">Noms de boîte (dossiers)</label>
+                                            <ul class="list-group mb-2">
+                                                @forelse($box->boxFolders as $folder)
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                                                        <span>{{ $folder->name }}</span>
+                                                        <form action="{{ route('boxes.folders.destroy', $folder) }}" method="POST" class="m-0" onsubmit="return confirm('Supprimer ce nom de boîte ?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                @empty
+                                                    <li class="list-group-item text-muted py-1">Aucun nom de boîte pour le moment.</li>
+                                                @endforelse
+                                            </ul>
+                                            <form action="{{ route('boxes.folders.store', $box) }}" method="POST" class="d-flex gap-2">
+                                                @csrf
+                                                <input type="text" class="form-control form-control-sm" name="name" placeholder="ex. Comité technique" required>
+                                                <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                    <i class="fas fa-plus"></i> Ajouter
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -799,7 +847,7 @@
             const roomInput = document.getElementById('edit_room_name_' + boxId);
             const rowInput = document.getElementById('edit_row_name_' + boxId);
             const shelfInput = document.getElementById('edit_shelf_name_' + boxId);
-            const boxNameInput = document.getElementById('box_name_edit' + boxId);
+            const boxNameInput = document.getElementById('box_number_edit' + boxId);
             const pathSpan = document.getElementById('edit_box_full_path_' + boxId);
             if (!roomInput || !rowInput || !shelfInput || !boxNameInput || !pathSpan) return;
 
@@ -844,7 +892,7 @@
                 const boxId = roomInput.dataset.boxId;
                 const rowInput = document.getElementById('edit_row_name_' + boxId);
                 const shelfInput = document.getElementById('edit_shelf_name_' + boxId);
-                const boxNameInput = document.getElementById('box_name_edit' + boxId);
+                const boxNameInput = document.getElementById('box_number_edit' + boxId);
 
                 function attach(el) {
                     if (!el) return;
@@ -879,10 +927,12 @@
                         let boxMatchCount = 0;
                         rowWrap.querySelectorAll('.location-box-item').forEach(function (boxItem) {
                             const text = (boxItem.dataset.filterText || '').toLowerCase();
-                            const statusMatch = status === 'all' || boxItem.dataset.filterStatus === status;
+                            const statusMatch = status === 'all'
+                                || (status === 'expired' ? boxItem.dataset.filterExpired === '1' : boxItem.dataset.filterStatus === status);
                             const textMatch = term === '' || text.includes(term);
                             const showBox = statusMatch && textMatch;
-                            boxItem.style.display = showBox ? '' : 'none';
+                            boxItem.classList.toggle('d-flex', showBox);
+                            boxItem.classList.toggle('d-none', !showBox);
                             if (showBox) {
                                 boxMatchCount += 1;
                             }
@@ -934,6 +984,20 @@
                 if (roomSelect) roomSelect.value = 'all';
                 if (statusSelect) statusSelect.value = 'all';
                 applyLocationFilters();
+            });
+
+            document.querySelectorAll('.kpi-clickable-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    const filterValue = card.dataset.kpiFilter;
+                    if (statusSelect && filterValue) {
+                        statusSelect.value = filterValue;
+                        applyLocationFilters();
+                    }
+                    const structureSection = document.getElementById('physicalLocationsStructure');
+                    if (structureSection) {
+                        structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
             });
         });
 

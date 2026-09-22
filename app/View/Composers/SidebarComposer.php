@@ -34,9 +34,12 @@ class SidebarComposer
             $view->with('sidebarCategoryTree', []);
             $view->with('sidebarFavorites', $favoritesPayload);
             $view->with('sidebarMyCategories', $myCategoriesPayload);
+            $view->with('sidebarMyTasksCount', 0);
 
             return;
         }
+
+        $view->with('sidebarMyTasksCount', $this->buildSidebarMyTasksCount($user));
 
         if (! $user->can('viewAny', Document::class)) {
             $view->with('sidebarCategoryTree', []);
@@ -165,5 +168,28 @@ class SidebarComposer
             'total' => $accessibleCategories->count(),
             'favorites' => $favoriteAccessibleCategories,
         ];
+    }
+
+    /**
+     * Nombre total d'éléments dans "Mes tâches" (à approuver + relectures + mes documents actifs).
+     */
+    private function buildSidebarMyTasksCount(User $user): int
+    {
+        $toApproveCount = 0;
+        if ($user->can('approve', Document::class) || $user->can('decline', Document::class)) {
+            $toApproveCount = app(HomeController::class)->getVisibleDocumentsQuery()
+                ->where('status', 'pending')
+                ->count();
+        }
+
+        $myReviewsCount = Document::whereHas('reviewers', function ($q) use ($user) {
+            $q->where('reviewer_id', $user->id)->where('status', 'pending');
+        })->where('status', 'en_relecture')->count();
+
+        $myDocumentsCount = Document::where('created_by', $user->id)
+            ->whereIn('status', ['brouillon', 'en_relecture', 'valide'])
+            ->count();
+
+        return $toApproveCount + $myReviewsCount + $myDocumentsCount;
     }
 }

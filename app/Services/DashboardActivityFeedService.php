@@ -184,6 +184,10 @@ class DashboardActivityFeedService
             DocumentStatus::Declined => __('Refusé'),
             DocumentStatus::Archived => __('Archivé'),
             DocumentStatus::Destroyed => __('Détruit'),
+            DocumentStatus::Brouillon => __('Brouillon'),
+            DocumentStatus::EnRelecture => __('En relecture'),
+            DocumentStatus::Valide => __('Clôturé'),
+            DocumentStatus::AttenteArchivage => __('Prêt à archiver'),
         };
     }
 }

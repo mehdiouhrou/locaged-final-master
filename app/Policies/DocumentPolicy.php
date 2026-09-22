@@ -147,6 +147,15 @@ class DocumentPolicy
             return false;
         }
 
+        // Decision 28/07/2026 : un document collaboratif verrouillé (catégorie déjà
+        // assignée, en attente d'archivage ou archivé) n'est plus modifiable par
+        // personne, sauf master ('manage document global expiry' est une permission
+        // exclusive à master, utilisée ici comme marqueur car hasRole() est proscrit
+        // dans les Policies). Logique d'expiration gérée séparément ailleurs.
+        if (in_array($document->status, ['valide', 'attente_archivage', 'approved', 'archived'], true)) {
+            return $user->can('manage document global expiry');
+        }
+
         if ($user->can('view any document')) {
             return true;
         }
@@ -197,12 +206,20 @@ class DocumentPolicy
      */
     public function delete(User $user, Document $document): bool
     {
-        if ($user->can('view any role') && $user->can('delete document')) {
-            return true;
-        }
-
         if ($user->cannot('delete document')) {
             return false;
+        }
+
+        // Decision 28/07/2026 : un document verrouillé (attente_archivage/approved/archived)
+        // ne peut être supprimé que par master, sauf s'il est expiré (logique d'expiration
+        // gérée séparément et prioritaire sur le verrouillage).
+        $isLocked = in_array($document->status, ['valide', 'attente_archivage', 'approved', 'archived'], true);
+        if ($isLocked && ! $this->isDocumentExpired($document)) {
+            return $user->can('manage document global expiry');
+        }
+
+        if ($user->can('view any role') && $user->can('delete document')) {
+            return true;
         }
 
         if ($user->can('view any document')) {
@@ -303,6 +320,13 @@ class DocumentPolicy
      */
     public function permanentDelete(User $user, Document $document): bool
     {
+        // Decision 28/07/2026 : un document verrouillé (attente_archivage/approved/archived)
+        // ne peut être supprimé définitivement que par master, sauf s'il est expiré.
+        $isLocked = in_array($document->status, ['valide', 'attente_archivage', 'approved', 'archived'], true);
+        if ($isLocked && ! $this->isDocumentExpired($document)) {
+            return $user->can('manage document global expiry');
+        }
+
         if ($user->can('view any role')
             || $user->can('view organization wide reports')
             || $user->can('view any department')) {

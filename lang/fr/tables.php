@@ -8,7 +8,7 @@ return [
     'status' => 'Statut',
     'results' => 'Résultats',
     'view_results' => 'Voir les résultats',
-    'structure' => 'Structure',
+    'structure' => 'Catégorie',
     'created_by' => 'Créé par',
     'created_at' => 'Créé le',
     'expire_at' => 'Expire le',

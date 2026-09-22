@@ -157,7 +157,7 @@
             <div class="table-filters">
                 @unless($this->showOnlyPendingApprovals)
                     <select class="form-select" wire:model.change="status" @if($this->lockStatusFilter) disabled @endif>
-                        <option value="all">{{ ui_t('filters.all') }}</option>
+                        <option value="all">{{ ui_t('filters.all_statuses') }}</option>
                         @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                             @if(!in_array($status->value, ['archived', 'destroyed']))
                                 <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
@@ -167,8 +167,8 @@
 
                     </select>
 
-                    {{-- In normal documents view, keep the File Type filter --}}
-                    <select class="form-select" wire:model.change="fileType">
+                    {{-- File Type filter hidden from UI (no added value per Mehdi) --}}
+                    <select class="form-select d-none" wire:model.change="fileType">
                         <option value="">{{ ui_t('filters.file_type') }}</option>
                         <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                         <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -177,8 +177,8 @@
                         <option value="video">{{ ui_t('filters.types.video') }}</option>
                         <option value="audio">{{ ui_t('filters.types.audio') }}</option>
                     </select>
-                @else
-                    {{-- Approvals view: Modern hierarchy selector (Department → Sub-Department → Service) --}}
+                @elseif(false)
+                    {{-- Approvals view: Modern hierarchy selector (Department → Sub-Department → Service) - disabled per Mehdi, category filter used instead --}}
                     <div class="dropdown hierarchy-dropdown">
                         @php
                             // Determine selected label with breadcrumb path
@@ -322,7 +322,7 @@
                 @endunless
 
                 <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
-                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="">{{ ui_t('filters.categories_short') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -803,7 +803,6 @@
                     <th>{{ ui_t('tables.last_version') }}</th>
                 @endunless --}}
                 <th>{{ ui_t('tables.structure') }}</th>
-                <th>{{ ui_t('tables.created_by') }}</th>
                 <th>{{ ui_t('tables.created_at') }}</th>
                 <th>{{ ui_t('tables.expire_at') ?? 'Expire at' }}</th>
                 <th>{{ ui_t('tables.status') }}</th>
@@ -923,17 +922,12 @@
                     </td>
                     {{-- @unless($this->showOnlyPendingApprovals)
                         <td>
-                            <div>{{ $doc->latestVersion?->version_number }}</div>
+                            <div>{{ $doc->latestVersion ? (int) $doc->latestVersion->version_number : null }}</div>
                         </td>
                     @endunless --}}
                     <td>
-                        <div>{{ $doc->department?->name }}</div>
+                        <div>{{ $doc->category?->name }}</div>
                     </td>
-                    <td>
-                        <div>{{ $doc->createdBy?->full_name }}</div>
-                    </td>
-
-
                     <td>
                         <div class="file-date">{{ $doc->created_at->format('d/m/Y') }}
                             <br/>{{ $doc->created_at->format('H:i') }}</div>
@@ -959,6 +953,11 @@
                                 @elseif($doc->status === 'pending') pending
                                 @elseif($doc->status === 'declined') declined
                                 @elseif($doc->status === 'archived') archived
+                                @elseif($doc->status === 'brouillon') brouillon
+                                @elseif($doc->status === 'en_relecture') en_relecture
+                                @elseif($doc->status === 'valide') valide
+                                @elseif($doc->status === 'attente_archivage') attente_archivage
+                                @elseif($doc->status === 'destroyed') destroyed
                                 @else approved
                                 @endif border-0">
                                 {{ ui_t('pages.documents.status.' . $doc->status) }}
@@ -975,6 +974,9 @@
                         <div>
                             @if($doc->box)
                                 <span class="text-muted small">{{ $doc->box->__toString() }}</span>
+                                @if($doc->boxFolder)
+                                    <span class="text-muted small"> → {{ $doc->boxFolder->name }}</span>
+                                @endif
                             @elseif($doc->isDigitalOnly())
                                 <span class="text-muted small fst-italic">{{ __('pages.documents.digital_only_location') }}</span>
                             @else
@@ -1021,6 +1023,22 @@
                                             <i class="fa-solid fa-check"></i>
                                         </button>
                                     @endcan
+                                @elseif($doc->status === 'attente_archivage' && (int) $doc->created_by === (int) auth()->id())
+                                    <button
+                                        class="btn-table btn-table-approve trigger-action"
+                                        data-id="{{ $doc->id }}"
+                                        data-name="{{ $doc->title }}"
+                                        data-url="{{ route('documents.confirm-archive', $doc->id) }}"
+                                        data-method="PUT"
+                                        data-button-text="{{ ui_t('actions.confirm') }}"
+                                        data-title="{{ __('Confirmer l\'archivage') }}"
+                                        data-body="{{ __('Confirmez-vous que ce document a été rangé physiquement en salle d\'archive ?') }}"
+                                        data-button-class="btn-table-approve"
+                                        title="{{ __('Confirmer l\'archivage') }}"
+                                        aria-label="{{ __('Confirmer l\'archivage') }}"
+                                    >
+                                        <i class="fa-solid fa-box-archive"></i>
+                                    </button>
                                 @endif
 
                                 @can('view',$doc)
@@ -1070,10 +1088,10 @@
                                         </a>
                                     @endif
                                 @endcan
-                                @can('viewAny', \App\Models\User::class)
-                                <button type="button" class="btn-table btn-table-logs toggle-log" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
-                                    <i class="fa-solid fa-clock-rotate-left"></i>
-                                </button>
+                                @can('download',$doc)
+                                <a href="{{ route('documents.download',['id' => $doc->id]) }}" class="btn-table btn-table-logs" title="{{ ui_t('pages.documents.download') }}" aria-label="{{ ui_t('pages.documents.download') }}">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
                                 @endcan
                                 <div class="dropdown">
                                     <button class="btn-table btn-table-more" type="button"
@@ -1109,7 +1127,7 @@
                                         @endcan
 
 
-                                        @if(auth()->user()?->can('view any role') || auth()->user()?->can('view organization wide reports') || auth()->user()?->can('view any department'))
+                                        @can('permanentDelete', $doc)
                                             <li class="pointer">
                                                 <a class="dropdown-item trigger-action"
                                                    data-id="{{ $doc->id }}"
@@ -1916,9 +1934,13 @@
             'pending': 'warning',
             'declined': 'danger',
             'refused': 'danger',
-            'expired': 'secondary',
+            'expired': 'danger',
             'destroyed': 'dark',
-            'archived': 'secondary'
+            'archived': 'success',
+            'brouillon': 'secondary',
+            'en_relecture': 'info',
+            'valide': 'primary',
+            'attente_archivage': 'warning'
         };
         return colors[status] || 'secondary';
     }

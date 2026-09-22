@@ -71,6 +71,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Approvals page: access controlled by policy (approve/decline Document)
     Route::get('/documents/status', [DocumentController::class, 'showStatus'])->name('documents.status');
+    Route::get('/documents/my-reviews', [DocumentController::class, 'myReviews'])->name('documents.my-reviews');
+    Route::get('/documents/active', [DocumentController::class, 'myActiveDocuments'])->name('documents.active');
     Route::redirect('/activity-feed', '/notifications')->name('activity.feed');
 
     // Profile route: allow any authenticated user to view their own profile
@@ -123,6 +125,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     // Master only : rôle « master » ou permission « view any role »
     Route::group(['middleware' => ['role_or_permission:master|view any role']], function () {
         Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
+        Route::put('/admin/master/collaborative-module', [MasterConsoleController::class, 'updateCollaborativeModule'])->name('master.console.collaborative-module');
         Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
         Route::resources([
             'roles' => \App\Http\Controllers\RoleController::class,
@@ -177,6 +180,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         'documents' => DocumentController::class,
         'documents-destructions' => DocumentDestructionRequestController::class,
         'document-movements' => DocumentMovementController::class,
+        'loan-requests' => \App\Http\Controllers\LoanRequestController::class,
         'document-versions' => DocumentVersionController::class,
         // 'ocr-jobs' => OcrJobController::class, // Moved to role group
         // 'physical-locations' => PhysicalLocationController::class, // Moved to role group
@@ -198,14 +202,19 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::get('/document-versions/{documentId}/create', [DocumentVersionController::class, 'create'])->name('document-versions.document.create');
 
     Route::put('/users/{user}/password', [UserController::class, 'updatePassword'])->name('users.updatePassword');
+    Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::put('/users/{user}/image', [UserController::class, 'updateImage'])->name('users.updateImage');
 
     Route::get('/documents/{id}/download', DocumentDownloadController::class)->name('documents.download');
+    Route::get('/document-attachments/{id}/download', \App\Http\Controllers\DocumentAttachmentDownloadController::class)->name('document-attachments.download');
     Route::put('/documents/{id}/rename', [DocumentController::class, 'rename'])->name('documents.rename');
     Route::put('/documents/{id}/lock', [DocumentController::class, 'lock'])->name('documents.lock');
     Route::put('/documents/{id}/unlock', [DocumentController::class, 'unlock'])->name('documents.unlock');
     Route::put('/documents/{id}/approve', [DocumentController::class, 'approve'])->name('documents.approve');
     Route::put('/documents/{id}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
+    Route::put('/documents/{id}/reviewer-validate', [DocumentController::class, 'reviewerValidateAction'])->name('documents.reviewer-validate');
+    Route::put('/documents/{id}/reviewer-reject', [DocumentController::class, 'reviewerRejectAction'])->name('documents.reviewer-reject');
+    Route::put('/documents/{id}/confirm-archive', [DocumentController::class, 'confirmArchiveAction'])->name('documents.confirm-archive');
     Route::delete('/documents/{id}/permanent-delete', [DocumentController::class, 'permanentDelete'])->name('documents.permanent-delete');
     Route::get('/documents/{id}/metadata', [DocumentController::class, 'getMetadata'])->name('documents.metadata');
     Route::put('/documents/{id}/metadata', [DocumentController::class, 'updateMetadata'])->name('documents.metadata.update');
@@ -215,6 +224,12 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents-destructions/{id}/approve', [DocumentDestructionRequestController::class, 'approve'])->name('documents-destructions.approve');
     Route::put('/documents-destructions/{id}/decline', [DocumentDestructionRequestController::class, 'decline'])->name('documents-destructions.decline');
     Route::put('/documents-destructions/{id}/postpone', [DocumentDestructionRequestController::class, 'postpone'])->name('documents-destructions.postpone');
+
+    // Loan requests (emprunts documents/boites)
+    Route::put('/loan-requests/{loanRequest}/approve', [\App\Http\Controllers\LoanRequestController::class, 'approve'])->name('loan-requests.approve');
+    Route::put('/loan-requests/{loanRequest}/reject', [\App\Http\Controllers\LoanRequestController::class, 'reject'])->name('loan-requests.reject');
+    Route::put('/loan-requests/{loanRequest}/pick-up', [\App\Http\Controllers\LoanRequestController::class, 'pickUp'])->name('loan-requests.pick-up');
+    Route::put('/loan-requests/{loanRequest}/return', [\App\Http\Controllers\LoanRequestController::class, 'returnLoan'])->name('loan-requests.return');
     Route::put('/documents/{documentId}/postpone-expiration', [DocumentDestructionRequestController::class, 'postponeDocument'])->name('documents.postpone-expiration');
 
     Route::get('/destruction-certificates', [DocumentDestructionRequestController::class, 'certificatesIndex'])

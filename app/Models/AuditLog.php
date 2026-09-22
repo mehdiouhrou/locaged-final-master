@@ -14,6 +14,8 @@ class AuditLog extends Model
         'user_name',
         'document_id',
         'version_id',
+        'subject_type',
+        'subject_id',
         'action',
         'ip_address',
         'user_agent',

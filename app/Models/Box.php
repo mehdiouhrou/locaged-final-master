@@ -61,6 +61,11 @@ class Box extends Model
         return $this->hasMany(BoxFolder::class);
     }
 
+    public function loanRequests(): HasMany
+    {
+        return $this->hasMany(\App\Models\LoanRequest::class, 'box_id');
+    }
+
     /**
      * Get full path representation (Room → Row → Shelf → Box)
      */

@@ -132,14 +132,14 @@
             </div>
             <div class="table-filters">
                 <select class="form-select" wire:model.change="status" {{ $hideStatusFilter || $lockStatusFilter ? 'disabled' : '' }}>
-                    <option value="all">{{ ui_t('filters.all') }}</option>
+                    <option value="all">{{ ui_t('filters.all_statuses') }}</option>
                     @foreach(\App\Enums\DocumentStatus::activeCases() as $status)
                         <option value="{{ $status->value }}">{{ ui_t('pages.documents.status.' . $status->value) }}</option>
                     @endforeach
                     <option value="expired">{{ ui_t('pages.documents.status.expired') }}</option>
                 </select>
 
-                <select class="form-select" wire:model.change="fileType">
+                <select class="form-select d-none" wire:model.change="fileType">
                     <option value="">{{ ui_t('filters.file_type') }}</option>
                     <option value="pdf">{{ ui_t('filters.types.pdf') }}</option>
                     <option value="doc">{{ ui_t('filters.types.word') ?? ui_t('filters.types.doc') }}</option>
@@ -150,7 +150,7 @@
                 </select>
 
                 <select class="form-select" wire:model.change="category" title="{{ ui_t('pages.upload.category') }}">
-                    <option value="">{{ ui_t('filters.all') }} — {{ ui_t('pages.upload.category') }}</option>
+                    <option value="">{{ ui_t('filters.categories_short') }}</option>
                     <option value="uncategorized">{{ ui_t('filters.without_category') }}</option>
                     @foreach($filterCategories ?? [] as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -240,11 +240,11 @@
                 <!-- Per-page selector -->
                 <div class="ms-2">
                     <select class="form-select" wire:model.change="perPage" style="min-width: 110px;">
-                        <option value="10">10 per page</option>
-                        <option value="50">50 per page</option>
-                        <option value="100">100 per page</option>
-                        <option value="250">250 per page</option>
-                        <option value="500">500 per page</option>
+                        <option value="10">10 {{ ui_t('filters.per_page') }}</option>
+                        <option value="50">50 {{ ui_t('filters.per_page') }}</option>
+                        <option value="100">100 {{ ui_t('filters.per_page') }}</option>
+                        <option value="250">250 {{ ui_t('filters.per_page') }}</option>
+                        <option value="500">500 {{ ui_t('filters.per_page') }}</option>
                     </select>
                 </div>
 
@@ -261,7 +261,6 @@
                 <th>{{ ui_t('tables.file_name') }}</th>
                 {{-- <th>{{ ui_t('tables.last_version') }}</th> --}}
                 <th>{{ ui_t('tables.structure') }}</th>
-                <th>{{ ui_t('tables.created_by') }}</th>
                 <th>{{ ui_t('tables.created_at') }}</th>
                 <th>{{ ui_t('tables.expire_at') ?? 'Expire at' }}</th>
                 <th>{{ ui_t('tables.status') }}</th>
@@ -300,16 +299,11 @@
                         </div>
                     </td>
                     {{-- <td>
-                        <div>{{ $doc->latestVersion?->version_number }}</div>
+                        <div>{{ $doc->latestVersion ? (int) $doc->latestVersion->version_number : null }}</div>
                     </td> --}}
                     <td>
-                        <div>{{ $doc->department?->name }}</div>
+                        <div>{{ $doc->category?->name }}</div>
                     </td>
-                    <td>
-                        <div>{{ $doc->createdBy?->full_name }}</div>
-                    </td>
-
-
                     <td>
                         <div class="file-date">{{ $doc->created_at->format('d/m/Y') }}
                             <br/>{{ $doc->created_at->format('H:i') }}</div>
@@ -335,6 +329,9 @@
                                 @elseif($doc->status === 'pending') pending
                                 @elseif($doc->status === 'declined') declined
                                 @elseif($doc->status === 'archived') archived
+                                @elseif($doc->status === 'brouillon') brouillon
+                                @elseif($doc->status === 'en_relecture') en_relecture
+                                @elseif($doc->status === 'valide') valide
                                 @else approved
                                 @endif border-0">
                                 {{ ui_t('pages.documents.status.' . $doc->status) }}
@@ -351,6 +348,9 @@
                         <div>
                             @if($doc->box)
                                 <span class="text-muted small">{{ $doc->box->__toString() }}</span>
+                                @if($doc->boxFolder)
+                                    <span class="text-muted small"> → {{ $doc->boxFolder->name }}</span>
+                                @endif
                             @elseif($doc->isDigitalOnly())
                                 <span class="text-muted small fst-italic">{{ __('pages.documents.digital_only_location') }}</span>
                             @else
@@ -387,10 +387,10 @@
                                     </a>
                                 @endif
                             @endcan
-                            @can('viewAny', \App\Models\User::class)
-                            <button type="button" class="btn-table btn-table-logs toggle-log" data-doc-id="{{ $doc->id }}" title="{{ ui_t('pages.documents.show_log') }}" aria-label="{{ ui_t('pages.documents.show_log') }}">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                            </button>
+                            @can('download',$doc)
+                            <a href="{{ route('documents.download',['id' => $doc->id]) }}" class="btn-table btn-table-logs" title="{{ ui_t('pages.documents.download') }}" aria-label="{{ ui_t('pages.documents.download') }}">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
                             @endcan
                             <div class="dropdown">
                                 <button class="btn-table btn-table-more" type="button"
@@ -419,7 +419,7 @@
                                     @endcan
 
 
-                                    @if(auth()->user()?->can('view any role') || auth()->user()?->can('view organization wide reports') || auth()->user()?->can('view any department'))
+                                    @can('permanentDelete', $doc)
                                         <li class="pointer">
                                             <a class="dropdown-item trigger-action"
                                                data-id="{{ $doc->id }}"
@@ -451,18 +451,6 @@
                                     @endif
 
 
-                                        @can('download',$doc)
-                                    <li class="pointer">
-                                        <a class="dropdown-item" href="#"
-                                           onclick="event.preventDefault(); showDocumentMetadata({{ $doc->id }})">
-                                            <i class="fa-solid fa-info-circle"></i> {{ ui_t('pages.upload.show_metadata') }}
-                                        </a>
-                                    </li>
-                                    <li class="pointer"><a class="dropdown-item"
-                                                           href="{{ route('documents.download',['id' => $doc->id]) }}"><i
-                                                class="fa-solid fa-download"></i> {{ ui_t('pages.documents.download') }}</a>
-                                    </li>
-                                        @endcan
                                     {{--
                                                                         <li><a class="dropdown-item" href="#"><i class="fa-regular fa-star"></i> {{ ui_t('pages.documents.favorite.add') }}</a></li>
                                     --}}
@@ -1054,7 +1042,10 @@
             'refused': 'danger',
             'expired': 'secondary',
             'destroyed': 'dark',
-            'archived': 'secondary'
+            'archived': 'secondary',
+            'brouillon': 'secondary',
+            'en_relecture': 'info',
+            'valide': 'primary'
         };
         return colors[status] || 'secondary';
     }

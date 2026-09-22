@@ -7,6 +7,7 @@ use App\Exports\DocumentsReportExport;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentReviewer;
 use App\Models\DocumentVersion;
 use App\Models\Service;
 use App\Models\Subcategory;
@@ -82,25 +83,54 @@ class DocumentController extends Controller
 
     public function showStatus(Request $request)
     {
-        if (! Gate::any(['approve', 'decline'], Document::class)) {
-            abort(403);
-        }
+        Gate::authorize('viewAny', Document::class);
 
         // Note: Expired documents are now always shown in pending approvals
         // The is_expired flag is maintained for visual indicators only
 
+        // Statuts combinés : "pending" (pipeline classique, visible par les approbateurs
+        // ou l'auteur - via le scope global du modèle) et "attente_archivage" (workflow
+        // collaboratif, visible par l'auteur / relecteurs / hiérarchie - via le même scope).
+        // Le scope global de Document filtre automatiquement ce que chaque utilisateur voit.
         $query = Document::with(['subcategory', 'department', 'box.shelf.row.room', 'createdBy'])
-            ->where('status', 'pending');
+            ->whereIn('status', ['pending', 'attente_archivage']);
 
         $documents = $query->latest()->paginate(10);
 
         return view('documents.status', compact('documents'));
     }
 
+    public function myReviews(Request $request)
+    {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+
+        $documents = Document::with(['createdBy', 'reviewers'])
+            ->whereHas('reviewers', function ($q) {
+                $q->where('reviewer_id', auth()->id())
+                    ->where('status', 'pending');
+            })
+            ->where('status', 'en_relecture')
+            ->latest()
+            ->paginate(10);
+
+        return view('documents.my-reviews', compact('documents'));
+    }
+
+    public function myActiveDocuments(Request $request)
+    {
+        abort_unless(\App\Support\Branding::isCollaborativeModuleEnabled(), 403, "Le module Document actif n'est pas activé sur cette instance.");
+
+        return view('documents.active');
+    }
+
     // Show create form
     public function create()
     {
         Gate::authorize('create', Document::class);
+
+        if (request('mode') === 'collaboratif' && ! \App\Support\Branding::isCollaborativeModuleEnabled()) {
+            abort(403, "Le module Document actif n'est pas activé sur cette instance.");
+        }
 
         return view('documents.create');
     }
@@ -356,6 +386,63 @@ class DocumentController extends Controller
         return back()->with('success', 'Document rejected.');
     }
 
+    public function reviewerValidateAction(\App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $document = Document::findOrFail($id);
+
+        $isAssignedReviewer = $document->reviewers()
+            ->where('reviewer_id', auth()->id())
+            ->where('status', 'pending')
+            ->exists();
+
+        if (! $isAssignedReviewer) {
+            abort(403);
+        }
+
+        $service->reviewerValidate($document, auth()->user());
+
+        return back()->with('success', 'Document validé.');
+    }
+
+    public function reviewerRejectAction(Request $request, \App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $validated = $request->validate([
+            'reject_reason' => ['required', 'string', 'min:3', 'max:5000'],
+        ]);
+
+        $document = Document::findOrFail($id);
+
+        $isAssignedReviewer = $document->reviewers()
+            ->where('reviewer_id', auth()->id())
+            ->where('status', 'pending')
+            ->exists();
+
+        if (! $isAssignedReviewer) {
+            abort(403);
+        }
+
+        $service->reviewerReject($document, auth()->user(), $validated['reject_reason']);
+
+        return back()->with('success', 'Document rejeté.');
+    }
+
+    public function confirmArchiveAction(\App\Services\CollaborativeDocumentService $service, $id)
+    {
+        $document = Document::findOrFail($id);
+
+        if ((int) $document->created_by !== (int) auth()->id()) {
+            abort(403);
+        }
+
+        try {
+            $service->confirmArchive($document, auth()->user());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Document archivé.');
+    }
+
     public function lock($id)
     {
 
@@ -448,6 +535,11 @@ class DocumentController extends Controller
 
                 $version->delete();
             }
+
+            // Nettoyage : annule les reviews en attente liées à ce document (évite les compteurs fantômes)
+            DocumentReviewer::where('document_id', $document->id)
+                ->where('status', 'pending')
+                ->delete();
 
             $document->delete();
         });
