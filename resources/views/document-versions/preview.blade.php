@@ -291,33 +291,31 @@
                                     <div><strong>{{ __('Date emprunt') }}:</strong> {{ $currentLoan->moved_at?->format('d/m/Y H:i') ?? '—' }}</div>
                                     <div><strong>{{ __('Retour prévu') }}:</strong> {{ $currentLoan->due_at?->format('d/m/Y H:i') ?? '—' }}</div>
                                 </div>
-
-                                @can('create', \App\Models\DocumentMovement::class)
-                                    <form method="POST" action="{{ route('documents.return', $document) }}" class="mb-2">
-                                        @csrf
-                                        <label class="form-label small mb-1">{{ __('Note de retour (optionnel)') }}</label>
-                                        <textarea name="return_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('État du dossier au retour') }}"></textarea>
-                                        <button type="submit" class="btn btn-sm btn-outline-success w-100">
-                                            <i class="fa-solid fa-box-open me-1"></i>{{ __('Marquer comme retourné') }}
-                                        </button>
-                                    </form>
-                                @endcan
+                                <p class="text-muted mb-0 small">{{ __('Le retour physique est enregistré par le responsable des emprunts.') }}</p>
+                            @elseif(isset($activeLoanRequest) && $activeLoanRequest)
+                                <div class="border rounded-2 p-2 mb-3">
+                                    @if($activeLoanRequest->status === 'requested')
+                                        <span class="badge bg-warning text-dark mb-2">{{ __('Demande en attente d’approbation') }}</span>
+                                    @elseif($activeLoanRequest->status === 'approved')
+                                        <span class="badge bg-info text-dark mb-2">{{ __('Demande approuvée — en attente de retrait') }}</span>
+                                    @endif
+                                    <div class="text-muted small">{{ __('Motif') }}: {{ $activeLoanRequest->reason }}</div>
+                                </div>
                             @else
-                                @can('create', \App\Models\DocumentMovement::class)
-                                    <form method="POST" action="{{ route('documents.borrow', $document) }}" class="mb-2">
+                                @can('create', \App\Models\LoanRequest::class)
+                                    <form method="POST" action="{{ route('loan-requests.store') }}" class="mb-2">
                                         @csrf
-                                        <label class="form-label small mb-1">{{ __('Nom de l’emprunteur') }}</label>
-                                        <input type="text" name="borrower_name" class="form-control form-control-sm mb-2" required placeholder="{{ __('Ex: Nom / Service externe') }}">
-                                        <label class="form-label small mb-1">{{ __('Date prévue de retour (optionnel)') }}</label>
-                                        <input type="datetime-local" name="due_at" class="form-control form-control-sm mb-2">
-                                        <label class="form-label small mb-1">{{ __('Motif (optionnel)') }}</label>
-                                        <textarea name="movement_note" rows="2" class="form-control form-control-sm mb-2" placeholder="{{ __('Pourquoi ce dossier est emprunté ?') }}"></textarea>
+                                        <input type="hidden" name="document_id" value="{{ $document->id }}">
+                                        <label class="form-label small mb-1">{{ __('Motif de la demande') }}</label>
+                                        <textarea name="reason" rows="2" class="form-control form-control-sm mb-2" required placeholder="{{ __('Pourquoi souhaitez-vous emprunter ce dossier ?') }}"></textarea>
+                                        <label class="form-label small mb-1">{{ __('Durée souhaitée en jours (optionnel)') }}</label>
+                                        <input type="number" name="requested_duration_days" min="1" max="365" class="form-control form-control-sm mb-2">
                                         <button type="submit" class="btn btn-sm btn-outline-warning w-100">
-                                            <i class="fa-solid fa-hand me-1"></i>{{ __('Enregistrer un emprunt') }}
+                                            <i class="fa-solid fa-hand me-1"></i>{{ __('Demander l’emprunt') }}
                                         </button>
                                     </form>
                                 @else
-                                    <p class="text-muted mb-0">{{ __('Vous n’avez pas les droits pour enregistrer un emprunt.') }}</p>
+                                    <p class="text-muted mb-0">{{ __('Vous n’avez pas les droits pour demander un emprunt.') }}</p>
                                 @endcan
                             @endif
 

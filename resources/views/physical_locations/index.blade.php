@@ -590,24 +590,20 @@
                                                                                 @foreach($boxDocuments->take(3) as $doc)
                                                                                     @php
                                                                                         $docLoan = $openLoans->get($doc->id);
+                                                                                        $docLoanRequest = $activeLoanRequestsByDocument->get($doc->id);
                                                                                     @endphp
                                                                                     <div class="d-flex flex-wrap align-items-center gap-2">
                                                                                         <span class="small text-muted text-truncate" style="max-width: 240px;" title="{{ $doc->title }}">{{ $doc->title }}</span>
                                                                                         @if($docLoan)
                                                                                             <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">{{ __('pages.physical.loan_active') }}</span>
-                                                                                            @can('create', \App\Models\DocumentMovement::class)
-                                                                                                <form method="POST" action="{{ route('documents.return', $doc) }}" class="d-inline">
-                                                                                                    @csrf
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-success px-2 py-0">{{ __('pages.physical.return_document') }}</button>
-                                                                                                </form>
-                                                                                            @endcan
+                                                                                        @elseif($docLoanRequest)
+                                                                                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ __('Demande en cours') }}</span>
                                                                                         @else
-                                                                                            @can('create', \App\Models\DocumentMovement::class)
-                                                                                                <form method="POST" action="{{ route('documents.borrow', $doc) }}" class="d-inline">
-                                                                                                    @csrf
-                                                                                                    <input type="hidden" name="borrower_name" value="{{ auth()->user()->full_name }}">
-                                                                                                    <button type="submit" class="btn btn-xs btn-outline-warning px-2 py-0">{{ __('pages.physical.borrow_document') }}</button>
-                                                                                                </form>
+                                                                                            @can('create', \App\Models\LoanRequest::class)
+                                                                                                <button type="button" class="btn btn-xs btn-outline-warning px-2 py-0"
+                                                                                                        data-bs-toggle="modal" data-bs-target="#requestDocLoanModal{{ $doc->id }}">
+                                                                                                    {{ __('pages.physical.borrow_document') }}
+                                                                                                </button>
                                                                                             @endcan
                                                                                         @endif
                                                                                     </div>
@@ -622,6 +618,19 @@
                                                                                     data-bs-toggle="modal" data-bs-target="#editBoxModal{{ $box->id }}">
                                                                                 <i class="fas fa-edit"></i> {{ __('pages.physical.actions.edit') }}
                                                                             </button>
+                                                                        @endcan
+                                                                        @can('create', \App\Models\LoanRequest::class)
+                                                                            @php
+                                                                                $boxLoanRequest = $activeLoanRequestsByBox->get($box->id ?? null);
+                                                                            @endphp
+                                                                            @if($boxLoanRequest)
+                                                                                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis align-self-center">{{ __('Demande en cours') }}</span>
+                                                                            @else
+                                                                                <button class="btn btn-sm btn-outline-warning" type="button"
+                                                                                        data-bs-toggle="modal" data-bs-target="#requestBoxLoanModal{{ $box->id }}">
+                                                                                    <i class="fas fa-hand"></i> {{ __('Demander l’emprunt') }}
+                                                                                </button>
+                                                                            @endif
                                                                         @endcan
                                                                         @can('delete physical location')
                                                                             <form method="POST" action="{{ route('physical-locations.destroy-box', $box->id) }}" 
@@ -669,6 +678,34 @@
             @foreach($room->rows as $row)
                 @foreach($row->shelves as $shelf)
                     @foreach($shelf->boxes as $box)
+                        <div class="modal fade" id="requestBoxLoanModal{{ $box->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ route('loan-requests.store') }}">
+                                        @csrf
+                                        <input type="hidden" name="box_id" value="{{ $box->id }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ __('Demander l’emprunt de la boîte') }} {{ $box->name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('Motif de la demande') }} <span class="text-danger">*</span></label>
+                                                <textarea name="reason" rows="3" class="form-control" required placeholder="{{ __('Pourquoi souhaitez-vous emprunter cette boîte ?') }}"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ __('Durée souhaitée en jours (optionnel)') }}</label>
+                                                <input type="number" name="requested_duration_days" min="1" max="365" class="form-control">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Annuler') }}</button>
+                                            <button type="submit" class="btn btn-warning">{{ __('Envoyer la demande') }}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                         <div class="modal fade" id="editBoxModal{{ $box->id }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">

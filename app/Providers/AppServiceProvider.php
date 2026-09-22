@@ -51,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(\App\Models\DocumentDestructionRequest::class, \App\Policies\DocumentDestructionRequestPolicy::class);
         Gate::policy(\App\Models\DestructionCertificate::class, \App\Policies\DestructionCertificatePolicy::class);
+        Gate::policy(\App\Models\LoanRequest::class, \App\Policies\LoanRequestPolicy::class);
 
         Document::observe(DocumentObserver::class);
         Category::observe(CategoryObserver::class);

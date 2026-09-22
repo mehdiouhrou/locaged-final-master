@@ -626,6 +626,11 @@ class Document extends Model
             ->orderBy('occurred_at', 'desc');
     }
 
+    public function loanRequests(): HasMany
+    {
+        return $this->hasMany(\App\Models\LoanRequest::class, 'document_id');
+    }
+
     /**
      * @param  array<string, mixed>  $metadata
      */

@@ -81,6 +81,29 @@ class PhysicalLocationController extends Controller
                 ->keyBy('document_id');
         }
 
+        $activeLoanRequestsByDocument = collect();
+        if ($documentIds->isNotEmpty()) {
+            $activeLoanRequestsByDocument = \App\Models\LoanRequest::query()
+                ->whereIn('document_id', $documentIds->all())
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->get()
+                ->unique('document_id')
+                ->keyBy('document_id');
+        }
+
+        $boxIds = $allBoxes->pluck('id');
+        $activeLoanRequestsByBox = collect();
+        if ($boxIds->isNotEmpty()) {
+            $activeLoanRequestsByBox = \App\Models\LoanRequest::query()
+                ->whereIn('box_id', $boxIds->all())
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->get()
+                ->unique('box_id')
+                ->keyBy('box_id');
+        }
+
         $expiredCount = 0;
         if ($documentIds->isNotEmpty()) {
             $expiredCount = \App\Models\Document::query()
@@ -108,7 +131,7 @@ class PhysicalLocationController extends Controller
 
         $boxImportPreview = session('box_import_preview', []);
 
-        return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview'));
+        return view('physical_locations.index', compact('rooms', 'kpis', 'openLoans', 'boxImportPreview', 'activeLoanRequestsByDocument', 'activeLoanRequestsByBox'));
     }
 
     public function store(Request $request)

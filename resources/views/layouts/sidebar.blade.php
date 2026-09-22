@@ -323,6 +323,14 @@
                         <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
                     </a>
                 </li>
+                @can('viewAny', \App\Models\LoanRequest::class)
+                <li class="mt-2">
+                    <a href="{{ route('loan-requests.index') }}" class="{{ request()->routeIs('loan-requests.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
+                        <span class="sidebar-text">{{ __('Gestion des emprunts') }}</span>
+                    </a>
+                </li>
+                @endcan
                 @endcan
             </ul>
         </li>

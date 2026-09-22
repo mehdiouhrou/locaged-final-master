@@ -116,6 +116,19 @@ class RolesAndPermissionsSeeder extends Seeder
             'approve document destruction request',
             'decline document destruction request',
 
+            // Loan requests (emprunts documents/boites)
+            'view any loan request',
+            'view department loan request',
+            'view own loan request',
+            'create loan request',
+            'update loan request',
+            'delete loan request',
+            'restore loan request',
+            'forceDelete loan request',
+            'approve loan request',
+            'decline loan request',
+            'process loan request',
+
             // OCR jobs
             'view any ocr job',
             'view department ocr job',
@@ -233,6 +246,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'approve document destruction request',
             'decline document destruction request',
             'delete document destruction request',
+
+            // Loan requests
+            'view any loan request',
+            'view department loan request',
+            'create loan request',
+            'approve loan request',
+            'decline loan request',
+            'process loan request',
+            'delete loan request',
 
             // OCR jobs (operational access; Master controls configuration)
             'view any ocr job',
@@ -640,6 +662,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create document',
                 'update document',
                 'view any category',
+                'create loan request',
             ],
 
             'Directrice du SPCR' => [
@@ -654,12 +677,19 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view system activity log',
                 'view organization wide reports',
                 'access document expiration management',
+                'view any loan request',
+                'create loan request',
+                'approve loan request',
+                'decline loan request',
+                'process loan request',
+                'delete loan request',
             ],
             'Assistante de Direction' => [
                 'view any document',
                 'create document',
                 'download document',
                 'view audit log',
+                'create loan request',
             ],
             'Chef de Département' => [
                 'view department document',
@@ -676,12 +706,18 @@ class RolesAndPermissionsSeeder extends Seeder
                 'update physical location',
                 'access document expiration management',
                 'postpone document expiration',
+                'create loan request',
             ],
             'Chargée de dépôt' => [
                 'view own document',
                 'upload document',
                 'create document',
                 'view any category',
+                'view any loan request',
+                'create loan request',
+                'approve loan request',
+                'decline loan request',
+                'process loan request',
             ],
         ];
 
@@ -705,6 +741,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 }
                 if ($permissions['view audit log'] ?? null) {
                     $grant[] = $permissions['view audit log'];
+                }
+                if ($permissions['create loan request'] ?? null) {
+                    $grant[] = $permissions['create loan request'];
                 }
                 if ($permissions['manage profiles'] ?? null && in_array($roleName, ['admin', 'Super Administrator'], true)) {
                     $grant[] = $permissions['manage profiles'];

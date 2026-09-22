@@ -378,6 +378,11 @@ class DocumentVersionController extends Controller
             // ouvert peut être au-delà de cette fenêtre et le bandeau restait « Disponible ».
             $currentLoan = $document->currentOpenLoan();
 
+            $activeLoanRequest = \App\Models\LoanRequest::where('document_id', $document->id)
+                ->whereIn('status', ['requested', 'approved', 'picked_up'])
+                ->latest()
+                ->first();
+
             return view('document-versions.preview', [
                 'fileUrl'              => $fileUrl,
                 'fileType'             => $fileType,
@@ -395,6 +400,7 @@ class DocumentVersionController extends Controller
                 'tags'               => $tags,
                 'physicalMovements'  => $physicalMovements,
                 'currentLoan'        => $currentLoan,
+                'activeLoanRequest'  => $activeLoanRequest,
                 // Approval navigation
                 'isApprovalContext'  => $isApprovalContext,
                 'prevApprovalUrl'    => $prevApprovalUrl,

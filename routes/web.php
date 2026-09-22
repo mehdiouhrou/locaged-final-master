@@ -180,6 +180,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         'documents' => DocumentController::class,
         'documents-destructions' => DocumentDestructionRequestController::class,
         'document-movements' => DocumentMovementController::class,
+        'loan-requests' => \App\Http\Controllers\LoanRequestController::class,
         'document-versions' => DocumentVersionController::class,
         // 'ocr-jobs' => OcrJobController::class, // Moved to role group
         // 'physical-locations' => PhysicalLocationController::class, // Moved to role group
@@ -223,6 +224,12 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::put('/documents-destructions/{id}/approve', [DocumentDestructionRequestController::class, 'approve'])->name('documents-destructions.approve');
     Route::put('/documents-destructions/{id}/decline', [DocumentDestructionRequestController::class, 'decline'])->name('documents-destructions.decline');
     Route::put('/documents-destructions/{id}/postpone', [DocumentDestructionRequestController::class, 'postpone'])->name('documents-destructions.postpone');
+
+    // Loan requests (emprunts documents/boites)
+    Route::put('/loan-requests/{loanRequest}/approve', [\App\Http\Controllers\LoanRequestController::class, 'approve'])->name('loan-requests.approve');
+    Route::put('/loan-requests/{loanRequest}/reject', [\App\Http\Controllers\LoanRequestController::class, 'reject'])->name('loan-requests.reject');
+    Route::put('/loan-requests/{loanRequest}/pick-up', [\App\Http\Controllers\LoanRequestController::class, 'pickUp'])->name('loan-requests.pick-up');
+    Route::put('/loan-requests/{loanRequest}/return', [\App\Http\Controllers\LoanRequestController::class, 'returnLoan'])->name('loan-requests.return');
     Route::put('/documents/{documentId}/postpone-expiration', [DocumentDestructionRequestController::class, 'postponeDocument'])->name('documents.postpone-expiration');
 
     Route::get('/destruction-certificates', [DocumentDestructionRequestController::class, 'certificatesIndex'])
