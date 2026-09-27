@@ -481,6 +481,8 @@ class DocumentsTable extends Component
             });
         }
 
+        $hasActiveWorkflow = \App\Support\Branding::isCollaborativeModuleEnabled();
+
         return view('livewire.documents-table', [
             'documents' => $documents,
             'folders'   => collect(), // Empty collection - folders feature removed
@@ -489,6 +491,7 @@ class DocumentsTable extends Component
             'hierarchyDepartments' => $hierarchyDepartments,
             'documentsIds' => $this->documentsIds,
             'filterCategories' => Category::query()->orderBy('name')->get(['id', 'name']),
+            'hasActiveWorkflow' => $hasActiveWorkflow,
         ]);
     }
 

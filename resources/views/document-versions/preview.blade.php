@@ -128,6 +128,15 @@
                                 <dt class="col-6 text-muted">{{ __('Emplacement physique') }}</dt>
                                 <dd class="col-6 mb-0 text-break">@if($document->box){{ $document->box->__toString() }}@elseif($document->isDigitalOnly()){{ __('pages.documents.digital_only_location') }}@else—@endif</dd>
 
+                                @can('move', $document)
+                                <dt class="col-6 text-muted">{{ __('Déplacer') }}</dt>
+                                <dd class="col-6 mb-0">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#moveDocumentModal-{{ $document->id }}">
+                                        <i class="fa-solid fa-arrows-up-down-left-right me-1"></i>{{ __('Changer d\'emplacement') }}
+                                    </button>
+                                </dd>
+                                @endcan
+
                                 @if($document->boxFolder)
                                 <dt class="col-6 text-muted">{{ __('Nom de boîte') }}</dt>
                                 <dd class="col-6 mb-0 text-break">{{ $document->boxFolder->name }}</dd>
@@ -206,6 +215,7 @@
                         </div>
                     @endif
 
+                    @can('approve document')
                     <div class="card border-0 shadow-sm mb-3">
                         <div class="card-header bg-white py-2">
                             <h6 class="mb-0 text-uppercase text-muted small fw-bold">{{ __('Historique des statuts') }}</h6>
@@ -214,6 +224,7 @@
                             <x-document-approval-timeline :document="$document" />
                         </div>
                     </div>
+                    @endcan
 
                     @if($document->reviewers->isNotEmpty())
                         <div class="card border-0 shadow-sm mb-3">
@@ -319,6 +330,7 @@
                                 @endcan
                             @endif
 
+                            @can('approve document')
                             <hr class="my-3">
                             <h6 class="small fw-bold text-muted text-uppercase mb-2">{{ __('Historique physique') }}</h6>
                             @if(isset($physicalMovements) && $physicalMovements->isNotEmpty())
@@ -350,6 +362,7 @@
                             @else
                                 <p class="text-muted mb-0">{{ __('Aucun mouvement physique enregistré.') }}</p>
                             @endif
+                            @endcan
                         </div>
                     </div>
                     @endunless
@@ -466,5 +479,6 @@
         </div>
     </div>
 
+    @include('components.modals.move-documents-modal', ['document' => $document, 'doc' => $document, 'rooms' => \App\Models\Room::with('rows.shelves.boxes')->get()])
     @include('components.modals.confirm-modal')
 @endsection

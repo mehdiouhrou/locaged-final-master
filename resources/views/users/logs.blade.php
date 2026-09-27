@@ -10,18 +10,13 @@
                     <button class="me-4  button-active2">
                         <a href="{{ route('users.logs') }}" class="text-decoration-none">{{ ui_t('pages.activity_log.activity_log') }}</a>
                     </button>
-                    <button class="me-4">
-                        <a href="{{ route('documents.index') }}" class="text-decoration-none">{{ ui_t('pages.file_audit') }}</a>
-                    </button>
                     @unless(auth()->user()->can('filter audit logs by assigned services') || auth()->user()->can('view subdepartment scoped documents'))
                         <button class="me-4">
                             <a href="{{ route('logs.deletions') }}" class="text-decoration-none">{{ __('Deletion log') }}</a>
                         </button>
                     @endunless
                 </div>
-                <a href="{{ route('users.logs.legal-export', request()->query()) }}" class="btn btn-sm btn-outline-primary mb-2">
-                    <i class="fa-solid fa-shield-halved me-1"></i>{{ __('Export preuve légale (signée)') }}
-                </a>
+{{-- legal export hidden --}}
             </div>
         </div>
 

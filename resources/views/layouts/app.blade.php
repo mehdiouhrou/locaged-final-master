@@ -21,7 +21,7 @@
     
 
 </head>
-<body dir="{{ session('rtl') ?  'rtl' : 'ltr' }}" class="locaged-v2">
+<body dir="{{ session('rtl') ?  'rtl' : 'ltr' }}" class="locaged-v2" style="zoom: 0.8;">
 <div class="wrapper layout-with-sidebar">
     <div class="container-fluid ps-0">
         <!-- Sidebar (fixed) -->

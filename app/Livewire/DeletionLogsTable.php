@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\AuditLog;
+use App\Services\PdfExportService;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -354,4 +355,22 @@ class DeletionLogsTable extends Component
             'departments'
         ));
     }
+
+    public function exportPdf()
+    {
+        abort_unless(auth()->user()?->can('access document expiration management'), 403);
+
+        $logs = $this->buildQuery()->get();
+        $export = new \App\Exports\DeletionLogsExport($logs);
+        $rows = $logs->map(fn($log) => $export->map($log))->toArray();
+
+        return (new PdfExportService)->download(
+            'Journal de Suppressions',
+            $export->headings(),
+            $rows,
+            'deletion-logs-' . now()->format('Ymd_His'),
+            ['Export g\u00e9n\u00e9r\u00e9 le ' . now()->format('d/m/Y \u00e0 H:i')]
+        );
+    }
+
 }

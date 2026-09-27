@@ -91,9 +91,19 @@
                 @endif
             @endrole
             @can('create', \App\Models\Document::class)
-                <a href="{{ route('documents.create', ['category_id' => $filterId]) }}" class="btn btn-dark text-white d-inline-flex gap-1 align-items-center" style="font-size: 0.9rem;">
+                <a href="{{ route('documents.create', ['category_id' => $filterId]) }}" class="btn d-inline-flex gap-1 align-items-center" style="font-size:0.9rem;background-color:#e9ecef!important;border-color:#ced4da!important;color:#212529!important;">
                     <i class="fas fa-plus"></i> {{ ui_t('pages.documents.upload_documents') }}
                 </a>
+            @endcan
+
+            @can('create', \App\Models\LoanRequest::class)
+                @if($boxId ?? null)
+                    <button type="button" class="btn d-inline-flex gap-1 align-items-center"
+                            style="font-size:0.9rem;background-color:#fff3cd!important;border-color:#ffc107!important;color:#856404!important;"
+                            data-bs-toggle="modal" data-bs-target="#loanRequestBoxModal">
+                        <i class="fas fa-hand"></i> {{ __('Demander emprunt') }}
+                    </button>
+                @endif
             @endcan
 
 
@@ -1050,3 +1060,37 @@
         return colors[status] || 'secondary';
     }
 </script>
+
+@if($boxId ?? null)
+<div class="modal fade" id="loanRequestBoxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('loan-requests.store') }}">
+            @csrf
+            <input type="hidden" name="box_id" value="{{ $boxId }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-hand me-2"></i>{{ __('Demander emprunt de la boite') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ __('Motif') }} <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="3" required placeholder="{{ __('Expliquez la raison de l emprunt...') }}"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ __('Duree souhaitee (jours)') }}</label>
+                        <input type="number" name="requested_duration_days" class="form-control" min="1" max="365" placeholder="{{ __('Ex: 7') }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Annuler') }}</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-hand me-1"></i> {{ __('Envoyer la demande') }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+

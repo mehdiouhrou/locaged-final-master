@@ -221,28 +221,18 @@
 
                         <!-- Physical Location (Hierarchical) -->
                         <div class="col-md-12 mb-3">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       id="digitalOnlyCheck"
-                                       wire:model.live="currentInfo.digital_only">
-                                <label class="form-check-label" for="digitalOnlyCheck">
-                                    Document uniquement digital pour l'instant
-                                </label>
-                            </div>
+                            <input type="hidden" wire:model="currentInfo.digital_only" value="0">
                             <label class="form-label">
                                 {{ __('pages.upload.physical_location') }}
-                                @if(!($currentInfo['digital_only'] ?? false))
-                                    <span class="text-danger">*</span>
-                                @endif
+                                <span class="text-danger">*</span>
                             </label>
                             
                             <!-- Step 1: Room -->
                             <div class="row g-2 mb-2">
                                 <div class="col-md-3">
                                     <label class="form-label small">1. {{ __('pages.upload.room') }}</label>
-                                    <select class="form-select form-select-sm" wire:model.live="selectedRoomId"
-                                            @if($currentInfo['digital_only'] ?? false) disabled @endif>
+                                    <select class="form-select form-select-sm" wire:model.live="selectedRoomId">
+
                                         <option value="">{{ __('pages.upload.select_room') }}</option>
                                         @foreach($this->rooms as $room)
                                             <option value="{{ $room->id }}">{{ $room->name }}</option>
@@ -254,7 +244,7 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">2. {{ __('pages.upload.row') }}</label>
                                     <select class="form-select form-select-sm" wire:model.live="selectedRowId" 
-                                            @if(!$selectedRoomId || ($currentInfo['digital_only'] ?? false)) disabled @endif>
+                                            @if(!$selectedRoomId) disabled @endif>
                                         <option value="">{{ __('pages.upload.select_row') }}</option>
                                         @foreach($this->rows as $row)
                                             <option value="{{ $row->id }}">{{ $row->name }}</option>
@@ -266,7 +256,7 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">3. {{ __('pages.upload.shelf') }}</label>
                                     <select class="form-select form-select-sm" wire:model.live="selectedShelfId"
-                                            @if(!$selectedRowId || ($currentInfo['digital_only'] ?? false)) disabled @endif>
+                                            @if(!$selectedRowId) disabled @endif>
                                         <option value="">{{ __('pages.upload.select_shelf') }}</option>
                                         @foreach($this->shelves as $shelf)
                                             <option value="{{ $shelf->id }}">{{ $shelf->name }}</option>
@@ -278,8 +268,8 @@
                                 <div class="col-md-3">
                                     <label class="form-label small">4. {{ __('pages.upload.box') }}</label>
                             <select class="form-select form-select-sm @error('currentInfo.box_id') is-invalid @enderror" wire:model.live="selectedBoxId"
-                                            @if(!$selectedShelfId || ($currentInfo['digital_only'] ?? false)) disabled @endif
-                                            @if(!($currentInfo['digital_only'] ?? false)) required @endif>
+                                            @if(!$selectedShelfId) disabled @endif
+                                            required>
                                         <option value="">{{ __('pages.upload.select_box') }}</option>
                                         @foreach($this->boxes as $box)
                                             <option value="{{ $box->id }}">{{ $box->name }}</option>
@@ -305,11 +295,7 @@
                             @error('currentInfo.box_id')
                                 <div class="text-danger small">{{ $message }}</div>
                             @enderror
-                            @if($currentInfo['digital_only'] ?? false)
-                                <small class="text-muted">Aucun emplacement physique requis pour ce document.</small>
-                            @else
                                 <small class="text-muted">{{ __('pages.upload.location_structure_hint') }}</small>
-                            @endif
                         </div>
 
                         <!-- Author (Read-Only) -->

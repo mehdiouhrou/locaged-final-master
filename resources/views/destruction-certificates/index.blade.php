@@ -57,11 +57,7 @@
                                                    title="{{ __('pages.destruction_certificates.download_pdf') }}">
                                                     <i class="fa-solid fa-file-pdf"></i>
                                                 </a>
-                                                <a href="{{ route('destruction-certificates.proof.verify', $certificate) }}"
-                                                   class="btn btn-sm btn-outline-dark"
-                                                   title="{{ __('pages.destruction_certificates.verify_proof') }}">
-                                                    <i class="fa-solid fa-shield-check"></i>
-                                                </a>
+{{-- verify proof hidden --}}
                                             </div>
                                         @else
                                             <span class="text-muted">—</span>

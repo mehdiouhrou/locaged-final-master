@@ -86,15 +86,18 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         Route::get('/users/audit', [UserController::class, 'audit'])->name('users.audit');
         Route::get('/users/logs', [UserController::class, 'logs'])->name('users.logs');
         Route::get('/users/logs/legal-export', [AuditEvidenceController::class, 'export'])->name('users.logs.legal-export');
+        Route::get('/users/logs/export-pdf', [UserController::class, 'exportActivityLogsPdf'])->name('users.logs.export-pdf');
         Route::get('/users/{id}/activity', [UserController::class, 'activity'])->name('user.activity');
         Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
         Route::get('/reports/export', [\App\Http\Controllers\ReportsController::class, 'export'])->name('reports.export');
         Route::get('/physical-locations/export', [PhysicalLocationController::class, 'export'])->name('physical-locations.export');
         Route::get('/physical-locations/{physicalLocation}/export-files', [PhysicalLocationController::class, 'exportFiles'])->name('physical-locations.export-files');
+        Route::get('/physical-locations/export-pdf', [PhysicalLocationController::class, 'exportPdf'])->name('physical-locations.export-pdf');
         Route::resource('physical-locations', PhysicalLocationController::class);
 
         // New export routes
         Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
+        Route::get('/users/export-pdf', [UserController::class, 'exportPdf'])->name('users.export-pdf');
         Route::get('/documents/export', [DocumentController::class, 'export'])->name('documents.export');
 
         Route::post('/users/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
@@ -154,9 +157,11 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Destruction Requests export
     Route::get('/documents-destructions/export', [DocumentDestructionRequestController::class, 'export'])->name('documents-destructions.export');
+    Route::get('/documents-destructions/export-pdf', [DocumentDestructionRequestController::class, 'exportPdf'])->name('documents-destructions.export-pdf');
     // Deletion logs (permanently deleted documents)
     Route::get('/logs/deletions', [DocumentDestructionRequestController::class, 'deletionLogs'])->name('logs.deletions');
     Route::get('/logs/deletions/export', [DocumentDestructionRequestController::class, 'exportDeletionLogs'])->name('logs.deletions.export');
+    Route::get('/logs/deletions/export-pdf', [DocumentDestructionRequestController::class, 'exportDeletionLogsPdf'])->name('logs.deletions.export-pdf');
 
     // Permanently deleted documents history
     Route::get('/documents/destructions', [DocumentController::class, 'destructions'])->name('documents.destructions');
@@ -169,6 +174,7 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
 
     // Resource routes for models
     // Resource routes for models
+    Route::get('/loan-requests/export-pdf', [\App\Http\Controllers\LoanRequestController::class, 'exportPdf'])->name('loan-requests.export-pdf');
     Route::resources([
         // 'users' => UserController::class, // Moved to role group
         // 'roles' => \App\Http\Controllers\RoleController::class, // Moved to role group

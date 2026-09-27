@@ -117,7 +117,7 @@
                         {{ ui_t('pages.documents.export') }}
                     </button>
                     @can('create', \App\Models\Document::class)
-                        <a href="{{ route('documents.create') }}" class="btn btn-dark text-white d-inline-flex gap-1 align-items-center" style="font-size: 0.9rem;">
+                        <a href="{{ route('documents.create') }}" class="btn btn-secondary d-inline-flex gap-1 align-items-center" style="font-size:0.9rem;background-color:#e9ecef!important;border-color:#ced4da!important;color:#212529!important;">
                             <i class="fas fa-plus"></i> {{ ui_t('pages.documents.upload_documents') }}
                         </a>
                     @endcan
@@ -1122,6 +1122,14 @@
                                                data-extra-fields='@json($renameFields)'
                                             >
                                                 <i class="fa-solid fa-pen-to-square"></i> {{ ui_t('pages.documents.rename_button') }}
+                                            </a>
+                                        </li>
+                                        @endcan
+
+                                        @can('move', $doc)
+                                        <li class="pointer">
+                                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#moveDocumentModal-{{ $doc->id }}">
+                                                <i class="fa-solid fa-arrows-up-down-left-right"></i> {{ __("Changer d'emplacement") }}
                                             </a>
                                         </li>
                                         @endcan

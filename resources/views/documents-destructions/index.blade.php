@@ -11,9 +11,15 @@
                     </a>
                 @endcan
                 @can('viewAny', \App\Models\DocumentDestructionRequest::class)
-                    <a href="{{ route('documents-destructions.export') }}" class="btn btn-outline-dark">
-                        <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> {{ ui_t('pages.destructions.export') }}
-                    </a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> {{ ui_t('pages.destructions.export') }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ route('documents-destructions.export') }}"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xlsx)</a></li>
+                            <li><a class="dropdown-item" href="{{ route('documents-destructions.export-pdf') }}"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF</a></li>
+                        </ul>
+                    </div>
                 @endcan
             </div>
         </div>

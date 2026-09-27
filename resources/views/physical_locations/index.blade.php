@@ -5,7 +5,15 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3>{{ __('pages.physical.title') }}</h3>
             @can('viewAny', \App\Models\PhysicalLocation::class)
-                <a href="{{ route('physical-locations.export') }}" class="btn btn-outline-dark">{{ __('pages.physical.export_report') }}</a>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-download me-1"></i>{{ __('pages.physical.export_report') }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ route('physical-locations.export') }}"><i class="fas fa-file-excel me-2 text-success"></i>Excel (.xlsx)</a></li>
+                        <li><a class="dropdown-item" href="{{ route('physical-locations.export-pdf') }}"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF</a></li>
+                    </ul>
+                </div>
             @endcan
         </div>
 
@@ -611,6 +619,19 @@
                                                                             </div>
                                                                         @endif
                                                                     </div>
+                                                                    @can('create', \App\Models\LoanRequest::class)
+                                                                        @php
+                                                                            $boxLoanRequest = $activeLoanRequestsByBox->get($box->id ?? null);
+                                                                        @endphp
+                                                                        @if($boxLoanRequest)
+                                                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis align-self-center">{{ __('Demande en cours') }}</span>
+                                                                        @else
+                                                                            <button class="btn btn-sm btn-outline-warning" type="button"
+                                                                                    data-bs-toggle="modal" data-bs-target="#requestBoxLoanModal{{ $box->id }}">
+                                                                                <i class="fas fa-hand"></i> {{ __('Demander l’emprunt') }}
+                                                                            </button>
+                                                                        @endif
+                                                                    @endcan
                                                                     @unless(request('view_only'))
                                                                     <div class="d-inline-flex gap-1">
                                                                         @can('create', \App\Models\PhysicalLocation::class)
@@ -618,19 +639,6 @@
                                                                                     data-bs-toggle="modal" data-bs-target="#editBoxModal{{ $box->id }}">
                                                                                 <i class="fas fa-edit"></i> {{ __('pages.physical.actions.edit') }}
                                                                             </button>
-                                                                        @endcan
-                                                                        @can('create', \App\Models\LoanRequest::class)
-                                                                            @php
-                                                                                $boxLoanRequest = $activeLoanRequestsByBox->get($box->id ?? null);
-                                                                            @endphp
-                                                                            @if($boxLoanRequest)
-                                                                                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis align-self-center">{{ __('Demande en cours') }}</span>
-                                                                            @else
-                                                                                <button class="btn btn-sm btn-outline-warning" type="button"
-                                                                                        data-bs-toggle="modal" data-bs-target="#requestBoxLoanModal{{ $box->id }}">
-                                                                                    <i class="fas fa-hand"></i> {{ __('Demander l’emprunt') }}
-                                                                                </button>
-                                                                            @endif
                                                                         @endcan
                                                                         @can('delete physical location')
                                                                             <form method="POST" action="{{ route('physical-locations.destroy-box', $box->id) }}" 

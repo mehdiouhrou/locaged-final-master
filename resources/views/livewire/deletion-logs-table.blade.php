@@ -114,9 +114,14 @@
                         <option value="50">50</option>
                         <option value="100">100</option>
                     </select>
-                    <button type="button" wire:click="export" class="btn btn-sm btn-success">
-                        <i class="fas fa-file-export"></i> {{ ui_t('pages.deletion_log.filters.export') }}
-                    </button>
+                    <div class="btn-group">
+                        <button type="button" wire:click="export" class="btn btn-sm btn-success">
+                            <i class="fas fa-file-excel"></i> {{ ui_t('pages.deletion_log.filters.export') }}
+                        </button>
+                        <a href="{{ route('logs.deletions.export-pdf') }}?{{ http_build_query(array_filter(['search' => $search, 'creationDate' => $creationDate, 'expirationDate' => $expirationDate, 'deletedAt' => $deletedAt, 'deletedBy' => $deletedBy, 'departmentId' => $departmentId, 'document_id' => $documentId])) }}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

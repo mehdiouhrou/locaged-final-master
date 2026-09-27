@@ -48,7 +48,7 @@ return [
         'declined' => [
             'type' => 'danger',
             'title' => 'Document declined',
-            'body' => 'The document ":title" has been declined.',
+            'body' => 'Le document ":title" a été refusé. Veuillez le supprimer pour ne pas encombrer la GED.',
             'icon' => 'assets/declined.png',
         ],
         'archived' => [

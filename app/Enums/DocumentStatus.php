@@ -19,16 +19,21 @@ enum DocumentStatus: string
      */
     public static function activeCases(): array
     {
-        return [
+        $cases = [
             self::Pending,
             self::Declined,
             self::Approved,
-            self::Brouillon,
-            self::EnRelecture,
-            self::Valide,
-            self::AttenteArchivage,
-            // Note: 'expired' is handled separately via is_expired flag, not this enum
         ];
+
+        if (\App\Support\Branding::isCollaborativeModuleEnabled()) {
+            $cases[] = self::Brouillon;
+            $cases[] = self::EnRelecture;
+            $cases[] = self::Valide;
+            $cases[] = self::AttenteArchivage;
+        }
+
+        return $cases;
+        // Note: 'expired' is handled separately via is_expired flag, not this enum
     }
 
     /**

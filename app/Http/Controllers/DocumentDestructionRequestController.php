@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\DocumentDestructionStatus;
 use App\Enums\DocumentStatus;
 use App\Exports\DestructionRequestsExport;
+use App\Services\PdfExportService;
 use App\Models\AuditLog;
 use App\Models\DestructionCertificate;
 use App\Models\Document;
@@ -510,4 +511,124 @@ class DocumentDestructionRequestController extends Controller
 
         return $serviceIds->unique()->filter();
     }
+
+    public function exportPdf()
+    {
+        Gate::authorize('viewAny', \App\Models\DocumentDestructionRequest::class);
+
+        $export = new DestructionRequestsExport;
+        $rows = $export->query()->get()->map(fn($d) => $export->map($d))->toArray();
+
+        return (new PdfExportService)->download(
+            'Rapport Documents \u00e0 D\u00e9truire',
+            $export->headings(),
+            $rows,
+            'destructions-' . now()->format('Ymd_His'),
+            ['Export g\u00e9n\u00e9r\u00e9 le ' . now()->format('d/m/Y \u00e0 H:i')]
+        );
+    }
+
+    public function exportDeletionLogsPdf(Request $request)
+    {
+        abort_unless(auth()->user()?->can('access document expiration management'), 403);
+
+        $search = $request->get('search', '');
+        $creationDate = $request->get('creationDate', '');
+        $expirationDate = $request->get('expirationDate', '');
+        $deletedAt = $request->get('deletedAt', '');
+        $deletedBy = $request->get('deletedBy', '');
+        $departmentId = $request->get('departmentId', '');
+        $documentId = $request->get('document_id');
+
+        $current = auth()->user();
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && !$isMaster;
+        $deptDeletionScope = $current && (
+            $current->can('filter audit logs by assigned departments')
+            || $current->can('filter audit logs by assigned subdepartments')
+        );
+        $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
+        $query = \App\Models\AuditLog::with(['user.roles', 'document' => function ($q) {
+                $q->withoutGlobalScopes()->withTrashed()->with([
+                    'department',
+                    'service.subDepartment',
+                    'destructionCertificates' => function ($cq) {
+                        $cq->whereNotNull('pdf_path')->latest('id');
+                    },
+                ]);
+            }])
+            ->where('action', 'permanently_deleted')
+            ->when($isSuperAdminNotMaster, function($q) {
+                $q->whereDoesntHave('user.roles', function($r) {
+                    $r->whereRaw('LOWER(name) = ?', ['master']);
+                });
+            })
+            ->when($deptDeletionScope && !$hasOrgReport, function($q) use ($current) {
+                $deptIds = $current->departments?->pluck('id') ?? collect();
+                $q->where(function($subQuery) use ($deptIds) {
+                    $subQuery->whereHas('document', function($q2) use ($deptIds) {
+                        $q2->withoutGlobalScopes()->withTrashed()->whereIn('department_id', $deptIds);
+                    });
+                })->whereDoesntHave('user.roles', function($r) {
+                    $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin']);
+                });
+            })
+            ->when($isServiceAuditor && !$deptDeletionScope && !$hasOrgReport, function($q) use ($current) {
+                $serviceIds = collect();
+                if ($current->service_id) $serviceIds->push($current->service_id);
+                if (method_exists($current, 'services')) {
+                    $serviceIds = $serviceIds->merge($current->services->pluck('id'));
+                }
+                $serviceIds = $serviceIds->unique()->filter();
+                if ($serviceIds->isNotEmpty()) {
+                    $q->whereHas('document', function($q2) use ($serviceIds) {
+                        $q2->withoutGlobalScopes()->withTrashed()->whereIn('service_id', $serviceIds);
+                    })->whereDoesntHave('user.roles', function($r) {
+                        $r->whereIn(\DB::raw('LOWER(name)'), ['master', 'super administrator', 'super_admin', 'admin', 'admin de pole', 'department administrator']);
+                    });
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            })
+            ->when($search, function($q) use ($search) {
+                $q->whereHas('document', function($q2) use ($search) {
+                    $q2->withTrashed()->where('title', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($creationDate, function($q) use ($creationDate) {
+                $q->whereHas('document', function($q2) use ($creationDate) {
+                    $q2->withTrashed()->whereDate('created_at', $creationDate);
+                });
+            })
+            ->when($expirationDate, function($q) use ($expirationDate) {
+                $q->whereHas('document', function($q2) use ($expirationDate) {
+                    $q2->withTrashed()->whereDate('expire_at', $expirationDate);
+                });
+            })
+            ->when($deletedAt, fn($q) => $q->whereDate('occurred_at', $deletedAt))
+            ->when($deletedBy, fn($q) => $q->where('user_id', $deletedBy))
+            ->when($departmentId, function($q) use ($departmentId) {
+                $q->whereHas('document', function($q2) use ($departmentId) {
+                    $q2->withTrashed()->where('department_id', $departmentId);
+                });
+            })
+            ->when($documentId, fn($q) => $q->where('document_id', $documentId))
+            ->orderByDesc('occurred_at');
+
+        $logs = $query->get();
+        $export = new \App\Exports\DeletionLogsExport($logs);
+        $rows = $logs->map(fn($log) => $export->map($log))->toArray();
+
+        return (new \App\Services\PdfExportService)->download(
+            'Journal de Suppressions',
+            $export->headings(),
+            $rows,
+            'deletion-logs-' . now()->format('Ymd_His'),
+            ['Export genere le ' . now()->format('d/m/Y H:i')]
+        );
+    }
+
+
 }

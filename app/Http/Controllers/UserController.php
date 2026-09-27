@@ -16,6 +16,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\PdfExportService;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
@@ -135,6 +136,235 @@ class UserController extends Controller
         Gate::authorize('viewAny', User::class);
 
         return Excel::download(new UsersExport($request), 'users-' . now()->format('Ymd_His') . '.xlsx');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        Gate::authorize('viewAny', User::class);
+
+        $export = new UsersExport($request);
+        $rows = $export->query()->get()->map(fn($u) => $export->map($u))->toArray();
+
+        return (new PdfExportService)->download(
+            'Rapport Utilisateurs',
+            $export->headings(),
+            $rows,
+            'utilisateurs-' . now()->format('Ymd_His'),
+            ['Export g\xc3\xa9n\xc3\xa9r\xc3\xa9 le ' . now()->format('d/m/Y \xc3\xa0 H:i')]
+        );
+    }
+
+
+    public function exportActivityLogsPdf(Request $request)
+    {
+        Gate::authorize('viewAny', User::class);
+
+        $logType = $request->get('logType', 'documents');
+        $search = $request->get('search', '');
+        $dateFrom = $request->get('dateFrom', '');
+        $dateTo = $request->get('dateTo', '');
+        $userId = $request->get('userId', '');
+        $departmentId = $request->get('departmentId', '');
+        $actionType = $request->get('actionType', '');
+
+        $current = auth()->user();
+        $hasOrgReport = $current && $current->can('view organization wide reports');
+        $isMaster = $current && $current->can('view any role');
+        $isSuperAdminNotMaster = $hasOrgReport && !$isMaster;
+
+        if ($logType === 'authentication') {
+            $isPoleOrDeptAuditor = $current && $current->can('filter audit logs by assigned departments');
+            $isSubdeptAuditor = $current && $current->can('filter audit logs by assigned subdepartments');
+            $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
+            $query = \App\Models\AuthenticationLog::with(['user', 'user.roles'])
+                ->when($isSuperAdminNotMaster, function($q) {
+                    $q->whereDoesntHave('user.roles', function($r) {
+                        $r->whereRaw('LOWER(name) = ?', ['master']);
+                    });
+                })
+                ->when($isPoleOrDeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                    $deptIds = $current->departments?->pluck('id') ?? collect();
+                    $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                    $q->where(function($q1) use ($deptIds, $allowedRoleNames) {
+                        $q1->whereHas('user', function($q2) use ($deptIds, $allowedRoleNames) {
+                            $q2->whereHas('departments', function($q3) use ($deptIds) {
+                                $q3->whereIn('departments.id', $deptIds);
+                            })->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                                $q3->whereIn('name', $allowedRoleNames);
+                            });
+                        })->orWhereNull('user_id');
+                    });
+                })
+                ->when($isSubdeptAuditor && !$isPoleOrDeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                    $subDeptIds = $current->subDepartments?->pluck('id') ?? collect();
+                    $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                    $q->where(function($q1) use ($subDeptIds, $allowedRoleNames) {
+                        $q1->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
+                            $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
+                                $q3->whereIn('sub_departments.id', $subDeptIds);
+                            })->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                                $q3->whereIn('name', $allowedRoleNames);
+                            });
+                        })->orWhereNull('user_id');
+                    });
+                })
+                ->when($isServiceAuditor && !$isPoleOrDeptAuditor && !$isSubdeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                    $serviceIds = collect();
+                    if ($current->service_id) $serviceIds->push($current->service_id);
+                    $serviceIds = $serviceIds->merge($current->services->pluck('id'))->unique()->filter();
+                    $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                    $q->where(function($q1) use ($serviceIds, $allowedRoleNames, $current) {
+                        $q1->whereHas('user', function($q2) use ($serviceIds, $allowedRoleNames, $current) {
+                            $q2->where(function($query) use ($serviceIds, $allowedRoleNames, $current) {
+                                $query->where(function($subQ) use ($serviceIds, $allowedRoleNames) {
+                                    $subQ->where(function($sQ) use ($serviceIds) {
+                                        $sQ->whereIn('users.service_id', $serviceIds)
+                                           ->orWhereHas('services', function($pivot) use ($serviceIds) {
+                                               $pivot->whereIn('services.id', $serviceIds);
+                                           });
+                                    })->whereHas('roles', function($r) use ($allowedRoleNames) {
+                                        $r->whereIn('name', $allowedRoleNames);
+                                    });
+                                })->orWhere('users.id', $current->id);
+                            });
+                        })->orWhereNull('user_id');
+                    });
+                })
+                ->when($dateFrom, fn($q) => $q->whereDate('occurred_at', '>=', $dateFrom))
+                ->when($dateTo, fn($q) => $q->whereDate('occurred_at', '<=', $dateTo))
+                ->when($userId, fn($q) => $q->where('user_id', $userId))
+                ->when($actionType, fn($q) => $q->where('type', $actionType))
+                ->when($search, function($q) use ($search) {
+                    $q->where(function($q2) use ($search) {
+                        $q2->where('email', 'like', '%'.$search.'%')
+                           ->orWhere('ip_address', 'like', '%'.$search.'%')
+                           ->orWhere('user_name', 'like', '%'.$search.'%')
+                           ->orWhereHas('user', function($q3) use ($search) {
+                               $q3->where('full_name', 'like', '%'.$search.'%');
+                           });
+                    });
+                })
+                ->latest('occurred_at');
+
+            $logs = $query->get();
+            $export = new \App\Exports\ActivityLogsExport($logs, 'authentication');
+        } else {
+            $isPoleOrDeptAuditor = $current && $current->can('filter audit logs by assigned departments');
+            $isSubdeptAuditor = $current && $current->can('filter audit logs by assigned subdepartments');
+            $isServiceAuditor = $current && $current->can('filter audit logs by assigned services');
+
+            $query = \App\Models\AuditLog::with([
+                    'user.departments', 'user.roles',
+                    'document' => function($q) { $q->withoutGlobalScopes()->withTrashed(); },
+                    'document.department', 'documentVersion'
+                ])
+                ->where('action', '!=', 'viewed_ocr')
+                ->where(function($q) {
+                    $q->whereNull('subject_type')->orWhere('subject_type', '!=', 'authentication');
+                })
+                ->when($isSuperAdminNotMaster, function($q) {
+                    $q->whereDoesntHave('user.roles', function($r) {
+                        $r->whereRaw('LOWER(name) = ?', ['master']);
+                    });
+                });
+
+            $query->when($isPoleOrDeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                $deptIds = $current->departments?->pluck('id') ?? collect();
+                $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                if ($deptIds->isNotEmpty()) {
+                    $q->where(function($q2) use ($deptIds) {
+                        $q2->whereHas('document', function($q3) use ($deptIds) {
+                            $q3->withTrashed()->whereIn('documents.department_id', $deptIds);
+                        });
+                    })->where(function($userQ) use ($allowedRoleNames) {
+                        $userQ->whereHas('user.roles', function($q2) use ($allowedRoleNames) {
+                            $q2->whereIn('name', $allowedRoleNames);
+                        })->orWhereNull('user_id');
+                    });
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+
+            $query->when($isSubdeptAuditor && !$isPoleOrDeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                $subDeptIds = $current->subDepartments?->pluck('id') ?? collect();
+                $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                if ($subDeptIds->isNotEmpty()) {
+                    $serviceIds = \App\Models\Service::whereIn('sub_department_id', $subDeptIds)->pluck('id');
+                    $q->where(function($q2) use ($serviceIds) {
+                        $q2->whereHas('document', function($q3) use ($serviceIds) {
+                            $q3->withTrashed()->whereIn('documents.service_id', $serviceIds);
+                        });
+                    })->where(function($userQ) use ($subDeptIds, $allowedRoleNames) {
+                        $userQ->whereHas('user', function($q2) use ($subDeptIds, $allowedRoleNames) {
+                            $q2->whereHas('subDepartments', function($q3) use ($subDeptIds) {
+                                $q3->whereIn('sub_departments.id', $subDeptIds);
+                            })->whereHas('roles', function($q3) use ($allowedRoleNames) {
+                                $q3->whereIn('name', $allowedRoleNames);
+                            });
+                        })->orWhereNull('user_id');
+                    });
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+
+            $query->when($isServiceAuditor && !$isPoleOrDeptAuditor && !$isSubdeptAuditor && !$hasOrgReport, function($q) use ($current) {
+                $serviceIds = collect();
+                if ($current->service_id) $serviceIds->push($current->service_id);
+                $serviceIds = $serviceIds->merge($current->services->pluck('id'))->unique()->filter();
+                $allowedRoleNames = \App\Support\RoleHierarchy::allowedRoleNamesFor($current);
+                if ($serviceIds->isNotEmpty()) {
+                    $q->whereHas('document', function($d) use ($serviceIds) {
+                        $d->withTrashed()->whereIn('documents.service_id', $serviceIds);
+                    })->where(function($u) use ($allowedRoleNames, $current) {
+                        $u->where('user_id', $current->id)
+                          ->orWhereHas('user.roles', function($r) use ($allowedRoleNames) {
+                              $r->whereIn('name', $allowedRoleNames);
+                          })->orWhereNull('user_id');
+                    });
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+
+            $query->when($dateFrom, fn($q) => $q->whereDate('occurred_at', '>=', $dateFrom))
+                  ->when($dateTo, fn($q) => $q->whereDate('occurred_at', '<=', $dateTo))
+                  ->when($userId, fn($q) => $q->where('user_id', $userId))
+                  ->when($departmentId, function($q) use ($departmentId) {
+                      $q->whereHas('document', function($q2) use ($departmentId) {
+                          $q2->where('department_id', $departmentId);
+                      });
+                  })
+                  ->when($actionType, fn($q) => $q->where('action', $actionType))
+                  ->when($search, function($q) use ($search) {
+                      $term = '%'.$search.'%';
+                      $q->where(function($q2) use ($term) {
+                          $q2->whereHas('user', function($q3) use ($term) {
+                              $q3->where('full_name', 'like', $term)->orWhere('email', 'like', $term);
+                          })->orWhere('user_name', 'like', $term)
+                            ->orWhereHas('document', function($q3) use ($term) {
+                                $q3->where('title', 'like', $term);
+                            })->orWhere('action', 'like', $term);
+                      });
+                  })
+                  ->latest('occurred_at');
+
+            $logs = $query->get();
+            $export = new \App\Exports\ActivityLogsExport($logs, 'documents');
+        }
+
+        $rows = $logs->map(fn($log) => $export->map($log))->toArray();
+        $title = $logType === 'authentication' ? 'Logs de Connexion' : 'Journal d\'Activité';
+
+        return (new \App\Services\PdfExportService)->download(
+            $title,
+            $export->headings(),
+            $rows,
+            'activity-logs-' . now()->format('Ymd_His'),
+            ['Export généré le ' . now()->format('d/m/Y à H:i')]
+        );
     }
 
     // Show a specific user

@@ -98,10 +98,20 @@ class HomeController extends Controller
         // Physical storage: documents with a box, broken down by status / loans (click-through to list)
         $physicalStorageCards = $this->buildPhysicalStorageStatusCards($visibleDocumentsQuery);
 
+        // Top 10 boxes by document count (scoped to visible documents)
+        $topBoxes = \App\Models\Box::withCount(['documents' => function ($q) use ($visibleDocumentsQuery) {
+                $q->whereIn('documents.id', (clone $visibleDocumentsQuery)->select('documents.id'));
+            }])
+            ->having('documents_count', '>', 0)
+            ->orderByDesc('documents_count')
+            ->limit(10)
+            ->get();
+
         return view('home.index', compact(
             'totalDocuments', 'dashboardActivityFeed', 'categories',
             'weeklyData', 'monthlyData', 'yearlyData', 'statusSummary',
-            'documentTypeStats', 'physicalStorageCards', 'donutChartData', 'pendingApprovalTasks'
+            'documentTypeStats', 'physicalStorageCards', 'donutChartData', 'pendingApprovalTasks',
+            'topBoxes'
         ));
     }
 

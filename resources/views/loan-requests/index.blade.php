@@ -3,9 +3,78 @@
 @section('content')
     <div class="mt-5">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-            <h3 class="mb-0">{{ __('Gestion des emprunts') }}</h3>
+            <h3 class="mb-0">{{ __('Gestion physique des documents') }}</h3>
         </div>
 
+        @if(isset($pendingDestructions) && $pendingDestructions->isNotEmpty())
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-danger-subtle border-0 py-3">
+                <h5 class="mb-0 text-danger fw-bold">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ __('Destructions a effectuer') }}
+                    <span class="badge bg-danger ms-2">{{ $pendingDestructions->count() }}</span>
+                </h5>
+                <p class="text-muted small mb-0 mt-1">{{ __('Ces documents ont ete approuves pour destruction. Veuillez proceder a leur destruction physique puis confirmer.') }}</p>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width: 220px;">{{ __('Document') }}</th>
+                                <th style="min-width: 200px;">{{ __('Emplacement physique') }}</th>
+                                <th style="min-width: 140px;">{{ __('Demandeur') }}</th>
+                                <th style="min-width: 120px;">{{ __('Approuve le') }}</th>
+                                <th style="min-width: 160px;" class="text-center">{{ __('Action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($pendingDestructions as $destruction)
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file text-danger me-2"></i>
+                                        <div class="text-truncate" style="max-width: 180px;" title="{{ $destruction->document?->title ?? '-' }}">
+                                            {{ $destruction->document?->title ?? __('Document supprime') }}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-muted small">
+                                    {{ $destruction->document?->box ? (string) $destruction->document->box : '—' }}
+                                </td>
+                                <td>{{ $destruction->requestedBy?->full_name ?? '—' }}</td>
+                                <td>{{ $destruction->updated_at?->format('d/m/Y') ?? '—' }}</td>
+                                <td class="text-center">
+                                    @can('permanentDelete', $destruction->document)
+                                    <button
+                                        data-id="{{ $destruction->document->id }}"
+                                        data-url="{{ route('documents.permanent-delete', ['id' => $destruction->document->id]) }}"
+                                        class="btn btn-sm btn-danger trigger-action"
+                                        data-method="DELETE"
+                                        data-button-text="{{ __('Confirmer la destruction') }}"
+                                        data-title="{{ __('Destruction physique confirmee') }}"
+                                        data-body="{{ __('Confirmez-vous avoir detruit physiquement ce document ? Cette action est irreversible.') }}"
+                                        data-button-class="btn-danger">
+                                        <i class="fa-solid fa-fire me-1"></i>{{ __('Detruit') }}
+                                    </button>
+                                    @else
+                                        <span class="text-muted small">{{ __('En attente') }}</span>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">{{ __('Emprunts') }}</h5>
+            <a href="{{ route('loan-requests.export-pdf') }}{{ request('status') ? '?status='.request('status') : '' }}" class="btn btn-sm btn-danger">
+                <i class="fas fa-file-pdf me-1"></i> PDF
+            </a>
+        </div>
         <div class="d-flex flex-wrap gap-2 mb-3">
             @php
                 $statusFilters = [
@@ -102,7 +171,11 @@
                                         <span class="badge {{ $statusInfo['class'] }}">{{ $statusInfo['label'] }}</span>
                                     </td>
                                     <td>
-                                        @if($loanRequest->due_at)
+                                        @if($loanRequest->status === 'returned' && $loanRequest->returned_at)
+                                            <span class="text-success fw-semibold">
+                                                {{ __('Retourné le') }} {{ $loanRequest->returned_at->format('d/m/Y') }}
+                                            </span>
+                                        @elseif($loanRequest->due_at)
                                             <span class="{{ $loanRequest->due_at->isPast() && $loanRequest->status === 'picked_up' ? 'text-danger fw-bold' : '' }}">
                                                 {{ $loanRequest->due_at->format('Y-m-d') }}
                                             </span>

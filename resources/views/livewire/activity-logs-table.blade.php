@@ -173,9 +173,14 @@
                                 <option value="50">50</option>
                                 <option value="100">100</option>
                             </select>
-                            <button type="button" wire:click="export" class="btn btn-sm btn-success">
-                                <i class="fas fa-file-export me-1"></i> {{ ui_t('pages.activity.filters.export') }}
-                            </button>
+                            <div class="btn-group">
+                                <button type="button" wire:click="export" class="btn btn-sm btn-success">
+                                    <i class="fas fa-file-excel me-1"></i> {{ ui_t('pages.activity.filters.export') }}
+                                </button>
+                                <a href="{{ route('users.logs.export-pdf') }}?{{ http_build_query(array_filter(['search' => $search, 'dateFrom' => $dateFrom, 'dateTo' => $dateTo, 'userId' => $userId, 'departmentId' => $departmentId, 'actionType' => $actionType, 'logType' => $logType])) }}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-file-pdf me-1"></i> PDF
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

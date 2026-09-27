@@ -14,9 +14,23 @@
                 @endcan
                 @can('viewAny', \App\Models\User::class)
                     @if(auth()->user()->can('view any role') || auth()->user()->can('view organization wide reports'))
-                        <a href="{{ route('users.export') }}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-download me-1" aria-hidden="true"></i>{{ ui_t('pages.users_page.export_users') }}
-                        </a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-download me-1" aria-hidden="true"></i>{{ ui_t('pages.users_page.export_users') }}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('users.export') }}">
+                                        <i class="fas fa-file-excel me-2 text-success"></i>Excel (.xlsx)
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('users.export-pdf') }}">
+                                        <i class="fas fa-file-pdf me-2 text-danger"></i>PDF
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     @endif
                 @endcan
                 @can('create', \App\Models\User::class)

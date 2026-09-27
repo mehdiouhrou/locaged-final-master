@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\AuditLog;
+use App\Services\PdfExportService;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -518,5 +519,24 @@ class ActivityLogsTable extends Component
 
         return view('livewire.activity-logs-table', compact('logs', 'totalLogs', 'todayLogs', 'thisWeekLogs', 'uniqueUsers', 'users', 'departments', 'actionTypes'));
     }
+
+    public function exportPdf()
+    {
+        Gate::authorize('viewAny', User::class);
+
+        $logs = $this->buildQuery()->get();
+        $export = new \App\Exports\ActivityLogsExport($logs, $this->logType);
+        $rows = $logs->map(fn($log) => $export->map($log))->toArray();
+        $title = $this->logType === 'authentication' ? 'Journal d\'Authentification' : 'Journal d\'Activit\u00e9';
+
+        return (new PdfExportService)->download(
+            $title,
+            $export->headings(),
+            $rows,
+            'activity-logs-' . $this->logType . '-' . now()->format('Ymd_His'),
+            ['Export g\u00e9n\u00e9r\u00e9 le ' . now()->format('d/m/Y \u00e0 H:i')]
+        );
+    }
+
 }
 

@@ -286,14 +286,7 @@
                     </a>
                 </li>
                 @endif
-                @can('view any tag')
-                <li class="mt-2">
-                    <a href="{{ route('tags.index') }}" class="{{ request()->routeIs('tags.index') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/tick-circle.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ ui_t('nav.tags') }}</span>
-                    </a>
-                </li>
-                @endcan
+{{-- tags masques --}}
                 @can('view any physical location')
                 <li class="mt-2">
                     <a href="{{ route('physical-locations.index') }}" class="{{ request()->routeIs('physical-locations.index') ? 'active' : '' }}">
@@ -327,7 +320,7 @@
                 <li class="mt-2">
                     <a href="{{ route('loan-requests.index') }}" class="{{ request()->routeIs('loan-requests.*') ? 'active' : '' }}">
                         <img src="{{ asset('assets/template/rotate-left.svg') }}" class="me-2" />
-                        <span class="sidebar-text">{{ __('Gestion des emprunts') }}</span>
+                        <span class="sidebar-text">{{ __('Gestion physique des documents') }}</span>
                     </a>
                 </li>
                 @endcan
@@ -356,15 +349,6 @@
                     </a>
                 </li>
                 @endcanany
-                @can('view any profile')
-                <li class="mt-2">
-                    <a href="{{ route('access-profiles.index') }}" class="{{ request()->routeIs('access-profiles.*') ? 'active' : '' }} d-flex align-items-center flex-wrap gap-1">
-                        <img src="{{ asset('assets/template/lock.svg') }}" class="me-2" alt="" />
-                        <span class="sidebar-text">{{ __('Profils d’accès') }}</span>
-                        <span class="badge rounded-pill lgv2-sidebar-pill ms-auto">V2</span>
-                    </a>
-                </li>
-                @endcan
                 @can('view any user')
                 <li class="mt-2">
                     <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.index') || request()->routeIs('users.create') || request()->routeIs('users.edit') || request()->routeIs('users.show') ? 'active' : '' }}">

@@ -14,6 +14,7 @@ use App\Models\Shelf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use App\Services\PdfExportService;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PhysicalLocationController extends Controller
@@ -808,4 +809,21 @@ class PhysicalLocationController extends Controller
 
         return Excel::download(new PhysicalLocationFilesExport($physicalLocation), 'location-'.$physicalLocation->id.'-files-'.now()->format('Ymd_His').'.xlsx');
     }
+
+    public function exportPdf()
+    {
+        Gate::authorize('viewAny', PhysicalLocation::class);
+
+        $export = new PhysicalLocationsExport;
+        $rows = $export->query()->get()->map(fn($b) => $export->map($b))->toArray();
+
+        return (new PdfExportService)->download(
+            'Rapport Emplacements Physiques',
+            $export->headings(),
+            $rows,
+            'emplacements-' . now()->format('Ymd_His'),
+            ['Export généré le ' . now()->format('d/m/Y à H:i')]
+        );
+    }
+
 }
