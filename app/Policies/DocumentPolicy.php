@@ -94,7 +94,7 @@ class DocumentPolicy
             }
         }
 
-        if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
+        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
             return true;
         }
 
@@ -150,7 +150,7 @@ class DocumentPolicy
             }
         }
 
-        if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
+        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
             return true;
         }
 
@@ -180,7 +180,7 @@ class DocumentPolicy
             return true;
         }
 
-        if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
+        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
             return $this->isDocumentExpired($document);
         }
 
@@ -200,7 +200,7 @@ class DocumentPolicy
             return true;
         }
 
-        if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
+        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
             return true;
         }
 
@@ -220,7 +220,7 @@ class DocumentPolicy
             return true;
         }
 
-        if ($user->can('view department document') && $user->departments->pluck('id')->contains($document->department_id)) {
+        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
             return true;
         }
 

@@ -106,19 +106,32 @@ class DocumentVersion extends Model
                 return;
             }
 
+            // Department-level visibility (checked before service to avoid over-restriction)
+            if ($user->can('view department document')) {
+                $departmentIds = $user->departments()->pluck('departments.id')->toArray();
+                if (! empty($departmentIds)) {
+                    $query->whereHas('document', function ($q) use ($departmentIds) {
+                        $q->whereIn('department_id', $departmentIds);
+                    });
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+                return;
+            }
+
             // Service-level visibility: documents whose service is in user's services/sub-departments
             if ($user->can('view service document')) {
                 $visibleServiceIds = collect();
 
                 // Services directly assigned via pivot
                 if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                    $visibleServiceIds = $visibleServiceIds->merge($user->services->pluck('id'));
+                    $visibleServiceIds = $visibleServiceIds->merge($user->services()->pluck('services.id'));
                 }
 
                 // Sub-departments via pivot -> their services
                 $subDeptIds = collect();
                 if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
-                    $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
+                    $subDeptIds = $subDeptIds->merge($user->subDepartments()->pluck('sub_departments.id'));
                 }
                 $subDeptIds = $subDeptIds->unique()->filter();
 
@@ -134,16 +147,14 @@ class DocumentVersion extends Model
                     $query->whereHas('document', function ($q) use ($visibleServiceIds) {
                         $q->whereIn('service_id', $visibleServiceIds->all());
                     });
-                } else {
-                    $query->whereRaw('1 = 0');
+                    return;
                 }
-
-                return;
+                // No service assigned — fall through to department-level check below
             }
 
             // Department-level visibility
             if ($user->can('view department document')) {
-                $departmentIds = $user->departments->pluck('id')->toArray();
+                $departmentIds = $user->departments()->pluck('departments.id')->toArray();
                 if (! empty($departmentIds)) {
                     $query->whereHas('document', function ($q) use ($departmentIds) {
                         $q->whereIn('department_id', $departmentIds);
