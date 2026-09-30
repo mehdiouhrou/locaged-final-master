@@ -126,17 +126,26 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     });
 
     // Master only : rôle « master » ou permission « view any role »
-    Route::group(['middleware' => ['role_or_permission:master|view any role']], function () {
+    Route::group(['middleware' => ['role:master']], function () {
         Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
         Route::put('/admin/master/collaborative-module', [MasterConsoleController::class, 'updateCollaborativeModule'])->name('master.console.collaborative-module');
         Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
         Route::resources([
-            'roles' => \App\Http\Controllers\RoleController::class,
             'ocr-jobs' => OcrJobController::class,
             'ui-translations' => UiTranslationController::class,
         ]);
+        // Workflow rules
+        Route::resource('workflow-rules', WorkFlowRuleController::class);
+        Route::get('/workflow-rules/by-department/{departmentId}', [WorkFlowRuleController::class, 'byDepartment'])->name('workflow-rules.by-department');
+        Route::post('/workflow-rules/store/{departmentId}', [WorkFlowRuleController::class, 'store'])->name('workflow-rules.store.department');
+
         Route::get('/admin/master/export-reversibility', [\App\Http\Controllers\ReversibilityExportController::class, 'export'])->name('master.export-reversibility');
         Route::post('/admin/master/export-reversibility-selected', [\App\Http\Controllers\ReversibilityExportController::class, 'exportSelected'])->name('master.export-reversibility-selected');
+    });
+
+    // Rôles — accessible par master ET IT Admin
+    Route::group(['middleware' => ['role_or_permission:master|IT Admin|Directrice Générale']], function () {
+        Route::resource('roles', \App\Http\Controllers\RoleController::class);
     });
 
     // Hierarchical structure operations
@@ -190,7 +199,6 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         'document-versions' => DocumentVersionController::class,
         // 'ocr-jobs' => OcrJobController::class, // Moved to role group
         // 'physical-locations' => PhysicalLocationController::class, // Moved to role group
-        'workflow-rules' => WorkFlowRuleController::class,
         'tags' => \App\Http\Controllers\TagController::class,
         // 'ui-translations' => UiTranslationController::class, // Moved to role group
         'folders' => \App\Http\Controllers\FolderController::class,
@@ -199,8 +207,6 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     // Subcategories route
     Route::get('/categories/{category}/subcategories', [CategoryController::class, 'subcategories'])->name('categories.subcategories');
 
-    Route::get('/workflow-rules/by-department/{departmentId}', [WorkFlowRuleController::class, 'byDepartment'])->name('workflow-rules.by-department');
-    Route::post('/workflow-rules/store/{departmentId}', [WorkFlowRuleController::class, 'store'])->name('workflow-rules.store.department');
 
     Route::get('/documents/by-category/{categoryId?}', [DocumentController::class, 'byCategory'])->name('documents.by-category');
     Route::get('/documents/by-subcategory/{subcategoryId}', [DocumentController::class, 'bySubcategory'])->name('documents.by-subcategory');

@@ -2,112 +2,148 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\Service;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
-/**
- * Même jeu de catégories que la branche spcr, adapté au schéma demo-v2 :
- * pas de department_id / service_id sur categories — rattachement via pivot category_service.
- */
 class SpcRabatCategoriesSeeder extends Seeder
 {
     public function run(): void
     {
-        if (! Schema::hasTable('category_service')) {
-            $this->command->warn('Table category_service absente : exécutez les migrations, puis relancez ce seeder.');
+        echo "=== SpcRabatCategoriesSeeder (v2) ===" . PHP_EOL;
 
-            return;
+        $restrictedRoleNames = [
+            'master',
+            'Directrice du SPCR',
+            'IT Admin',
+            'Assistante de Direction',
+            'Chargée de dépôt',
+        ];
+
+        $restrictedRoleIds = DB::table('roles')
+            ->whereIn('name', $restrictedRoleNames)
+            ->pluck('id', 'name');
+
+        echo "Rôles restreints trouvés : " . $restrictedRoleIds->count() . "/" . count($restrictedRoleNames) . PHP_EOL;
+        foreach ($restrictedRoleNames as $rn) {
+            if (!$restrictedRoleIds->has($rn)) {
+                echo "  WARNING Role introuvable : {$rn}" . PHP_EOL;
+            }
         }
 
-        // --- Pole Technique ---
-        $cellInvEP = Service::where('name', 'Cellule Investissements Eau Potable')->first();
-        $cellInvAS = Service::where('name', 'Cellule Investissements Assainissement')->first();
+        $allServiceIds = DB::table('services')->pluck('id')->toArray();
+        echo "Services en base : " . count($allServiceIds) . PHP_EOL;
 
-        foreach ([
-            ['name' => 'Marchés de travaux EP', 'description' => 'Contrats et marchés liés aux travaux d\'eau potable', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Rapports techniques EP', 'description' => 'Rapports d\'avancement et de réception eau potable', 'expiry_value' => 5, 'expiry_unit' => 'years'],
-            ['name' => 'PV de réception EP', 'description' => 'Procès-verbaux de réception des travaux eau potable', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellInvEP?->id);
+        $poleTechniqueServiceIds = DB::table('services as s')
+            ->join('sub_departments as sd', 'sd.id', '=', 's.sub_department_id')
+            ->join('departments as d', 'd.id', '=', 'sd.department_id')
+            ->where('d.name', 'Pôle Technique')
+            ->pluck('s.id')
+            ->toArray();
+
+        echo "Services Pôle Technique trouvés : " . count($poleTechniqueServiceIds) . PHP_EOL;
+        if (empty($poleTechniqueServiceIds)) {
+            echo "  WARNING Aucun service Pôle Technique - verifier le nom du departement en base" . PHP_EOL;
         }
 
-        foreach ([
-            ['name' => 'Marchés de travaux AS', 'description' => 'Contrats et marchés liés aux travaux d\'assainissement', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Rapports techniques AS', 'description' => 'Rapports d\'avancement et de réception assainissement', 'expiry_value' => 5, 'expiry_unit' => 'years'],
-            ['name' => 'Plans d\'exécution AS', 'description' => 'Plans et schémas d\'exécution des réseaux assainissement', 'expiry_value' => 15, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellInvAS?->id);
+        $categories = [
+            ['name' => 'ALSA CITY BUS',                                   'group' => 'transport'],
+            ['name' => 'SPC transport',                                   'group' => 'transport'],
+            ['name' => 'Société Tramway Rabat Salé',                      'group' => 'transport'],
+            ['name' => 'Rabat Région Mobilité',                           'group' => 'transport'],
+            ['name' => 'Transport urbain – Kénitra',                      'group' => 'transport'],
+            ['name' => 'STAREO',                                          'group' => 'transport'],
+            ['name' => 'Décharge OUM AZZA',                              'group' => 'dechets'],
+            ['name' => 'Gestion Déléguée des Déchets Ménagers de Rabat', 'group' => 'dechets'],
+            ['name' => 'REDAL',                                           'group' => 'all'],
+            ['name' => 'ECI- ALASSIMA',                                   'group' => 'all'],
+            ['name' => '3RP',                                             'group' => 'all'],
+            ['name' => 'RRA',                                             'group' => 'all'],
+            ['name' => 'TEODEM',                                          'group' => 'all'],
+            ['name' => 'SOS NOD',                                         'group' => 'all'],
+            ['name' => 'BFIVE Consulting',                                'group' => 'all'],
+            ['name' => 'Autorité Délégante',                             'group' => 'all'],
+            ['name' => 'Dahirs / Textes juridiques',                      'group' => 'all'],
+            ['name' => 'Wilaya Rabat Salé Kenitra',                      'group' => 'all'],
+            ['name' => 'Cour des comptes',                                'group' => 'all'],
+            ['name' => "Ministère de l'Équipement et du Transport",      'group' => 'all'],
+            ['name' => 'SOCIETE MADERASATI',                              'group' => 'all'],
+            ['name' => 'SPCR',                                            'group' => 'all'],
+        ];
+
+        $now = now();
+        $created = 0;
+        $existing = 0;
+        $totalCategoryService = 0;
+        $totalCategoryRole = 0;
+
+        foreach ($categories as $cat) {
+            $row = DB::table('categories')->where('name', $cat['name'])->first();
+
+            if (!$row) {
+                $catId = DB::table('categories')->insertGetId([
+                    'name'         => $cat['name'],
+                    'description'  => null,
+                    'expiry_value' => 10,
+                    'expiry_unit'  => 'years',
+                    'created_at'   => $now,
+                    'updated_at'   => $now,
+                ]);
+                $created++;
+                echo "  OK Creee : {$cat['name']}" . PHP_EOL;
+            } else {
+                $catId = $row->id;
+                $existing++;
+                echo "  -- Existe deja : {$cat['name']} (id={$catId})" . PHP_EOL;
+            }
+
+            if ($cat['group'] === 'all') {
+                $serviceIds = $allServiceIds;
+            } elseif ($cat['group'] === 'dechets') {
+                $serviceIds = $poleTechniqueServiceIds;
+            } else {
+                $serviceIds = [];
+            }
+
+            foreach ($serviceIds as $sid) {
+                $exists = DB::table('category_service')
+                    ->where('category_id', $catId)
+                    ->where('service_id', $sid)
+                    ->exists();
+                if (!$exists) {
+                    DB::table('category_service')->insert([
+                        'category_id' => $catId,
+                        'service_id'  => $sid,
+                        'created_at'  => $now,
+                        'updated_at'  => $now,
+                    ]);
+                    $totalCategoryService++;
+                }
+            }
+
+            if (in_array($cat['group'], ['transport', 'dechets'])) {
+                foreach ($restrictedRoleIds as $roleName => $roleId) {
+                    $exists = DB::table('category_role')
+                        ->where('category_id', $catId)
+                        ->where('role_id', $roleId)
+                        ->exists();
+                    if (!$exists) {
+                        DB::table('category_role')->insert([
+                            'category_id' => $catId,
+                            'role_id'     => $roleId,
+                            'created_at'  => $now,
+                            'updated_at'  => $now,
+                        ]);
+                        $totalCategoryRole++;
+                    }
+                }
+            }
         }
 
-        // --- Pole Administratif & Financier ---
-        $cellBud = Service::where('name', 'Cellule Budgets et PLT')->first();
-        $cellCpt = Service::where('name', 'Cellule Comptabilité & Finances')->first();
-        $cellRH = Service::where('name', 'Cellule Aspects Administratifs & RH')->first();
-        $cellJur = Service::where('name', 'Cellule Audits & Juridique')->first();
-
-        foreach ([
-            ['name' => 'Budgets annuels', 'description' => 'Documents budgétaires annuels prévisionnels', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Plans Long Terme (PLT)', 'description' => 'Plans de développement long terme', 'expiry_value' => 20, 'expiry_unit' => 'years'],
-            ['name' => 'Suivis trimestriels', 'description' => 'Tableaux de suivi et reporting trimestriel', 'expiry_value' => 5, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellBud?->id);
-        }
-
-        foreach ([
-            ['name' => 'Factures fournisseurs', 'description' => 'Factures et pièces comptables fournisseurs', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Bilans financiers', 'description' => 'Bilans et états financiers annuels', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellCpt?->id);
-        }
-
-        foreach ([
-            ['name' => 'Dossiers du personnel', 'description' => 'Dossiers individuels administratifs des agents', 'expiry_value' => 50, 'expiry_unit' => 'years'],
-            ['name' => 'Congés et absences', 'description' => 'Demandes et justificatifs de congés et absences', 'expiry_value' => 5, 'expiry_unit' => 'years'],
-            ['name' => 'Formations', 'description' => 'Attestations et programmes de formation du personnel', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellRH?->id);
-        }
-
-        foreach ([
-            ['name' => 'Appels d\'offres', 'description' => 'Dossiers d\'appels d\'offres publiés', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Contrats et conventions', 'description' => 'Contrats signés avec les prestataires', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, $cellJur?->id);
-        }
-
-        // --- Direction SPCR (categories sans rattachement service) ---
-
-        foreach ([
-            ['name' => 'Courriers officiels', 'description' => 'Courriers entrants et sortants de la Direction', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Comptes rendus de réunion', 'description' => 'PV et comptes rendus des réunions de direction', 'expiry_value' => 10, 'expiry_unit' => 'years'],
-            ['name' => 'Décisions et notes internes', 'description' => 'Notes de service et décisions officielles', 'expiry_value' => 20, 'expiry_unit' => 'years'],
-        ] as $cat) {
-            $this->upsertCategoryWithService($cat, null);
-        }
-
-        $this->command->info('Catégories SPC Rabat créées ou mises à jour (19 catégories), pivot category_service.');
-    }
-
-    /**
-     * @param  array{name: string, description: string, expiry_value: int, expiry_unit: string}  $cat
-     */
-    private function upsertCategoryWithService(array $cat, ?int $serviceId): void
-    {
-        $category = Category::withoutGlobalScopes()->updateOrCreate(
-            ['name' => $cat['name']],
-            [
-                'description' => $cat['description'],
-                'expiry_value' => $cat['expiry_value'],
-                'expiry_unit' => $cat['expiry_unit'],
-            ]
-        );
-
-        if ($serviceId !== null) {
-            $category->services()->sync([$serviceId]);
-        } else {
-            $category->services()->sync([]);
-        }
+        echo PHP_EOL . "=== Résumé ===" . PHP_EOL;
+        echo "Categories creees    : {$created}" . PHP_EOL;
+        echo "Categories existantes: {$existing}" . PHP_EOL;
+        echo "category_service     : {$totalCategoryService} inseres" . PHP_EOL;
+        echo "category_role        : {$totalCategoryRole} inseres" . PHP_EOL;
+        echo "=== Termine ===" . PHP_EOL;
     }
 }

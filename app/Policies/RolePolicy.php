@@ -37,6 +37,9 @@ class RolePolicy
      */
     public function update(User $user, Role $role): bool
     {
+        if ($role->name === 'master') {
+            return false;
+        }
         return $user->can('update role');
     }
 

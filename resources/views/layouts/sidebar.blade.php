@@ -59,7 +59,7 @@
 
         @role('master')
         <li class="mt-1">
-            <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+            <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" alt="" />
                 <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
             </a>
@@ -365,6 +365,14 @@
                     </a>
                 </li>
                 @endcanany
+                @can('view any role')
+                <li class="mt-2">
+                    <a href="{{ route('roles.index') }}" class="{{ request()->routeIs('roles.*') ? 'active' : '' }}">
+                        <img src="{{ asset('assets/template/lock2.svg') }}" class="me-2" alt="" />
+                        <span class="sidebar-text">{{ __('Rôles') }}</span>
+                    </a>
+                </li>
+                @endcan
             </ul>
         </li>
         @endif
@@ -373,7 +381,7 @@
         <li class="sidebar-section-label" aria-hidden="true">
             <span class="sidebar-section-label-text">{{ __('Outils LocaGed') }}</span>
         </li>
-        <li class="has-submenu {{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+        <li class="has-submenu {{ request()->routeIs('master.console') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
             <a href="#" class="menu-toggle">
                 <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-3" />
                 <span class="sidebar-text">{{ __('Outils LocaGed') }}</span>
@@ -381,17 +389,12 @@
             </a>
             <ul class="submenu list-unstyled">
                 <li class="mt-2">
-                    <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('roles.*') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
+                    <a href="{{ route('master.console') }}" class="{{ request()->routeIs('master.console') || request()->routeIs('ocr-jobs.*') || request()->routeIs('ui-translations.*') ? 'active' : '' }}">
                         <img src="{{ asset('assets/template/setting-4.svg') }}" class="me-2" alt="" />
                         <span class="sidebar-text">{{ __('pages.master_console.nav_label') }}</span>
                     </a>
                 </li>
-                <li class="mt-2">
-                    <a href="{{ route('roles.index') }}" class="{{ request()->routeIs('roles.*') ? 'active' : '' }}">
-                        <img src="{{ asset('assets/template/lock2.svg') }}" class="me-2" alt="" />
-                        <span class="sidebar-text">{{ __('Rôles') }}</span>
-                    </a>
-                </li>
+
                 @can('viewHorizon')
                 <li class="mt-2">
                     <a href="{{ url('/horizon') }}" target="_blank" rel="noopener noreferrer">
