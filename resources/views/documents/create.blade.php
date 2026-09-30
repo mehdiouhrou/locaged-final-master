@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="pt-2">
-        @if (request('mode') === 'archive')
+        @if (request('mode') === 'archive' || !App\Support\Branding::isCollaborativeModuleEnabled())
             @livewire('multiple-documents-create-form', [
                 'folderId'   => request('folder_id'),
                 'categoryId' => request('category_id'),
