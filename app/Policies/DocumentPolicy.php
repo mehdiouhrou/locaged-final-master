@@ -293,7 +293,8 @@ class DocumentPolicy
 
         if ($user->can('view any role')
             || $user->can('view organization wide reports')
-            || $user->can('view any department')) {
+            || $user->can('view any department')
+            || $user->can('destroy expired document')) {
             return true;
         }
 
