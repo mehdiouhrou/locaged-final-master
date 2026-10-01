@@ -41,6 +41,7 @@
             @php
                 $isProtected = $role->name === 'master';
             @endphp
+            @if(!$isProtected || auth()->user()->hasRole('master'))
             <div class="role-card {{ $isProtected ? 'role-card-protected' : '' }}">
                 <div class="role-card-left">
                     <div class="role-name">
@@ -91,6 +92,7 @@
                     @endcan
                 </div>
             </div>
+            @endif
         @empty
             <div class="text-center text-muted py-5">
                 <i class="fas fa-shield-alt fa-3x mb-3 opacity-25"></i>

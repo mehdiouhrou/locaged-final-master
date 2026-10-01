@@ -1042,7 +1042,7 @@
                                 @endif
 
                                 @can('view',$doc)
-                                    @if($doc->latestVersion)
+                                    @if(in_array($doc->status, ['approved', 'archived']) && $doc->latestVersion)
                                         @php
                                             // In approvals view, use the rich preview with metadata sidebar
                                             // Pass the current filtered document IDs for proper navigation
@@ -1076,6 +1076,7 @@
                                 </button>
 
                                 @can('view',$doc)
+                                    @if(in_array($doc->status, ['approved', 'archived']) && $doc->latestVersion)
                                         @php
                                             $baseUrl = route('document-versions.preview', ['id' => $doc->latestVersion->id]);
                                             $navIds = implode(',', $documentsIds ?? []);
@@ -1085,6 +1086,7 @@
                                            class="btn-table btn-table-preview" title="{{ ui_t('actions.preview') }}" aria-label="{{ ui_t('actions.preview') }}">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
+                                    @endif
                                 @endcan
                                 @can('download',$doc)
                                 <a href="{{ route('documents.download',['id' => $doc->id]) }}" class="btn-table btn-table-logs" title="{{ ui_t('pages.documents.download') }}" aria-label="{{ ui_t('pages.documents.download') }}">

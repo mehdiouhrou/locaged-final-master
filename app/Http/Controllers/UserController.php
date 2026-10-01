@@ -541,17 +541,17 @@ class UserController extends Controller
         $servicesRule = 'nullable|array';
 
         // Department Administrator, Division Chief, Service Manager, Service User must have at least one department
-        if (in_array($normalizedRoleName, ['department administrator', 'division chief', 'service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chef de pôle', 'chef de département', 'chargée de dépôt', 'utilisateur'])) {
             $departmentsRule = 'required|array|min:1';
         }
 
         // Division Chief, Service Manager and Service User must have at least one sub-department
-        if (in_array($normalizedRoleName, ['division chief', 'service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chef de département', 'chargée de dépôt', 'utilisateur'])) {
             $subDepartmentsRule = 'required|array|min:1';
         }
 
         // Service Manager and Service User must have at least one service
-        if (in_array($normalizedRoleName, ['service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chargée de dépôt', 'utilisateur'])) {
             $servicesRule = 'required|array|min:1';
         }
 
@@ -656,16 +656,16 @@ class UserController extends Controller
         $subDepartmentsRule = 'nullable|array';
         $servicesRule = 'nullable|array';
 
-        if (in_array($normalizedRoleName, ['department administrator', 'division chief', 'service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chef de pôle', 'chef de département', 'chargée de dépôt', 'utilisateur'])) {
             $departmentsRule = 'required|array|min:1';
         }
 
-        if (in_array($normalizedRoleName, ['division chief', 'service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chef de département', 'chargée de dépôt', 'utilisateur'])) {
             $subDepartmentsRule = 'required|array|min:1';
         }
 
         // Service Manager and Service User must have at least one service
-        if (in_array($normalizedRoleName, ['service manager', 'service user'])) {
+        if (in_array($normalizedRoleName, ['chargée de dépôt', 'utilisateur'])) {
             $servicesRule = 'required|array|min:1';
         }
 

@@ -179,7 +179,7 @@ class Box extends Model
             return collect();
         }
 
-        if ($user->can('view any role') || $user->can('view organization wide reports')) {
+        if ($user->can('view any role') || $user->can('view organization wide reports') || $user->can('view any box')) {
             return 'all';
         }
 

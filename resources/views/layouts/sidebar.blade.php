@@ -16,14 +16,12 @@
         || $u->can('view any profile')
         || $u->can('view any tag')
         || $u->can('view any physical location')
-        || $canViewAnyDocument
     );
     $showAdminSection = $u && (
         $u->hasRole('master')
         || $u->can('view any user')
         || $u->can('view audit log')
         || $u->can('view system activity log')
-        || $u->can('access document expiration management')
         || $u->can('view organization wide reports')
         || $u->can('view any role')
         || $u->can('viewHorizon')

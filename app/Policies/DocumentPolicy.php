@@ -25,6 +25,14 @@ class DocumentPolicy
 
     public function view(User $user, Document $document): bool
     {
+        // Seuls les docs approved ou archived sont visibles
+        if (!in_array($document->status, ['approved', 'archived'])) {
+            if ($user->can('view any document')) {
+                return true; // admins voient tout
+            }
+            return false;
+        }
+
         if ($user->can('view any document')) {
             return true;
         }
@@ -57,6 +65,12 @@ class DocumentPolicy
                 return false;
             }
 
+            // Doc dans le département sans service précis → ok
+            if ($userDeptIds->contains($document->department_id) && !$document->service_id) {
+                return true;
+            }
+
+            // Doc avec service → vérifier qu'il est dans un service du pôle
             if (
                 $userDeptIds->contains($document->department_id) &&
                 $document->service_id &&
@@ -100,6 +114,14 @@ class DocumentPolicy
 
         if ($user->can('view own document') && $user->id === $document->created_by) {
             return true;
+        }
+
+        // Doc visible via catégorie partagée (peu importe dept/service)
+        if ($document->category_id !== null) {
+            $accessibleCategoryIds = app(\App\Services\ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
+            if ($accessibleCategoryIds !== null && $accessibleCategoryIds->contains($document->category_id)) {
+                return true;
+            }
         }
 
         return false;

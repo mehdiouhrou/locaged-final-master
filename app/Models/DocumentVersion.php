@@ -144,8 +144,25 @@ class DocumentVersion extends Model
                 $visibleServiceIds = $visibleServiceIds->unique()->filter();
 
                 if ($visibleServiceIds->isNotEmpty()) {
-                    $query->whereHas('document', function ($q) use ($visibleServiceIds) {
-                        $q->whereIn('service_id', $visibleServiceIds->all());
+                    $deptIds = \App\Models\Service::whereIn('services.id', $visibleServiceIds->all())
+                        ->join('sub_departments', 'services.sub_department_id', '=', 'sub_departments.id')
+                        ->pluck('sub_departments.department_id')
+                        ->unique()->filter()->values();
+
+                    $categoryIds = app(\App\Services\ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
+                    $catIds = ($categoryIds !== null) ? $categoryIds->all() : [];
+
+                    $query->whereHas('document', function ($q) use ($visibleServiceIds, $deptIds, $catIds) {
+                        $q->where(function ($inner) use ($visibleServiceIds, $deptIds, $catIds) {
+                            $inner->whereIn('service_id', $visibleServiceIds->all())
+                                ->orWhere(function ($nullQ) use ($deptIds) {
+                                    $nullQ->whereNull('service_id')
+                                        ->whereIn('department_id', $deptIds->all());
+                                });
+                            if (!empty($catIds)) {
+                                $inner->orWhereIn('category_id', $catIds);
+                            }
+                        });
                     });
                     return;
                 }
