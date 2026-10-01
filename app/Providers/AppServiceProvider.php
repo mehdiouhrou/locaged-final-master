@@ -61,15 +61,12 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::before(function (User $user, string $ability) {
             // Ne pas appeler $user->can() ici : cela ré-entrerait dans Gate::before et peut saturer la pile.
-            if ($ability === 'view any role') {
-                return null;
+            // Seul le rôle master bypass toutes les vérifications Gate.
+            if ($user->roles->contains('name', 'master')) {
+                return true;
             }
 
-            $hasMasterBypass = $user->getAllPermissions()->contains(
-                fn ($p) => $p->name === 'view any role'
-            );
-
-            return $hasMasterBypass ? true : null;
+            return null;
         });
 
     }

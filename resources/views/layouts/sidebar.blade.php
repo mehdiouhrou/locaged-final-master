@@ -308,12 +308,15 @@
                         <span class="sidebar-text">{{ ui_t('nav.destruction') }}</span>
                     </a>
                 </li>
+                @endcan
+                @can('view destruction certificates')
                 <li class="mt-2">
                     <a href="{{ route('destruction-certificates.index') }}" class="{{ request()->routeIs('destruction-certificates.*') ? 'active' : '' }}">
                         <img src="{{ asset('assets/template/document-text2.svg') }}" class="me-2" style="width: 1.1rem; height: 1.1rem; opacity: .85;" alt="" />
                         <span class="sidebar-text">{{ __('pages.destruction_certificates.registry_link') }}</span>
                     </a>
                 </li>
+                @endcan
                 @can('viewAny', \App\Models\LoanRequest::class)
                 <li class="mt-2">
                     <a href="{{ route('loan-requests.index') }}" class="{{ request()->routeIs('loan-requests.*') ? 'active' : '' }}">
@@ -321,7 +324,6 @@
                         <span class="sidebar-text">{{ __('Gestion physique des documents') }}</span>
                     </a>
                 </li>
-                @endcan
                 @endcan
             </ul>
         </li>
