@@ -32,6 +32,29 @@ class MultipleDocumentsCreateForm extends Component
     {
         $this->folderId = $folderId;
         $this->categoryId = $categoryId;
+
+        $user = auth()->user();
+        $this->canChooseVisibility = $user && $user->can('view any document');
+
+        if ($this->canChooseVisibility) {
+            $this->allServicesForVisibility = \App\Models\Service::with('subDepartment.department')
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($s) => [
+                    'id'                 => $s->id,
+                    'name'               => $s->name,
+                    'path'               => implode(' › ', array_filter([
+                        $s->subDepartment?->department?->name,
+                        $s->subDepartment?->name,
+                        $s->name,
+                    ])),
+                    'department_id'      => $s->subDepartment?->department?->id,
+                    'department_name'    => $s->subDepartment?->department?->name ?? 'Sans pôle',
+                    'sub_department_id'  => $s->subDepartment?->id,
+                    'sub_department_name'=> $s->subDepartment?->name ?? 'Sans unité',
+                ])
+                ->toArray();
+        }
     }
 
     // If set, new documents will be created inside this existing folder
@@ -106,6 +129,16 @@ class MultipleDocumentsCreateForm extends Component
     public $allDuplicates = []; // ['fileIndex' => [duplicates]]
 
     public $filesWithDuplicates = []; // [fileIndex, fileIndex, ...]
+
+    // Visibilité multi-services : IDs des services autorisés à voir le doc
+    // Tableau vide = pas de restriction = visible uniquement aux "view any document"
+    public array $visibleServiceIds = [];
+
+    // True pour les rôles qui peuvent fixer la visibilité (view any document)
+    public bool $canChooseVisibility = false;
+
+    // Liste de tous les services pour le multi-select visibilité
+    public array $allServicesForVisibility = [];
 
     protected $listeners = ['previewFile'];
 
@@ -1532,6 +1565,20 @@ class MultipleDocumentsCreateForm extends Component
         $this->performSubmit();
     }
 
+    public function addVisibleService($serviceId): void
+    {
+        if ($this->canChooseVisibility && ! in_array($serviceId, $this->visibleServiceIds)) {
+            $this->visibleServiceIds[] = $serviceId;
+        }
+    }
+
+    public function removeVisibleService($serviceId): void
+    {
+        $this->visibleServiceIds = array_values(
+            array_filter($this->visibleServiceIds, fn ($id) => (int) $id !== $serviceId)
+        );
+    }
+
     private function performSubmit()
     {
         // Set submitting flag at the start
@@ -1694,6 +1741,15 @@ class MultipleDocumentsCreateForm extends Component
 
                 if (! empty($allTagIds)) {
                     $document->tags()->attach($allTagIds);
+                }
+
+                // Visibilité multi-services : sauvegarder dans la pivot
+                // si l'utilisateur a choisi des services explicites
+                if ($this->canChooseVisibility && ! empty($this->visibleServiceIds)) {
+                    $cleanIds = array_values(array_filter(array_map('intval', $this->visibleServiceIds)));
+                    if (! empty($cleanIds)) {
+                        $document->syncVisibleServices($cleanIds);
+                    }
                 }
 
                 $versionNumber = 1.0;

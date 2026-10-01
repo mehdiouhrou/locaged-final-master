@@ -91,9 +91,56 @@
                             $lockCategoryFromContext = !is_null($categoryId ?? null);
                         @endphp
 
+                        @if($canChooseVisibility ?? false)
+                        {{-- ── Visibilité manuelle (Chargée de dépôt / rôles privilégiés) ── --}}
+                        <div class="col-md-12 mb-2">
+                            <p class="small text-info mb-1"><i class="bi bi-eye me-1"></i>{{ __('Choisissez la visibilité du document (pôle / unité / cellule).') }}</p>
+                        </div>
+
+                        @else
                         <div class="col-md-12 mb-3">
                             <p class="small text-muted mb-0">{{ __('La structure (pôle, département, service) du document est déduite de votre compte, pas de la catégorie.') }}</p>
                         </div>
+                        @endif
+
+                        @if($canChooseVisibility ?? false)
+                        {{-- ── Multi-select : services autorisés à voir ce document ── --}}
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-shield-lock me-1"></i>{{ __('Restreindre la visibilité à des cellules spécifiques') }}
+                            </label>
+                            <p class="small text-muted mb-2">
+                                {{ __('Laissez vide pour que le document ne soit visible que par les rôles avec accès global. Sélectionnez des cellules pour restreindre.') }}
+                            </p>
+
+                            {{-- Tags des services sélectionnés --}}
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach($visibleServiceIds ?? [] as $sid)
+                                    @php $svc = collect($allServicesForVisibility ?? [])->firstWhere('id', (int)$sid); @endphp
+                                    @if($svc)
+                                        <span class="badge bg-primary d-inline-flex align-items-center gap-1">
+                                            {{ $svc['path'] ?? $svc['name'] }}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-link text-white text-decoration-none p-0 lh-1"
+                                                    wire:click="removeVisibleService({{ (int)$sid }})"
+                                                    aria-label="Retirer">&times;</button>
+                                        </span>
+                                    @endif
+                                @endforeach
+                            </div>
+
+                            <select class="form-select"
+                                    x-on:change="$wire.addVisibleService($event.target.value).then(() => { $event.target.value = ''; })">
+                                <option value="">— Ajouter une cellule —</option>
+                                @foreach($allServicesForVisibility ?? [] as $svc)
+                                    @if(! in_array($svc['id'], $visibleServiceIds ?? []))
+                                        <option value="{{ $svc['id'] }}">{{ $svc['path'] ?? $svc['name'] }}</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                            <small class="text-muted">{{ __('La hiérarchie (unité, pôle) au-dessus des cellules sélectionnées aura aussi accès.') }}</small>
+                        </div>
+                        @endif
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ __('pages.upload.category') }}<span class="text-danger">*</span></label>
