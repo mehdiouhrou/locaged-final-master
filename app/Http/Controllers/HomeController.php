@@ -273,28 +273,12 @@ class HomeController extends Controller
             $hasCondition = false;
 
             if ($user->can('view service document')) {
-                $visibleServiceIds = collect();
+                // Utilise la même logique que le global scope (filtrage par catégories)
+                $catIds = app(\App\Services\ProfileCategoryAccessService::class)
+                    ->accessibleCategoryIdsFor($user);
 
-                if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                    $visibleServiceIds = $visibleServiceIds->merge($user->services->pluck('id'));
-                }
-
-                $subDeptIds = collect();
-                if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
-                    $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
-                }
-                $subDeptIds = $subDeptIds->unique()->filter();
-
-                if ($subDeptIds->isNotEmpty()) {
-                    $visibleServiceIds = $visibleServiceIds->merge(
-                        Service::whereIn('sub_department_id', $subDeptIds)->pluck('id')
-                    );
-                }
-
-                $visibleServiceIds = $visibleServiceIds->unique()->filter();
-
-                if ($visibleServiceIds->isNotEmpty()) {
-                    $q->whereIn('service_id', $visibleServiceIds);
+                if ($catIds && $catIds->isNotEmpty()) {
+                    $q->whereIn('documents.category_id', $catIds);
                     $hasCondition = true;
                 }
             }
