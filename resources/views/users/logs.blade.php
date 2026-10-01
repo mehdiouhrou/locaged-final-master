@@ -10,11 +10,7 @@
                     <button class="me-4  button-active2">
                         <a href="{{ route('users.logs') }}" class="text-decoration-none">{{ ui_t('pages.activity_log.activity_log') }}</a>
                     </button>
-                    @unless(auth()->user()->can('filter audit logs by assigned services') || auth()->user()->can('view subdepartment scoped documents'))
-                        <button class="me-4">
-                            <a href="{{ route('logs.deletions') }}" class="text-decoration-none">{{ __('Deletion log') }}</a>
-                        </button>
-                    @endunless
+
                 </div>
 {{-- legal export hidden --}}
             </div>
