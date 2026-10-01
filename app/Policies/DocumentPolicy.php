@@ -30,6 +30,10 @@ class DocumentPolicy
             if ($user->can('view any document')) {
                 return true; // admins voient tout
             }
+            // Le créateur voit toujours son propre document
+            if ($document->created_by === $user->id) {
+                return true;
+            }
             return false;
         }
 
