@@ -50,7 +50,7 @@
         <tr><th>Empreinte fichier (hash)</th><td>{{ $document->file_hash ?? '—' }}</td></tr>
         <tr><th>Date d’ajout du document</th><td>{{ $document->created_at ? $document->created_at->timezone(config('app.timezone'))->format('d/m/Y') : '—' }}</td></tr>
         <tr><th>Date d’expiration</th><td>{{ $document->expire_at ? \Illuminate\Support\Carbon::parse($document->expire_at)->format('d/m/Y') : '—' }}</td></tr>
-        <tr><th>Catégorie</th><td>{{ $category?->name ?? '—' }}</td></tr>
+        <tr><th>Dossier</th><td>{{ $category?->name ?? '—' }}</td></tr>
         <tr><th>Règle de conservation</th><td>{{ $category ? $category->retentionSummary() : '—' }}</td></tr>
         <tr>
             <th>Emplacement physique</th>

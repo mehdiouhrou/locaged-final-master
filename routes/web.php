@@ -108,7 +108,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::group(['middleware' => ['permission:manage structures|view any department']], function () {
         Route::post('departments/import-org-chart', [\App\Http\Controllers\DepartmentController::class, 'importOrgChart'])
             ->name('departments.import-org-chart');
-        Route::resources([
+        Route::resource('dossiers', CategoryController::class)->names('categories')->parameters(['dossiers' => 'category']);
+    Route::resources([
             'departments' => \App\Http\Controllers\DepartmentController::class,
             'sub-departments' => \App\Http\Controllers\SubDepartmentController::class,
             'services' => \App\Http\Controllers\ServiceController::class,
@@ -130,7 +131,8 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
         Route::get('/admin/master', [MasterConsoleController::class, 'show'])->name('master.console');
         Route::put('/admin/master/collaborative-module', [MasterConsoleController::class, 'updateCollaborativeModule'])->name('master.console.collaborative-module');
         Route::post('ui-translations/branding', [UiTranslationController::class, 'brandingUpdate'])->name('ui-translations.branding');
-        Route::resources([
+        Route::resource('dossiers', CategoryController::class)->names('categories')->parameters(['dossiers' => 'category']);
+    Route::resources([
             'ocr-jobs' => OcrJobController::class,
             'ui-translations' => UiTranslationController::class,
         ]);
@@ -179,15 +181,16 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     Route::get('/documents/all', [DocumentController::class, 'byCategory'])->name('documents.all');
 
     // Mes catégories (consultation, scope Category identique à la sidebar)
-    Route::get('/my-categories', [MyCategoriesController::class, 'index'])->name('my-categories.index');
+    Route::get('/mes-dossiers', [MyCategoriesController::class, 'index'])->name('my-categories.index');
 
     // Resource routes for models
     // Resource routes for models
     Route::get('/loan-requests/export-pdf', [\App\Http\Controllers\LoanRequestController::class, 'exportPdf'])->name('loan-requests.export-pdf');
+    Route::resource('dossiers', CategoryController::class)->names('categories')->parameters(['dossiers' => 'category']);
     Route::resources([
         // 'users' => UserController::class, // Moved to role group
         // 'roles' => \App\Http\Controllers\RoleController::class, // Moved to role group
-        'categories' => CategoryController::class,
+        
         'subcategories' => \App\Http\Controllers\SubcategoryController::class,
         // 'departments' => \App\Http\Controllers\DepartmentController::class, // Moved to role group
         // 'sub-departments' => \App\Http\Controllers\SubDepartmentController::class, // Moved to role group
@@ -205,11 +208,11 @@ Route::middleware(['auth', 'enforce-sensitive-mfa'])->group(function () {
     ]);
 
     // Subcategories route
-    Route::get('/categories/{category}/subcategories', [CategoryController::class, 'subcategories'])->name('categories.subcategories');
+    Route::get('/documents/by-category/{category}/subcategories', [CategoryController::class, 'subcategories'])->name('categories.subcategories');
 
 
-    Route::get('/documents/by-category/{categoryId?}', [DocumentController::class, 'byCategory'])->name('documents.by-category');
-    Route::get('/documents/by-subcategory/{subcategoryId}', [DocumentController::class, 'bySubcategory'])->name('documents.by-subcategory');
+    Route::get('/dossier/{categoryId?}', [DocumentController::class, 'byCategory'])->name('documents.by-category');
+    Route::get('/dossier/sous-dossier/{subcategoryId}', [DocumentController::class, 'bySubcategory'])->name('documents.by-subcategory');
 
     Route::get('/document-versions/{documentId}/create', [DocumentVersionController::class, 'create'])->name('document-versions.document.create');
 

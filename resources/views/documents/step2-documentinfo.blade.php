@@ -92,7 +92,7 @@
                         @endphp
 
                         <div class="col-md-12 mb-3">
-                            <p class="small text-muted mb-0">{{ __('La structure (pôle, département, service) du document est déduite de votre compte, pas de la catégorie.') }}</p>
+                            <p class="small text-muted mb-0">{{ __('La structure (pôle, département, service) du document est déduite de votre compte, pas de la dossier.') }}</p>
                         </div>
 
                         <div class="col-md-6 mb-3">
@@ -278,19 +278,7 @@
                                 </div>
                             </div>
 
-                            @if($selectedBoxId)
-                                <div class="row g-2 mb-2">
-                                    <div class="col-md-3">
-                                        <label class="form-label small">5. Nom de boîte</label>
-                                        <select class="form-select form-select-sm" wire:model.live="selectedBoxFolderId">
-                                            <option value="">-- Aucun --</option>
-                                            @foreach($this->boxFolders as $folder)
-                                                <option value="{{ $folder->id }}">{{ $folder->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            @endif
+                            {{-- Nom de boîte masqué pour SPCR --}}
                             
                             @error('currentInfo.box_id')
                                 <div class="text-danger small">{{ $message }}</div>

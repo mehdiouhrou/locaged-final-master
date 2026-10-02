@@ -257,6 +257,35 @@ class DocumentsByCategoryTable extends Component
             $documentsQuery->where('subcategory_id', $this->filterId);
         }
 
+        // Filtre sécurité : restreindre aux sous-catégories assignées (pour les utilisateurs non-bypass)
+        $securityUser = auth()->user();
+        if ($securityUser
+            && ! $securityUser->can('view any document')
+            && ! $securityUser->can('create category')
+            && ! $securityUser->can('update category')
+            && ! $securityUser->can('delete category')
+        ) {
+            $assignedCatIds = \DB::table('user_category_access')
+                ->where('user_id', $securityUser->id)
+                ->pluck('category_id');
+
+            $assignedSubIds = \DB::table('user_subcategory_access')
+                ->where('user_id', $securityUser->id)
+                ->pluck('subcategory_id');
+
+            $documentsQuery->where(function ($sq) use ($assignedCatIds, $assignedSubIds) {
+                if ($assignedCatIds->isNotEmpty()) {
+                    $sq->orWhereIn('documents.category_id', $assignedCatIds);
+                }
+                if ($assignedSubIds->isNotEmpty()) {
+                    $sq->orWhereIn('documents.subcategory_id', $assignedSubIds);
+                }
+                if ($assignedCatIds->isEmpty() && $assignedSubIds->isEmpty()) {
+                    $sq->whereRaw('1 = 0');
+                }
+            });
+        }
+
         // Box filter (physical location)
         $documentsQuery->when($this->boxId, function ($q) {
             $q->where('box_id', $this->boxId);

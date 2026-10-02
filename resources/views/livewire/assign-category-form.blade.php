@@ -1,10 +1,10 @@
 <div class="card border-0 shadow-sm">
     <div class="card-body">
-        <h6 class="text-uppercase text-muted small fw-bold mb-3">Assigner une catégorie</h6>
+        <h6 class="text-uppercase text-muted small fw-bold mb-3">Assigner une dossier</h6>
 
         <form wire:submit.prevent="submit">
             <div class="mb-3">
-                <label class="form-label">Catégorie</label>
+                <label class="form-label">Dossier</label>
                 <select class="form-select" wire:model.live="categoryId">
                     <option value="">-- Sélectionner --</option>
                     @foreach ($this->categories as $category)
@@ -16,7 +16,7 @@
 
             @if ($categoryId)
                 <div class="mb-3">
-                    <label class="form-label">Sous-catégorie (optionnel)</label>
+                    <label class="form-label">Sous-dossier (optionnel)</label>
                     <select class="form-select" wire:model="subcategoryId">
                         <option value="">-- Aucune --</option>
                         @foreach ($this->subcategories as $subcategory)

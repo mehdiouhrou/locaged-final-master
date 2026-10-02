@@ -25,9 +25,9 @@
                 </select>
             </div>
             <div class="col-12 col-md-3">
-                <label class="form-label small text-uppercase text-muted fw-bold mb-1">{{ __('Catégorie') }}</label>
+                <label class="form-label small text-uppercase text-muted fw-bold mb-1">{{ __('Dossier') }}</label>
                 <select class="form-select form-select-sm" wire:model.live="categoryId">
-                    <option value="all">{{ __('Toutes les catégories') }}</option>
+                    <option value="all">{{ __('Toutes les dossiers') }}</option>
                     @foreach($categories as $category)
                         <option value="{{ $category->id }}">{{ $category->name }}</option>
                     @endforeach

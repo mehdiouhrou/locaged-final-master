@@ -22,7 +22,7 @@
             @include('components.stats-cards')
         </div>
 
-        <!-- Catégories accessibles + Statistiques -->
+        <!-- Dossiers accessibles + Statistiques -->
         <div class="row g-4 align-items-stretch lgv2-dashboard-main-row mt-1">
             <div class="col-lg-6 col-md-12 d-flex">
                 <div class="left-column flex-grow-1 w-100">

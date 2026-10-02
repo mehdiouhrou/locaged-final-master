@@ -572,7 +572,7 @@ function renderCategories(categories, serviceId) {
             const color = colors[index % colors.length];
             html += `
                 <div class="col-md-6">
-                    <a href="/documents/by-category/${category.id}?show_expired=1" class="text-decoration-none text-reset">
+                    <a href="/dossier/${category.id}" class="text-decoration-none text-reset">
                         <div class="border p-4 rounded-2 category-item-hover">
                             <div class="d-flex justify-content-between">
                                 <img src="/${color.icon}" alt="folder" />

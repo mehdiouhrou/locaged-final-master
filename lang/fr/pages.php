@@ -247,7 +247,7 @@ return [
     'my_categories' => [
         'page_title' => 'Mes catégories',
         'page_subtitle' => 'Catégories accessibles en consultation (lecture seule) selon votre profil.',
-        'view_all' => 'Voir toutes mes catégories',
+        'view_all' => 'Voir tous mes dossiers',
         'empty' => 'Aucune catégorie accessible pour le moment.',
     ],
     'categories_page' => [
@@ -746,7 +746,7 @@ return [
         'file_preview_fallback' => 'Si l\'aperçu ne se charge pas',
         'open_in_new_tab' => 'ouvrir dans un nouvel onglet',
         'file_name' => 'Nom du fichier',
-        'category' => 'Catégorie',
+        'category' => 'Dossier',
         'select_category' => '-- Sélectionner une catégorie --',
         'subcategory' => 'Sous-catégorie',
         'select_subcategory' => '-- Sélectionner une sous-catégorie --',

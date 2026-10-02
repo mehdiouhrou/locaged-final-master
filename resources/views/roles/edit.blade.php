@@ -156,7 +156,7 @@
                             'color' => 'text-warning',
                             'items' => [
                                 ['label' => 'Gérer les Pôles, Unités et Cellules', 'desc' => 'Créer, modifier la hiérarchie organisationnelle', 'perms' => ['manage structures', 'create department', 'update department', 'create service', 'update service']],
-                                ['label' => 'Gérer les catégories', 'desc' => 'Créer et modifier les catégories de documents', 'perms' => ['create category', 'update category', 'manage shared categories']],
+                                ['label' => 'Gérer les dossiers', 'desc' => 'Créer et modifier les dossiers de documents', 'perms' => ['create category', 'update category', 'manage shared categories']],
                             ],
                         ],
                         'physical' => [

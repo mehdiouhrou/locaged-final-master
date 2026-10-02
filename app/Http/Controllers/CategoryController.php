@@ -7,6 +7,7 @@ use App\Models\Profile;
 use App\Models\Service;
 use App\Models\Subcategory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
@@ -166,7 +167,26 @@ class CategoryController extends Controller
     {
         Gate::authorize('view', $category);
 
-        $subcategories = $category->subcategories()->withCount('documents')->get();
+        $user = auth()->user();
+        $bypassRoles = ['master', 'directrice générale', 'it admin', 'assistante de direction', 'chargée de dépôt'];
+        $normalizedRole = $user->roles->first() ? strtolower(trim($user->roles->first()->name)) : '';
+        $isBypass = in_array($normalizedRole, $bypassRoles) || $user->can('view any document');
+
+        if ($isBypass) {
+            $subcategories = $category->subcategories()->withCount('documents')->get();
+        } else {
+            $assignedSubIds = \DB::table('user_subcategory_access')
+                ->where('user_id', $user->id)
+                ->pluck('subcategory_id');
+            if ($assignedSubIds->isEmpty()) {
+                $subcategories = collect();
+            } else {
+                $subcategories = $category->subcategories()
+                    ->whereIn('subcategories.id', $assignedSubIds)
+                    ->withCount('documents')
+                    ->get();
+            }
+        }
 
         return view('categories.subcategories', compact('category', 'subcategories'));
     }

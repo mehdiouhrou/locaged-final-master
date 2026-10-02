@@ -209,12 +209,50 @@ class HomeController extends Controller
 
     private function getCategories()
     {
-        // Category cards are already permission-aware via policies on underlying pages.
-        // We keep them unfiltered here so pagination and counts work as before.
-        return Category::withCount([
-            'documents as pending_count' => fn ($q) => $q->where('status', 'pending'),
-            'documents as total_count',
-        ])->paginate(4);
+        $user = auth()->user();
+
+        // Rôles bypass : voient toutes les catégories
+        if ($user->can('view any document')) {
+            return Category::withoutGlobalScopes()->withCount([
+                'documents as pending_count' => fn ($q) => $q->where('status', 'pending'),
+                'documents as total_count',
+            ])->paginate(4);
+        }
+
+        // Utilisateurs filtrés : uniquement leurs catégories assignées
+        $categoryIds = $user->accessibleCategories()->pluck('categories.id');
+        $subIds = $user->accessibleSubcategories()->pluck('subcategories.id');
+        $parentCategoryIds = \App\Models\Subcategory::whereIn('id', $subIds)->pluck('category_id');
+        $allIds = $categoryIds->merge($parentCategoryIds)->unique()->filter();
+
+        return Category::withoutGlobalScopes()->withCount([
+                // Docs sans sous-catégorie dans une catégorie directement assignée
+                'documents as total_count' => function ($q) use ($categoryIds, $subIds) {
+                    $q->where(function ($inner) use ($categoryIds, $subIds) {
+                        $inner->orWhere(function ($x) use ($categoryIds) {
+                            $x->whereIn('documents.category_id', $categoryIds->all())
+                              ->whereNull('documents.subcategory_id');
+                        });
+                        if ($subIds->isNotEmpty()) {
+                            $inner->orWhereIn('documents.subcategory_id', $subIds->all());
+                        }
+                    });
+                },
+                'documents as pending_count' => function ($q) use ($categoryIds, $subIds) {
+                    $q->where('status', 'pending')
+                      ->where(function ($inner) use ($categoryIds, $subIds) {
+                          $inner->orWhere(function ($x) use ($categoryIds) {
+                              $x->whereIn('documents.category_id', $categoryIds->all())
+                                ->whereNull('documents.subcategory_id');
+                          });
+                          if ($subIds->isNotEmpty()) {
+                              $inner->orWhereIn('documents.subcategory_id', $subIds->all());
+                          }
+                      });
+                },
+            ])
+            ->whereIn('id', $allIds->isEmpty() ? [0] : $allIds)
+            ->paginate(4);
     }
 
     /**
@@ -227,71 +265,52 @@ class HomeController extends Controller
         $query = Document::query();
 
         if (! $user) {
-            // No authenticated user – return empty result set
             return $query->whereRaw('1 = 0');
         }
 
+        // Rôles bypass : voient tous les documents
         if ($user->can('view any document')) {
             return $query;
         }
 
-        if ($user->can('view subdepartment scoped documents')) {
-            $userDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
-                ? $user->departments->pluck('id')->filter()
-                : collect();
-
-            $userSubDeptIds = collect();
-            if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
-                $userSubDeptIds = $userSubDeptIds->merge($user->subDepartments->pluck('id'));
-            }
-            $userSubDeptIds = $userSubDeptIds->unique()->filter();
-
-            if ($userDeptIds->isEmpty() || $userSubDeptIds->isEmpty()) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            $allowedSubDeptIds = SubDepartment::whereIn('id', $userSubDeptIds)
-                ->whereIn('department_id', $userDeptIds)
-                ->pluck('id');
-
-            if ($allowedSubDeptIds->isEmpty()) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            $serviceIds = Service::whereIn('sub_department_id', $allowedSubDeptIds)->pluck('id');
-            if ($serviceIds->isEmpty()) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            return $query
-                ->whereIn('department_id', $userDeptIds)
-                ->whereIn('service_id', $serviceIds);
-        }
-
-        // Generic visibility rules (service, department, own documents)
+        // Rôles filtrés : accès par catégories/sous-catégories assignées
         return $query->where(function (Builder $q) use ($user) {
             $hasCondition = false;
 
-            if ($user->can('view service document')) {
-                // Utilise la même logique que le global scope (filtrage par catégories)
-                $catIds = app(\App\Services\ProfileCategoryAccessService::class)
-                    ->accessibleCategoryIdsFor($user);
+            // Catégories directement accessibles
+            $categoryIds = $user->accessibleCategories()->pluck('categories.id');
 
-                if ($catIds && $catIds->isNotEmpty()) {
-                    $q->whereIn('documents.category_id', $catIds);
-                    $hasCondition = true;
-                }
+            // Sous-catégories directement accessibles
+            $subcategoryIds = $user->accessibleSubcategories()->pluck('subcategories.id');
+
+            // Catégories parentes des sous-catégories assignées
+            $parentCategoryIds = collect();
+            if ($subcategoryIds->isNotEmpty()) {
+                $parentCategoryIds = \App\Models\Subcategory::whereIn('id', $subcategoryIds)
+                    ->pluck('category_id');
             }
 
-            if ($user->can('view department document')) {
-                $deptIds = $user->departments->pluck('id')->filter();
-                if ($deptIds->isNotEmpty()) {
-                    $method = $hasCondition ? 'orWhereIn' : 'whereIn';
-                    $q->$method('department_id', $deptIds);
-                    $hasCondition = true;
-                }
+            // Union de toutes les catégories visibles
+            $allCategoryIds = $categoryIds->merge($parentCategoryIds)->unique()->filter();
+
+            if ($allCategoryIds->isNotEmpty() || $subcategoryIds->isNotEmpty()) {
+                $q->where(function (Builder $inner) use ($allCategoryIds, $subcategoryIds) {
+                    // Docs rattachés à une catégorie assignée sans sous-catégorie
+                    if ($allCategoryIds->isNotEmpty()) {
+                        $inner->orWhere(function (Builder $x) use ($allCategoryIds) {
+                            $x->whereIn('documents.category_id', $allCategoryIds)
+                              ->whereNull('documents.subcategory_id');
+                        });
+                    }
+                    // Docs rattachés à une sous-catégorie assignée
+                    if ($subcategoryIds->isNotEmpty()) {
+                        $inner->orWhereIn('documents.subcategory_id', $subcategoryIds);
+                    }
+                });
+                $hasCondition = true;
             }
 
+            // Le créateur voit toujours ses propres docs
             if ($user->can('view own document')) {
                 $method = $hasCondition ? 'orWhere' : 'where';
                 $q->$method('created_by', $user->id);
@@ -299,7 +318,6 @@ class HomeController extends Controller
             }
 
             if (! $hasCondition) {
-                // If user has no view permissions at all, force empty set
                 $q->whereRaw('1 = 0');
             }
         });
@@ -473,7 +491,7 @@ class HomeController extends Controller
             'type' => 'categories',
             'data' => $categories,
             'title' => ui_t('pages.dashboard.donut.categories_title'),
-            'subtitle' => __('Cliquez sur une catégorie pour ouvrir les documents'),
+            'subtitle' => __('Cliquez sur un dossier pour ouvrir les documents'),
         ];
     }
 

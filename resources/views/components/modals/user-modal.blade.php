@@ -120,69 +120,44 @@
             </div>
 
             <div id="wizardStep3" class="d-none">
-            <div id="departmentContainer" class="mb-3">
-                <label for="departmentSelect" class="mb-2">{{ ui_t('pages.users_page.user_modal.structures') }}</label>
-                <input type="text" id="departmentSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un pôle...') }}">
-                <select id="departmentSelect" name="departments[]" class="form-select mb-2 @error('departments') is-invalid @enderror" multiple size="5">
-                    @foreach($departments as $department)
-                        <option value="{{ $department->id }}" {{ (is_array(old('departments')) && in_array($department->id, old('departments'))) ? 'selected' : '' }}>
-                            {{ $department->name }}
-                        </option>
-                    @endforeach
-                </select>
-                <small class="text-muted d-block">{{ ui_t('pages.users_page.user_modal.structures_hint') }}</small>
-                @error('departments')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+            <div id="bypassRoleNotice" class="alert alert-info py-2 px-3 small d-none">
+                <i class="fas fa-info-circle me-1"></i>
+                {{ __('Ce rôle a accès à tous les documents — aucun périmètre requis.') }}
             </div>
-
-            {{-- Sub-Department selector (multi-select, filtered by selected structures) --}}
-            <div id="subDepartmentContainer" class="mb-3 d-none">
-                <label for="subDepartmentSelect" class="form-label">{{ ui_t('pages.users_page.sub_departments_label') }}</label>
-                <input type="text" id="subDepartmentSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un département...') }}">
-                <select id="subDepartmentSelect" name="sub_departments[]" class="form-select" multiple size="5">
-                    @foreach($departments as $department)
-                        @foreach($department->subDepartments as $subDepartment)
-                            <option
-                                value="{{ $subDepartment->id }}"
-                                data-department-id="{{ $department->id }}"
-                                @if(is_array(old('sub_departments')) && in_array($subDepartment->id, old('sub_departments'))) selected @endif
-                            >
-                                {{ $subDepartment->name }}
-                            </option>
-                        @endforeach
-                    @endforeach
-                </select>
-                @error('sub_departments')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-                @enderror
-            </div>
-
-            {{-- Service selector (shown for Service User / User when applicable) --}}
-            <div id="serviceContainer" class="mb-3 d-none">
-                <label for="serviceSelect" class="form-label">{{ ui_t('pages.users_page.services_label') }}</label>
-                <input type="text" id="serviceSearchInput" class="form-control form-control-sm mb-2" placeholder="{{ __('Rechercher un service...') }}">
-                <select id="serviceSelect" name="services[]" class="form-select" multiple size="5">
-                    @foreach($departments as $department)
-                        @foreach($department->subDepartments as $subDepartment)
-                            @foreach($subDepartment->services as $service)
-                                <option
-                                    value="{{ $service->id }}"
-                                    data-department-id="{{ $department->id }}"
-                                    data-sub-department-id="{{ $subDepartment->id }}"
-                                    @if(is_array(old('services')) && in_array($service->id, old('services'))) selected @endif
-                                >
-                                    {{ $service->name }}
-                                </option>
+            <div id="categoryAccessContainer">
+                <label class="form-label fw-semibold mb-2">{{ __('Dossiers accessibles') }}</label>
+                <input type="text" id="categorySearchInput" class="form-control form-control-sm mb-2"
+                       placeholder="{{ __('Rechercher une catégorie...') }}">
+                <div id="categoryCheckboxList"
+                     style="max-height: 240px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.5rem;">
+                    @forelse($categories as $category)
+                        <div class="category-block mb-2" data-category-name="{{ strtolower($category->name) }}">
+                            <div class="form-check">
+                                <input class="form-check-input category-checkbox" type="checkbox"
+                                       name="category_ids[]" value="{{ $category->id }}"
+                                       id="cat_{{ $category->id }}">
+                                <label class="form-check-label fw-semibold" for="cat_{{ $category->id }}">
+                                    {{ $category->name }}
+                                </label>
+                            </div>
+                            @foreach($category->subcategories as $subcategory)
+                                <div class="subcategory-item ms-3 form-check"
+                                     data-subcategory-name="{{ strtolower($subcategory->name) }}">
+                                    <input class="form-check-input subcategory-checkbox" type="checkbox"
+                                           name="subcategory_ids[]" value="{{ $subcategory->id }}"
+                                           id="subcat_{{ $subcategory->id }}">
+                                    <label class="form-check-label text-muted" for="subcat_{{ $subcategory->id }}">
+                                        {{ $subcategory->name }}
+                                    </label>
+                                </div>
                             @endforeach
-                        @endforeach
-                    @endforeach
-                </select>
-                @error('services')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-                @enderror
+                        </div>
+                    @empty
+                        <p class="text-muted small mb-0">{{ __('Aucune catégorie disponible.') }}</p>
+                    @endforelse
+                </div>
             </div>
-            </div>
+        </div>
 
             <div class="d-flex justify-content-between">
                 <button type="button" class="btn btn-outline-secondary px-4 d-none" id="wizardPrevBtn">{{ __('Précédent') }}</button>
@@ -202,23 +177,17 @@
     const form = document.getElementById("userForm");
     const formMethodInput = document.getElementById("formMethod");
     const roleSelect = document.getElementById("roleSelect");
-    const departmentContainer = document.getElementById("departmentContainer");
-    const departmentSelect = document.getElementById("departmentSelect");
-    const subDepartmentContainer = document.getElementById("subDepartmentContainer");
-    const subDepartmentSelect = document.getElementById("subDepartmentSelect");
-    const serviceContainer = document.getElementById("serviceContainer");
-    const serviceSelect = document.getElementById("serviceSelect");
-    
-    // Password checkbox and containers
+    const roleContextHint = document.getElementById("roleContextHint");
+
+    // Password
     const setPasswordNowCheckbox = document.getElementById("setPasswordNowCheckbox");
     const setPasswordNowContainer = document.getElementById("setPasswordNowContainer");
     const passwordFieldsContainer = document.getElementById("passwordFieldsContainer");
     const passwordConfirmFieldsContainer = document.getElementById("passwordConfirmFieldsContainer");
     const passwordInput = document.getElementById("passwordInput");
     const passwordConfirmInput = document.getElementById("passwordConfirmationInput");
-    const roleContextHint = document.getElementById("roleContextHint");
 
-    // Wizard elements
+    // Wizard
     const stepContainers = [
         document.getElementById("wizardStep1"),
         document.getElementById("wizardStep2"),
@@ -233,50 +202,96 @@
     const wizardTitles = [
         "{{ __('Informations de base') }}",
         "{{ __('Rôle utilisateur') }}",
-        "{{ __('Périmètre organisationnel') }}",
+        "Dossiers & sous-dossiers",
     ];
     let currentWizardStep = 0;
 
-    // Searchable selects
-    const departmentSearchInput = document.getElementById("departmentSearchInput");
-    const subDepartmentSearchInput = document.getElementById("subDepartmentSearchInput");
-    const serviceSearchInput = document.getElementById("serviceSearchInput");
+    // Catégories
+    const bypassRoleNotice = document.getElementById("bypassRoleNotice");
+    const categoryAccessContainer = document.getElementById("categoryAccessContainer");
+    const categorySearchInput = document.getElementById("categorySearchInput");
 
-    // Toggle password fields visibility based on checkbox and mode (create/edit)
+    // Rôles bypass (accès total — pas de périmètre requis)
+    const BYPASS_ROLES = [
+        'master',
+        'directrice générale',
+        'it admin',
+        'assistante de direction',
+        'chargée de dépôt',
+    ];
+
+    function isBypassRole(roleName) {
+        return BYPASS_ROLES.includes((roleName || '').toLowerCase());
+    }
+
+    function getSelectedRoleName() {
+        if (!roleSelect) return '';
+        const option = roleSelect.options[roleSelect.selectedIndex];
+        return option && option.dataset.roleName ? option.dataset.roleName.toLowerCase() : '';
+    }
+
+    function applyRoleVisibility() {
+        const roleName = getSelectedRoleName();
+        const bypass = isBypassRole(roleName);
+
+        if (roleContextHint) {
+            roleContextHint.textContent = bypass
+                ? "{{ __('Rôle global : accès à tous les documents sans restriction.') }}"
+                : "{{ __('Sélectionnez les catégories que cet utilisateur peut consulter.') }}";
+        }
+
+        if (bypassRoleNotice) bypassRoleNotice.classList.toggle('d-none', !bypass);
+        if (categoryAccessContainer) categoryAccessContainer.classList.toggle('d-none', bypass);
+
+        if (bypass) {
+            document.querySelectorAll('.category-checkbox, .subcategory-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+        }
+    }
+
+    function filterCategories() {
+        const query = (categorySearchInput?.value || '').trim().toLowerCase();
+        document.querySelectorAll('#categoryCheckboxList .category-block').forEach(block => {
+            const catName = block.dataset.categoryName || '';
+            const subcatItems = block.querySelectorAll('.subcategory-item');
+            let anySubMatch = false;
+
+            subcatItems.forEach(item => {
+                const subName = item.dataset.subcategoryName || '';
+                const subMatch = query === '' || subName.includes(query) || catName.includes(query);
+                item.style.display = subMatch ? '' : 'none';
+                if (subMatch) anySubMatch = true;
+            });
+
+            const catMatch = query === '' || catName.includes(query);
+            block.style.display = (catMatch || anySubMatch) ? '' : 'none';
+        });
+    }
+
     function togglePasswordFields() {
         const isCreating = formMethodInput.value === "POST";
-        const setPasswordNow = setPasswordNowCheckbox.checked;
-        
+        const setPasswordNow = setPasswordNowCheckbox?.checked;
+
         if (isCreating) {
-            // Creating new user
-            setPasswordNowContainer.classList.remove("d-none");
-            
+            setPasswordNowContainer?.classList.remove("d-none");
             if (setPasswordNow) {
-                // Show password fields if checkbox is checked
-                passwordFieldsContainer.classList.remove("d-none");
-                passwordConfirmFieldsContainer.classList.remove("d-none");
-                passwordInput.required = true;
-                passwordConfirmInput.required = true;
+                passwordFieldsContainer?.classList.remove("d-none");
+                passwordConfirmFieldsContainer?.classList.remove("d-none");
+                if (passwordInput) passwordInput.required = true;
+                if (passwordConfirmInput) passwordConfirmInput.required = true;
             } else {
-                // Hide password fields if checkbox unchecked
-                passwordFieldsContainer.classList.add("d-none");
-                passwordConfirmFieldsContainer.classList.add("d-none");
-                passwordInput.required = false;
-                passwordConfirmInput.required = false;
-                passwordInput.value = "";
-                passwordConfirmInput.value = "";
+                passwordFieldsContainer?.classList.add("d-none");
+                passwordConfirmFieldsContainer?.classList.add("d-none");
+                if (passwordInput) { passwordInput.required = false; passwordInput.value = ""; }
+                if (passwordConfirmInput) { passwordConfirmInput.required = false; passwordConfirmInput.value = ""; }
             }
         } else {
-            // Editing existing user - password change removed from this form on
-            // 21/08/2026 per Mehdi: use the dedicated "Réinitialiser le mot de
-            // passe" button instead (audited, notifies user, supports no-email mode).
-            setPasswordNowContainer.classList.add("d-none");
-            passwordFieldsContainer.classList.add("d-none");
-            passwordConfirmFieldsContainer.classList.add("d-none");
-            passwordInput.required = false;
-            passwordConfirmInput.required = false;
-            passwordInput.value = "";
-            passwordConfirmInput.value = "";
+            setPasswordNowContainer?.classList.add("d-none");
+            passwordFieldsContainer?.classList.add("d-none");
+            passwordConfirmFieldsContainer?.classList.add("d-none");
+            if (passwordInput) { passwordInput.required = false; passwordInput.value = ""; }
+            if (passwordConfirmInput) { passwordConfirmInput.required = false; passwordConfirmInput.value = ""; }
         }
     }
 
@@ -292,17 +307,17 @@
         if (wizardStepTitle) wizardStepTitle.textContent = wizardTitles[currentWizardStep] || "";
         if (wizardProgress) wizardProgress.style.width = `${((currentWizardStep + 1) / total) * 100}%`;
 
-        if (wizardPrevBtn) wizardPrevBtn.classList.toggle("d-none", currentWizardStep === 0);
-        if (wizardNextBtn) wizardNextBtn.classList.toggle("d-none", currentWizardStep === total - 1);
-        if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle("d-none", currentWizardStep !== total - 1);
+        wizardPrevBtn?.classList.toggle("d-none", currentWizardStep === 0);
+        wizardNextBtn?.classList.toggle("d-none", currentWizardStep === total - 1);
+        wizardSubmitBtn?.classList.toggle("d-none", currentWizardStep !== total - 1);
     }
 
     function validateCurrentStep() {
         if (currentWizardStep === 0) {
             if (!document.getElementById("emailInput")?.value.trim()) return false;
             if (!document.getElementById("fullName")?.value.trim()) return false;
-            if (formMethodInput.value === "POST" && setPasswordNowCheckbox.checked) {
-                if (!passwordInput.value.trim() || !passwordConfirmInput.value.trim()) return false;
+            if (formMethodInput.value === "POST" && setPasswordNowCheckbox?.checked) {
+                if (!passwordInput?.value.trim() || !passwordConfirmInput?.value.trim()) return false;
             }
         }
         if (currentWizardStep === 1) {
@@ -311,307 +326,85 @@
         return true;
     }
 
-    function getSelectedRoleName() {
-        if (!roleSelect) return '';
-        const option = roleSelect.options[roleSelect.selectedIndex];
-        return option && option.dataset.roleName ? option.dataset.roleName.toLowerCase() : '';
-    }
-
-    function applyRoleOrgVisibility() {
-        const roleName = getSelectedRoleName();
-
-        const config = {
-            showDepartment: false,
-            departmentRequired: false,
-            showSubDepartment: false,
-            subDepartmentRequired: false,
-            showService: false,
-            serviceRequired: false,
-        };
-
-        if (roleName === 'master' || roleName === 'super administrator') {
-            // No org structure required or shown
-        } else if (roleName === 'admin de pole' || roleName === 'department administrator') {
-            // Department admin: only structures (departments)
-            config.showDepartment = true;
-            config.departmentRequired = true;
-        } else if (roleName === 'admin de departments' || roleName === 'division chief') {
-            // Sub-department admin: structures + filtered sub-departments
-            config.showDepartment = true;
-            config.departmentRequired = true;
-            config.showSubDepartment = true;
-            config.subDepartmentRequired = true;
-        } else if (roleName === 'admin de cellule' || roleName === 'service manager' || roleName === 'user' || roleName === 'service user') {
-            // Service-level roles: structures + sub-departments + services
-            config.showDepartment = true;
-            config.departmentRequired = true;
-            config.showSubDepartment = true;
-            config.subDepartmentRequired = true;
-            config.showService = true;
-            config.serviceRequired = true;
-        } else {
-            // Any other custom role: all dropdowns visible but optional
-            config.showDepartment = true;
-            config.showSubDepartment = true;
-            config.showService = true;
-        }
-
-        if (roleContextHint) {
-            let hint = "{{ __('Accès personnalisé: vérifiez le périmètre selon ce rôle.') }}";
-            if (roleName === 'master' || roleName === 'super administrator') {
-                hint = "{{ __('Rôle global: pas de rattachement structure requis.') }}";
-            } else if (roleName === 'admin de pole' || roleName === 'department administrator') {
-                hint = "{{ __('Ce rôle doit être rattaché à un ou plusieurs pôles.') }}";
-            } else if (roleName === 'admin de departments' || roleName === 'division chief') {
-                hint = "{{ __('Ce rôle doit être rattaché à des pôles et départements.') }}";
-            } else if (roleName === 'admin de cellule' || roleName === 'service manager' || roleName === 'user' || roleName === 'service user') {
-                hint = "{{ __('Ce rôle nécessite un rattachement service (avec pôle + département).') }}";
-            }
-            roleContextHint.textContent = hint;
-        }
-
-        if (departmentContainer) {
-            departmentContainer.classList.toggle('d-none', !config.showDepartment);
-        }
-        if (departmentSelect) {
-            departmentSelect.required = !!config.departmentRequired;
-            if (!config.showDepartment) {
-                Array.from(departmentSelect.options).forEach(opt => (opt.selected = false));
-            }
-        }
-
-        if (subDepartmentContainer) {
-            subDepartmentContainer.classList.toggle('d-none', !config.showSubDepartment);
-        }
-        if (subDepartmentSelect) {
-            subDepartmentSelect.required = !!config.subDepartmentRequired;
-            if (!config.showSubDepartment) {
-                Array.from(subDepartmentSelect.options).forEach(opt => (opt.selected = false));
-            }
-        }
-
-        if (serviceContainer) {
-            serviceContainer.classList.toggle('d-none', !config.showService);
-        }
-            if (serviceSelect) {
-                serviceSelect.required = !!config.serviceRequired;
-                if (!config.showService) {
-                    Array.from(serviceSelect.options).forEach(opt => (opt.selected = false));
-                }
-            }
-    }
-
-    function applySelectOptionVisibility(option) {
-        const orgVisible = option.dataset.orgVisible !== '0';
-        const searchVisible = option.dataset.searchVisible !== '0';
-        option.hidden = !(orgVisible && searchVisible);
-        if (option.hidden) {
-            option.selected = false;
-        }
-    }
-
-    function filterSelectByText(select, searchInput) {
-        if (!select || !searchInput) return;
-        const query = (searchInput.value || '').trim().toLowerCase();
-        Array.from(select.options).forEach(option => {
-            option.dataset.searchVisible = query === '' || option.text.toLowerCase().includes(query) ? '1' : '0';
-            applySelectOptionVisibility(option);
-        });
-    }
-
-    function filterSubDepartmentsByDepartments() {
-        if (!departmentSelect || !subDepartmentSelect) return;
-        const selectedDepartmentIds = Array.from(departmentSelect.selectedOptions)
-            .map(o => o.value)
-            .filter(v => v !== '');
-
-        Array.from(subDepartmentSelect.options).forEach(option => {
-            const deptId = option.dataset.departmentId;
-            option.dataset.orgVisible = (selectedDepartmentIds.length > 0 && (!deptId || !selectedDepartmentIds.includes(deptId))) ? '0' : '1';
-            applySelectOptionVisibility(option);
-        });
-
-        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
-        filterServicesBySubDepartment();
-    }
-
-    function filterServicesBySubDepartment() {
-        if (!subDepartmentSelect || !serviceSelect) return;
-        const selectedSubDeptIds = Array.from(subDepartmentSelect.selectedOptions)
-            .map(o => o.value)
-            .filter(v => v !== '');
-
-        Array.from(serviceSelect.options).forEach(option => {
-            const optionSubDeptId = option.dataset.subDepartmentId;
-            const match = selectedSubDeptIds.length === 0 || selectedSubDeptIds.includes(optionSubDeptId);
-            option.dataset.orgVisible = match ? '1' : '0';
-            applySelectOptionVisibility(option);
-        });
-
-        filterSelectByText(serviceSelect, serviceSearchInput);
-    }
-
     function resetForm() {
         form.reset();
-        document.getElementById("userId").value = ""; // reset hidden user ID
+        document.getElementById("userId").value = "";
         formMethodInput.value = "POST";
-        form.action = "{{ route('users.store') }}"; // default to create
+        form.action = "{{ route('users.store') }}";
 
-        // Reset password checkbox
-        if (setPasswordNowCheckbox) {
-            setPasswordNowCheckbox.checked = false;
-        }
+        if (setPasswordNowCheckbox) setPasswordNowCheckbox.checked = false;
 
-        if (departmentSelect) {
-            Array.from(departmentSelect.options).forEach(opt => (opt.selected = false));
-        }
-        if (subDepartmentSelect) {
-            Array.from(subDepartmentSelect.options).forEach(opt => (opt.selected = false));
-        }
-        if (serviceSelect) {
-            Array.from(serviceSelect.options).forEach(opt => (opt.selected = false));
-        }
+        document.querySelectorAll('.category-checkbox, .subcategory-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        document.querySelectorAll('#categoryCheckboxList .category-block').forEach(b => b.style.display = '');
+        document.querySelectorAll('.subcategory-item').forEach(i => i.style.display = '');
+        if (categorySearchInput) categorySearchInput.value = '';
 
-        applyRoleOrgVisibility();
-        filterSubDepartmentsByDepartments();
-        filterServicesBySubDepartment();
-        togglePasswordFields(); // Update password fields visibility
-        filterSelectByText(departmentSelect, departmentSearchInput);
-        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
-        filterSelectByText(serviceSelect, serviceSearchInput);
+        applyRoleVisibility();
+        togglePasswordFields();
         setWizardStep(0);
     }
 
-    // Event listener for password checkbox
+    // Events
     setPasswordNowCheckbox?.addEventListener('change', togglePasswordFields);
+
     wizardPrevBtn?.addEventListener('click', () => setWizardStep(currentWizardStep - 1));
     wizardNextBtn?.addEventListener('click', () => {
-        if (!validateCurrentStep()) {
-            return;
-        }
+        if (!validateCurrentStep()) return;
+        if (currentWizardStep + 1 === 2) applyRoleVisibility();
         setWizardStep(currentWizardStep + 1);
     });
 
-    departmentSearchInput?.addEventListener('input', () => filterSelectByText(departmentSelect, departmentSearchInput));
-    subDepartmentSearchInput?.addEventListener('input', () => filterSelectByText(subDepartmentSelect, subDepartmentSearchInput));
-    serviceSearchInput?.addEventListener('input', () => filterSelectByText(serviceSelect, serviceSearchInput));
+    roleSelect?.addEventListener('change', applyRoleVisibility);
+    categorySearchInput?.addEventListener('input', filterCategories);
 
     document.getElementById("nextBtn")?.addEventListener("click", () => {
         resetForm();
         modal.classList.remove("d-none");
     });
 
-    roleSelect?.addEventListener('change', () => {
-        applyRoleOrgVisibility();
-        filterSubDepartmentsByDepartments();
-    });
-
-    departmentSelect?.addEventListener('change', () => {
-        filterSubDepartmentsByDepartments();
-    });
-
-    subDepartmentSelect?.addEventListener('change', () => {
-        filterServicesBySubDepartment();
-    });
-
     document.getElementById("exitProfileBtn")?.addEventListener("click", function () {
         modal.classList.add("d-none");
-       // resetForm();
     });
 
     modal.addEventListener("click", function (e) {
-        if (e.target.id === "promptLayer") {
-            modal.classList.add("d-none");
-        }
+        if (e.target.id === "promptLayer") modal.classList.add("d-none");
     });
 
-    // Open modal on Edit click
+    // Ouverture modale en mode édition
     document.querySelectorAll(".edit-user-btn").forEach(button => {
         button.addEventListener("click", () => {
             const userId = button.dataset.id;
-            const fullname = button.dataset.fullname;
-            const email = button.dataset.email;
-            const roleId = button.dataset.roleId;
-            const departmentIds = button.dataset.departmentIds; // Comma-separated IDs
-            const subDepartmentIds = button.dataset.subDepartmentIds || ''; // Comma-separated IDs
-            const serviceIds = (button.dataset.serviceIds || '').split(',').map(id => id.trim()).filter(id => id !== '');
+            const categoryIds = (button.dataset.categoryIds || '').split(',').map(s => s.trim()).filter(Boolean);
+            const subcategoryIds = (button.dataset.subcategoryIds || '').split(',').map(s => s.trim()).filter(Boolean);
 
-            if (roleSelect) {
-                roleSelect.value = roleId;
-            }
             document.getElementById("userId").value = userId;
-            document.getElementById("fullName").value = fullname;
-            
-            document.getElementById("emailInput").value = email;
-            
-            // Clear all department selections first
-            if (departmentSelect) {
-                Array.from(departmentSelect.options).forEach(option => option.selected = false);
+            document.getElementById("fullName").value = button.dataset.fullname;
+            document.getElementById("emailInput").value = button.dataset.email;
+            if (roleSelect) roleSelect.value = button.dataset.roleId;
 
-                // Select multiple departments
-                if (departmentIds) {
-                    const ids = departmentIds.split(',').map(id => id.trim());
-                    Array.from(departmentSelect.options).forEach(option => {
-                        if (ids.includes(option.value)) {
-                            option.selected = true;
-                        }
-                    });
-                }
-            }
-
-            applyRoleOrgVisibility();
-            filterSubDepartmentsByDepartments();
-
-            // Clear all sub-department selections first
-            if (subDepartmentSelect) {
-                Array.from(subDepartmentSelect.options).forEach(option => option.selected = false);
-
-                if (subDepartmentIds) {
-                    const ids = subDepartmentIds.split(',').map(id => id.trim());
-                    Array.from(subDepartmentSelect.options).forEach(option => {
-                        if (ids.includes(option.value)) {
-                            option.selected = true;
-                        }
-                    });
-                }
-            }
-
-            filterServicesBySubDepartment();
-
-            if (serviceSelect) {
-                Array.from(serviceSelect.options).forEach(option => {
-                    option.selected = serviceIds.includes(option.value);
-                });
-            }
+            document.querySelectorAll('.category-checkbox').forEach(cb => {
+                cb.checked = categoryIds.includes(cb.value);
+            });
+            document.querySelectorAll('.subcategory-checkbox').forEach(cb => {
+                cb.checked = subcategoryIds.includes(cb.value);
+            });
 
             form.action = `/users/${userId}`;
             formMethodInput.value = "PUT";
 
-            // Clear password fields for security
-            document.getElementById("passwordInput").value = "";
-            document.getElementById("passwordConfirmationInput").value = "";
-
-            togglePasswordFields(); // Update password fields visibility for edit mode
+            applyRoleVisibility();
+            togglePasswordFields();
             setWizardStep(0);
-            filterSelectByText(departmentSelect, departmentSearchInput);
-            filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
-            filterSelectByText(serviceSelect, serviceSearchInput);
-
             modal.classList.remove("d-none");
         });
     });
 
-
-
-    // Auto-open modal if validation errors exist (optional)
+    // Auto-open si erreurs de validation
     @if ($errors->any())
     document.addEventListener("DOMContentLoaded", function() {
-        applyRoleOrgVisibility();
-        filterSubDepartmentsByDepartments();
-        filterServicesBySubDepartment();
-        filterSelectByText(departmentSelect, departmentSearchInput);
-        filterSelectByText(subDepartmentSelect, subDepartmentSearchInput);
-        filterSelectByText(serviceSelect, serviceSearchInput);
+        applyRoleVisibility();
         setWizardStep(0);
         modal.classList.remove("d-none");
     });

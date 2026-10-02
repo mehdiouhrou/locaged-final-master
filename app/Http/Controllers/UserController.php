@@ -535,56 +535,29 @@ class UserController extends Controller
 
         $normalizedRoleName = $selectedRoleName ? strtolower($selectedRoleName) : '';
 
-        // Default: org structure optional
-        $departmentsRule = 'nullable|array';
-        $subDepartmentsRule = 'nullable|array';
-        $servicesRule = 'nullable|array';
+        // Roles bypass (acces total)
+        $bypassRoles = ['master', 'directrice g\xc3\xa9n\xc3\xa9rale', 'it admin', 'assistante de direction', 'charg\xc3\xa9e de d\xc3\xa9p\xc3\xb4t'];
+        $isBypass = in_array($normalizedRoleName, $bypassRoles);
 
-        // Department Administrator, Division Chief, Service Manager, Service User must have at least one department
-        if (in_array($normalizedRoleName, ['chef de pôle', 'chef de département', 'utilisateur'])) {
-            $departmentsRule = 'required|array|min:1';
-        }
-
-        // Division Chief, Service Manager and Service User must have at least one sub-department
-        if (in_array($normalizedRoleName, ['chef de département', 'utilisateur'])) {
-            $subDepartmentsRule = 'required|array|min:1';
-        }
-
-        // Service Manager and Service User must have at least one service
-        if (in_array($normalizedRoleName, ['utilisateur'])) {
-            $servicesRule = 'required|array|min:1';
-        }
-
-        // NEW: Check if admin wants to set password now
         $setPasswordNow = $request->boolean('set_password_now', false);
 
         $data = $request->validate([
-            'full_name'  => 'required|string|max:255',
-            'email'      => 'required|email|unique:users,email',
-            // Password is now conditionally required
-            'password'   => $setPasswordNow 
+            'full_name'       => 'required|string|max:255',
+            'email'           => 'required|email|unique:users,email',
+            'password'        => $setPasswordNow
                 ? ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()]
                 : ['nullable'],
-            'active'     => 'nullable|boolean',
-            'role'       => 'nullable|exists:roles,id',
-            'departments'   => $departmentsRule,
-            'departments.*' => 'exists:departments,id',
-            'sub_departments'   => $subDepartmentsRule,
-            'sub_departments.*' => 'exists:sub_departments,id',
-            'services'          => $servicesRule,
-            'services.*'        => 'exists:services,id',
+            'active'          => 'nullable|boolean',
+            'role'            => 'nullable|exists:roles,id',
+            'category_ids'    => 'nullable|array',
+            'category_ids.*'  => 'exists:categories,id',
+            'subcategory_ids'   => 'nullable|array',
+            'subcategory_ids.*' => 'exists:subcategories,id',
             'set_password_now'  => 'nullable|boolean',
-        ], [
-            'departments.required' => 'At least one structure must be selected.',
-            'departments.min' => 'At least one structure must be selected.',
-            'sub_departments.required' => 'At least one sub-department must be selected for this role.',
-            'sub_departments.min' => 'At least one sub-department must be selected for this role.',
-            'service_id.required' => 'A service must be selected for this role.',
         ]);
 
-        // Determine primary sub-department and service (first in each list)
-        $primarySubDeptId = isset($data['sub_departments'][0]) ? $data['sub_departments'][0] : null;
-        $primaryServiceId = isset($data['services'][0]) ? $data['services'][0] : null;
+        $primarySubDeptId = null;
+        $primaryServiceId = null;
 
         // Store plain text password before hashing (for email)
         $plainPassword = $data['password'] ?? null;
@@ -617,9 +590,13 @@ class UserController extends Controller
         }
 
         // Sync multiple departments
-        $user->departments()->sync($data['departments'] ?? []);
-        $user->subDepartments()->sync($data['sub_departments'] ?? ($primarySubDeptId ? [$primarySubDeptId] : []));
-        $user->services()->sync($data['services'] ?? []);
+        if (!$isBypass) {
+            $user->accessibleCategories()->sync($data['category_ids'] ?? []);
+            $user->accessibleSubcategories()->sync($data['subcategory_ids'] ?? []);
+        } else {
+            $user->accessibleCategories()->detach();
+            $user->accessibleSubcategories()->detach();
+        }
 
         // NEW: Send appropriate email
         if ($setPasswordNow && $plainPassword) {
@@ -651,38 +628,21 @@ class UserController extends Controller
         }
         $normalizedRoleName = $rawRoleName ? strtolower($rawRoleName) : '';
 
-        // Default: org structure optional on update as well
-        $departmentsRule = 'nullable|array';
-        $subDepartmentsRule = 'nullable|array';
-        $servicesRule = 'nullable|array';
-
-        if (in_array($normalizedRoleName, ['chef de pôle', 'chef de département', 'utilisateur'])) {
-            $departmentsRule = 'required|array|min:1';
-        }
-
-        if (in_array($normalizedRoleName, ['chef de département', 'utilisateur'])) {
-            $subDepartmentsRule = 'required|array|min:1';
-        }
-
-        // Service Manager and Service User must have at least one service
-        if (in_array($normalizedRoleName, ['utilisateur'])) {
-            $servicesRule = 'required|array|min:1';
-        }
+        $bypassRoles = ['master', 'directrice g\xc3\xa9n\xc3\xa9rale', 'it admin', 'assistante de direction', 'charg\xc3\xa9e de d\xc3\xa9p\xc3\xb4t'];
+        $isBypass = in_array($normalizedRoleName, $bypassRoles);
 
         $data = $request->validate([
             'full_name'  => 'string|max:255',
             'email'      => ['email', Rule::unique('users')->ignore($user->id)],
-            // phone no longer required
-            'phone' => 'nullable|string|max:255',
+            'phone'      => 'nullable|string|max:255',
             'active'     => 'nullable|boolean',
-            'role_id'       => 'nullable|exists:roles,id',
-            // Note: department_id removed - now using multi-department system via pivot table
-'departments'   => $departmentsRule,
+            'role_id'    => 'nullable|exists:roles,id',
+            'category_ids'    => 'nullable|array',
+            'category_ids.*'  => 'exists:categories,id',
+            'subcategory_ids'   => 'nullable|array',
+            'subcategory_ids.*' => 'exists:subcategories,id',
+            'departments'   => 'nullable|array',
             'departments.*' => 'exists:departments,id',
-            'sub_departments'   => $subDepartmentsRule,
-            'sub_departments.*' => 'exists:sub_departments,id',
-            'services'          => $servicesRule,
-            'services.*'        => 'exists:services,id',
             'password'              => ['nullable', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'password_confirmation' => ['nullable'],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:8384'],
@@ -730,13 +690,13 @@ class UserController extends Controller
         }
 
         // Sync multiple departments (may be optional depending on role)
-        $user->departments()->sync($departments ?? []);
-
-        // Sync sub-departments (multi-select via pivot)
-        $user->subDepartments()->sync($subDepartments ?? []);
-
-        // Sync services (multi-select)
-        $user->services()->sync($services ?? []);
+        if (!$isBypass) {
+            $user->accessibleCategories()->sync($data['category_ids'] ?? []);
+            $user->accessibleSubcategories()->sync($data['subcategory_ids'] ?? []);
+        } else {
+            $user->accessibleCategories()->detach();
+            $user->accessibleSubcategories()->detach();
+        }
 
         // IMPORTANT: Also update the primary service_id and sub_department_id columns
         // to match the first selected service/sub-department. This ensures the dashboard

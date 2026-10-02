@@ -6,7 +6,7 @@
 
 <div class="categories-section h-100">
     <div class="section-header">
-        <h3>{{ __('Catégories accessibles') }}</h3>
+        <h3>{{ __('Dossiers accessibles') }}</h3>
         <a href="{{ route('categories.index') }}" class="view-all">
             {{ ui_t('pages.view_all') }} <i class="fa-solid fa-angle-right"></i>
         </a>
@@ -50,7 +50,7 @@
         @empty
             <div class="col-12">
                 <div class="text-center py-4">
-                    <p class="text-muted mb-0">{{ __('Aucune catégorie accessible pour le moment.') }}</p>
+                    <p class="text-muted mb-0">{{ __('Aucune dossier accessible pour le moment.') }}</p>
                 </div>
             </div>
         @endforelse

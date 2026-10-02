@@ -219,6 +219,16 @@ class User extends Authenticatable
      * @param  string  $token
      * @return void
      */
+    public function accessibleCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'user_category_access')->withTimestamps();
+    }
+
+    public function accessibleSubcategories(): BelongsToMany
+    {
+        return $this->belongsToMany(Subcategory::class, 'user_subcategory_access')->withTimestamps();
+    }
+
     public function sendPasswordResetNotification($token)
     {
         // Get the selected language from session (default to French)

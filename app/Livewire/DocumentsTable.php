@@ -177,7 +177,7 @@ class DocumentsTable extends Component
             $params['approval'] = 1;
         }
 
-        $this->redirectRoute('document-versions.preview', $params);
+        $this->redirect(route('document-versions.preview', $params));
     }
 
     public function downloadSelected()

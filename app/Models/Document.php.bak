@@ -225,11 +225,13 @@ class Document extends Model
                     }
                     $departmentIds = $departmentIds->unique()->filter()->values();
 
-                    if ($departmentIds->isNotEmpty()) {
+                    if ($departmentIds->isEmpty()) {
+                        $query->whereRaw('1 = 0');
+                    } else {
                         $query->whereIn('documents.department_id', $departmentIds->all());
-                        return;
                     }
-                    // Pas de département assigné → fallthrough vers accès par catégories
+
+                    return;
                 }
 
                 if ($user->can('view subdepartment scoped documents')) {

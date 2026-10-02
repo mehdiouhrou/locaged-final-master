@@ -12,8 +12,13 @@ class CategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Primary check: explicit permission
-        return $user->can('view any category');
+        // Admins avec permission globale
+        if ($user->can('view any category')) {
+            return true;
+        }
+        // Tout utilisateur avec des catégories assignées peut accéder à la liste
+        return $user->accessibleCategories()->exists()
+            || $user->accessibleSubcategories()->exists();
     }
 
     /**

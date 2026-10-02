@@ -119,10 +119,10 @@
                                 <dd class="col-6 mb-0">{{ $document->expire_at?->format('d/m/Y') ?? '—' }}</dd>
 
                                 @unless($isCollaborativePreArchive)
-                                <dt class="col-6 text-muted">{{ __('Catégorie') }}</dt>
+                                <dt class="col-6 text-muted">{{ __('Dossier') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->category?->name ?? '—' }}</dd>
 
-                                <dt class="col-6 text-muted">{{ __('Sous-catégorie') }}</dt>
+                                <dt class="col-6 text-muted">{{ __('Sous-dossier') }}</dt>
                                 <dd class="col-6 mb-0">{{ $document->subcategory?->name ?? '—' }}</dd>
 
                                 <dt class="col-6 text-muted">{{ __('Emplacement physique') }}</dt>

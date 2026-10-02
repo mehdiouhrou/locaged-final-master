@@ -82,11 +82,10 @@
                     </td>
                     <td>
                         <div>
-                            @if($user->departments->count() > 0)
-                                {{ $user->departments->pluck('name')->join(', ') }}
-                            @else
-                                -
-                            @endif
+                            @php
+                                $catNames = $user->accessibleCategories->pluck('name');
+                            @endphp
+                            {{ $catNames->isNotEmpty() ? $catNames->join(', ') : '-' }}
                         </div>
                     </td>
                     <td>
@@ -109,9 +108,8 @@
                                         data-id="{{ $user->id }}"
                                         data-fullname="{{ $user->full_name }}"
                                         data-email="{{ $user->email }}"
-                                        data-department-ids="{{ $user->departments->pluck('id')->join(',') }}"
-                                        data-sub-department-id="{{ $user->subDepartments->pluck('id')->first() }}"
-                                        data-service-ids="{{ $user->services->pluck('id')->join(',') }}"
+                                        data-category-ids="{{ $user->accessibleCategories->pluck('id')->join(',') }}"
+                                        data-subcategory-ids="{{ $user->accessibleSubcategories->pluck('id')->join(',') }}"
                                         data-role-id="{{ $user->roles->first()?->id }}"
                                     >
                                         {{ ui_t('pages.users_page.edit') }}

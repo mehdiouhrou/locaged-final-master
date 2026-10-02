@@ -113,10 +113,9 @@ class DocumentVersion extends Model
                     $query->whereHas('document', function ($q) use ($departmentIds) {
                         $q->whereIn('department_id', $departmentIds);
                     });
-                } else {
-                    $query->whereRaw('1 = 0');
+                    return;
                 }
-                return;
+                // Pas de département assigné → fallthrough vers accès par catégories
             }
 
             // Service-level visibility: documents whose service is in user's services/sub-departments
@@ -176,19 +175,35 @@ class DocumentVersion extends Model
                     $query->whereHas('document', function ($q) use ($departmentIds) {
                         $q->whereIn('department_id', $departmentIds);
                     });
-                } else {
-                    $query->whereRaw('1 = 0');
+                    return;
                 }
-
-                return;
+                // Pas de département assigné → fallthrough vers accès par catégories
             }
 
-            // Own documents only
-            if ($user->can('view own document')) {
-                $query->whereHas('document', function ($q) use ($user) {
-                    $q->where('created_by', $user->id);
-                });
+            // Category-based access (user_category_access / user_subcategory_access)
+            $catIds = \DB::table('user_category_access')
+                ->where('user_id', $user->id)
+                ->pluck('category_id');
+            $subCatIds = \DB::table('user_subcategory_access')
+                ->where('user_id', $user->id)
+                ->pluck('subcategory_id');
 
+            if ($catIds->isNotEmpty() || $subCatIds->isNotEmpty()) {
+                $query->whereHas('document', function ($q) use ($catIds, $subCatIds) {
+                    $q->whereIn('status', ['approved', 'archived'])
+                      ->where(function ($inner) use ($catIds, $subCatIds) {
+                          if ($catIds->isNotEmpty()) {
+                              // Accès catégorie = docs sans sous-catégorie seulement
+                              $inner->orWhere(function ($x) use ($catIds) {
+                                  $x->whereIn('category_id', $catIds->all())
+                                    ->whereNull('subcategory_id');
+                              });
+                          }
+                          if ($subCatIds->isNotEmpty()) {
+                              $inner->orWhereIn('subcategory_id', $subCatIds->all());
+                          }
+                      });
+                });
                 return;
             }
 

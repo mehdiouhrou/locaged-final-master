@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DashboardActivityFeedService;
 use App\Services\ProfileCategoryAccessService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SidebarComposer
@@ -141,13 +142,30 @@ class SidebarComposer
      */
     private function buildSidebarMyCategories(User $user, array $favoriteCategoriesFromDocs = []): array
     {
-        $accessibleCategoryIds = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
-        $accessibleCategoriesQuery = Category::query()->orderBy('name');
-        if ($accessibleCategoryIds !== null) {
-            if ($accessibleCategoryIds->isEmpty()) {
+        // Bypass : accès total
+        $isBypass = $user->can('view any document')
+            || $user->can('create category')
+            || $user->can('update category')
+            || $user->can('delete category');
+
+        $accessibleCategoriesQuery = Category::withoutGlobalScopes()->orderBy('name');
+
+        if (! $isBypass) {
+            $directIds = \DB::table('user_category_access')
+                ->where('user_id', $user->id)
+                ->pluck('category_id');
+
+            $subCatParentIds = \DB::table('user_subcategory_access')
+                ->join('subcategories', 'subcategories.id', '=', 'user_subcategory_access.subcategory_id')
+                ->where('user_subcategory_access.user_id', $user->id)
+                ->pluck('subcategories.category_id');
+
+            $allIds = $directIds->merge($subCatParentIds)->unique()->filter()->values();
+
+            if ($allIds->isEmpty()) {
                 $accessibleCategoriesQuery->whereRaw('1 = 0');
             } else {
-                $accessibleCategoriesQuery->whereIn('id', $accessibleCategoryIds->all());
+                $accessibleCategoriesQuery->whereIn('id', $allIds->all());
             }
         }
 

@@ -123,11 +123,11 @@
             $myFavoriteCategories = $sidebarMyCategories['favorites'] ?? [];
             $hasMyCategories = !empty($myCategories) || !empty($myFavoriteCategories);
         @endphp
-        {{-- Consultation : catégories du profil (distinct du lien « Catégories » sous Gestion) --}}
+        {{-- Consultation : dossiers du profil (distinct du lien « Dossiers » sous Gestion) --}}
         <li class="has-submenu {{ request()->routeIs('documents.by-category') || request()->routeIs('my-categories.*') ? 'active' : '' }}">
-            <a href="#" class="menu-toggle" title="{{ __('Catégories accessibles selon votre profil (consultation)') }}">
+            <a href="#" class="menu-toggle" title="{{ __('Dossiers accessibles selon votre profil (consultation)') }}">
                 <img src="{{ asset('assets/template/category.svg') }}" class="me-3" alt="" />
-                <span class="sidebar-text">{{ __('Mes catégories') }}</span>
+                <span class="sidebar-text">{{ __('Mes dossiers') }}</span>
                 @if($myCategoriesTotal > 0)
                     <span class="badge rounded-pill lgv2-sidebar-pill ms-auto me-2">{{ $myCategoriesTotal }}</span>
                 @endif
@@ -147,7 +147,7 @@
 
                 @if(!empty($myFavoriteCategories))
                     <li class="mt-2">
-                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Mes catégories favorites') }}</span>
+                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Mes dossiers favorites') }}</span>
                     </li>
                     @foreach($myFavoriteCategories as $favCategory)
                         <li class="mt-1">
@@ -170,7 +170,7 @@
 
                 @if(!$hasMyCategories)
                     <li class="mt-2">
-                        <span class="sidebar-text small text-muted px-3">{{ __('Aucune catégorie accessible') }}</span>
+                        <span class="sidebar-text small text-muted px-3">{{ __('Aucune dossier accessible') }}</span>
                     </li>
                 @endif
             </ul>
@@ -202,7 +202,7 @@
 
                 @if(!empty($favoriteCategories))
                     <li class="mt-2">
-                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Catégories favorites') }}</span>
+                        <span class="sidebar-text small text-muted fw-semibold px-3">{{ __('Dossiers favorites') }}</span>
                     </li>
                     @foreach($favoriteCategories as $favoriteCategory)
                         <li class="mt-1">
@@ -278,7 +278,7 @@
             <ul class="submenu list-unstyled">
                 @if(auth()->user()->can('create category') || auth()->user()->can('update category'))
                 <li class="mt-2">
-                    <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') || request()->routeIs('subcategories.*') ? 'active' : '' }}" title="{{ __('Gestion des catégories (création, modification, suppression)') }}">
+                    <a href="{{ route('categories.index') }}" class="{{ request()->routeIs('categories.*') || request()->routeIs('subcategories.*') ? 'active' : '' }}" title="{{ __('Gestion des dossiers (création, modification, suppression)') }}">
                         <img src="{{ asset('assets/template/elements.svg') }}" class="me-2" alt="" />
                         <span class="sidebar-text">{{ ui_t('nav.categories') }}</span>
                     </a>

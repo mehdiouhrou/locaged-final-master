@@ -26,7 +26,7 @@
             <div class="col-md-3">
                 <div class="card shadow-sm h-100">
                     <div class="card-body">
-                        <h3 class="h6 text-uppercase text-muted">{{ __('Catégories') }}</h3>
+                        <h3 class="h6 text-uppercase text-muted">{{ __('Dossiers') }}</h3>
                         <p class="display-6 fw-bold mb-0">{{ $profile->categories_count }}</p>
                     </div>
                 </div>
@@ -60,7 +60,7 @@
         <div class="row g-4 mt-2">
             <div class="col-lg-3">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-white fw-semibold">{{ __('Catégories liées') }}</div>
+                    <div class="card-header bg-white fw-semibold">{{ __('Dossiers liées') }}</div>
                     <ul class="list-group list-group-flush small">
                         @forelse($profile->categories as $cat)
                             <li class="list-group-item">{{ $cat->name }}</li>

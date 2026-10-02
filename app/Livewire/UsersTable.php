@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Category;
 use App\Models\Department;
 use App\Models\User;
 use App\Support\RoleHierarchy;
@@ -64,7 +65,7 @@ class UsersTable extends Component
 
     public function render()
     {
-        $usersQuery = User::with(['departments','roles']);
+        $usersQuery = User::with(['departments','roles','accessibleCategories','accessibleSubcategories']);
         
         $actor = auth()->user();
         
@@ -232,6 +233,8 @@ class UsersTable extends Component
             }
         }
 
-        return view('livewire.users-table', compact('users','roles','departments'));
+        $categories = Category::withoutGlobalScopes()->with('subcategories')->orderBy('name')->get();
+
+        return view('livewire.users-table', compact('users','roles','departments','categories'));
     }
 }

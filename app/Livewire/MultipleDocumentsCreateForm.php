@@ -269,7 +269,7 @@ class MultipleDocumentsCreateForm extends Component
         $query = Box::where('shelf_id', $this->selectedShelfId)
             ->forUser(auth()->user());
 
-        if (! empty($this->currentInfo['service_id'])) {
+        if (! empty($this->currentInfo['service_id']) && ! auth()->user()->can('view any box')) {
             $query->where('service_id', $this->currentInfo['service_id']);
         }
 
@@ -1038,19 +1038,31 @@ class MultipleDocumentsCreateForm extends Component
 
     private function recalculateExpiry(): void
     {
-        $categoryId = $this->currentInfo['category_id'] ?? null;
-        $createdAt = $this->currentInfo['created_at'] ?? null;
+        $categoryId    = $this->currentInfo['category_id'] ?? null;
+        $subcategoryId = $this->currentInfo['subcategory_id'] ?? null;
+        $createdAt     = $this->currentInfo['created_at'] ?? null;
         if (! $categoryId || ! $createdAt) {
             return;
         }
 
-        $category = Category::find($categoryId);
-        if (! $category) {
-            return;
+        // Priorité : sous-catégorie → catégorie
+        $value = null;
+        $unit  = null;
+        if ($subcategoryId) {
+            $subcategory = \App\Models\Subcategory::find($subcategoryId);
+            if ($subcategory && $subcategory->expiry_value && $subcategory->expiry_unit) {
+                $value = $subcategory->expiry_value;
+                $unit  = $subcategory->expiry_unit;
+            }
         }
-
-        $value = $category->expiry_value;
-        $unit = $category->expiry_unit; // days|months|years
+        if (! $value || ! $unit) {
+            $category = Category::find($categoryId);
+            if (! $category) {
+                return;
+            }
+            $value = $category->expiry_value;
+            $unit  = $category->expiry_unit;
+        }
         if (! $value || ! $unit) {
             return;
         }
@@ -1110,6 +1122,12 @@ class MultipleDocumentsCreateForm extends Component
         $this->currentInfo['expire_at'] = null;
 
         $this->dispatch('categories-reset');
+        $this->recalculateExpiry();
+    }
+
+    public function updatedCurrentInfoSubcategoryId(): void
+    {
+        $this->currentInfo['expire_at'] = null;
         $this->recalculateExpiry();
     }
 

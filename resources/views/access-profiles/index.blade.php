@@ -5,7 +5,7 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
             <div>
                 <h2 class="fw-bold mb-1">{{ __('Profils d’accès') }}</h2>
-                <p class="text-muted mb-0">{{ __('Associez catégories par type d’utilisateur (rôles) et/ou par structure (pôles/services).') }}</p>
+                <p class="text-muted mb-0">{{ __('Associez dossiers par type d’utilisateur (rôles) et/ou par structure (pôles/services).') }}</p>
             </div>
             @can('create', \App\Models\Profile::class)
                 <a href="{{ route('access-profiles.create') }}" class="btn btn-upload">{{ __('Nouveau profil') }}</a>
@@ -21,7 +21,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>{{ __('Nom') }}</th>
-                        <th class="text-center">{{ __('Catégories') }}</th>
+                        <th class="text-center">{{ __('Dossiers') }}</th>
                         <th class="text-center">{{ __('Utilisateurs') }}</th>
                         <th class="text-center">{{ __('Rôles') }}</th>
                         <th class="text-center">{{ __('Pôles') }}</th>

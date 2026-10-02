@@ -5,7 +5,7 @@
 <h5 class="mb-3"><i class="fa-solid fa-box-archive me-2 text-primary"></i>Export réversibilité</h5>
 <p class="text-muted small mb-4">
     Génère une archive ZIP contenant les fichiers originaux et un fichier CSV avec toutes les métadonnées
-    (catégorie, dates, hash SHA-256, emplacement physique, nom de boîte, tags). Utile pour un export
+    (dossier, dates, hash SHA-256, emplacement physique, nom de boîte, tags). Utile pour un export
     complet ou une réponse à une exigence de réversibilité contractuelle.
 </p>
 
@@ -19,7 +19,7 @@
 
 <form action="{{ route('master.export-reversibility') }}" method="GET" class="row g-3">
     <div class="col-md-4">
-        <label class="form-label small">Catégorie</label>
+        <label class="form-label small">Dossier</label>
         <select name="category_id" class="form-select">
             <option value="">Toutes</option>
             @foreach($reversibilityCategories as $cat)

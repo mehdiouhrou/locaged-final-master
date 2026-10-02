@@ -1041,6 +1041,7 @@
                                     </button>
                                 @endif
 
+                                @php /* DEBUG */ echo '<!-- CAN:'.(\Illuminate\Support\Facades\Gate::allows("view",$doc)?"YES":"NO").' STATUS:'.$doc->status.' VER:'.($doc->latestVersion?$doc->latestVersion->id:'NULL').' -->'; @endphp
                                 @can('view',$doc)
                                     @if(in_array($doc->status, ['approved', 'archived']) && $doc->latestVersion)
                                         @php
@@ -1075,6 +1076,7 @@
                                     @endif
                                 </button>
 
+                                @php /* DEBUG */ echo '<!-- CAN:'.(\Illuminate\Support\Facades\Gate::allows("view",$doc)?"YES":"NO").' STATUS:'.$doc->status.' VER:'.($doc->latestVersion?$doc->latestVersion->id:'NULL').' -->'; @endphp
                                 @can('view',$doc)
                                     @if(in_array($doc->status, ['approved', 'archived']) && $doc->latestVersion)
                                         @php

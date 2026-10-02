@@ -4,126 +4,62 @@ namespace App\Policies;
 
 use App\Models\Document;
 use App\Models\Service;
-use App\Models\SubDepartment;
 use App\Models\User;
 
 class DocumentPolicy
 {
     public function viewAny(User $user): bool
     {
-        if (
-            $user->can('view any document') ||
-            $user->can('view department document') ||
-            $user->can('view service document') ||
-            $user->can('view own document')
-        ) {
-            return true;
-        }
-
-        return false;
+        return $user->can('view any document')
+            || $user->can('view department document')
+            || $user->can('view service document')
+            || $user->can('view own document');
     }
 
     public function view(User $user, Document $document): bool
     {
-        // Seuls les docs approved ou archived sont visibles
-        if (!in_array($document->status, ['approved', 'archived'])) {
-            if ($user->can('view any document')) {
-                return true; // admins voient tout
-            }
-            // Le créateur voit toujours son propre document
-            if ($document->created_by === $user->id) {
-                return true;
-            }
-            return false;
-        }
-
+        // Bypass : admins voient tout
         if ($user->can('view any document')) {
             return true;
         }
 
-        if ($user->can('view subdepartment scoped documents')) {
-            $userDeptIds = ($user->relationLoaded('departments') || method_exists($user, 'departments'))
-                ? $user->departments->pluck('id')->filter()
-                : collect();
+        // Le créateur voit toujours son propre document
+        if ($document->created_by === $user->id) {
+            return true;
+        }
 
-            $userSubDeptIds = collect();
-            if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
-                $userSubDeptIds = $userSubDeptIds->merge($user->subDepartments->pluck('id'));
-            }
-            $userSubDeptIds = $userSubDeptIds->unique()->filter();
+        // Accès hiérarchique département → doc approuvé suffit
+        if ($user->can('view department document')) {
+            return in_array($document->status, ['approved', 'archived']);
+        }
 
-            if ($userDeptIds->isEmpty() || $userSubDeptIds->isEmpty()) {
-                return false;
-            }
+        // Accès hiérarchique département → doc approuvé suffit
+        if ($user->can('view department document')) {
+            return in_array($document->status, ['approved', 'archived']);
+        }
 
-            $allowedSubDeptIds = SubDepartment::whereIn('id', $userSubDeptIds)
-                ->whereIn('department_id', $userDeptIds)
-                ->pluck('id');
-
-            if ($allowedSubDeptIds->isEmpty()) {
-                return false;
-            }
-
-            $serviceIds = Service::whereIn('sub_department_id', $allowedSubDeptIds)->pluck('id');
-            if ($serviceIds->isEmpty()) {
-                return false;
-            }
-
-            // Doc dans le département sans service précis → ok
-            if ($userDeptIds->contains($document->department_id) && !$document->service_id) {
-                return true;
-            }
-
-            // Doc avec service → vérifier qu'il est dans un service du pôle
-            if (
-                $userDeptIds->contains($document->department_id) &&
-                $document->service_id &&
-                $serviceIds->contains($document->service_id)
-            ) {
-                return true;
-            }
-
+        // Seuls approved/archived visibles pour les autres
+        if (!in_array($document->status, ['approved', 'archived'])) {
             return false;
         }
 
-        if ($user->can('view service document')) {
-            $visibleServiceIds = collect();
-
-            if ($user->relationLoaded('services') || method_exists($user, 'services')) {
-                $visibleServiceIds = $visibleServiceIds->merge($user->services->pluck('id'));
-            }
-
-            $subDeptIds = collect();
-            if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
-                $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
-            }
-            $subDeptIds = $subDeptIds->unique()->filter();
-
-            if ($subDeptIds->isNotEmpty()) {
-                $visibleServiceIds = $visibleServiceIds->merge(
-                    Service::whereIn('sub_department_id', $subDeptIds)->pluck('id')
-                );
-            }
-
-            $visibleServiceIds = $visibleServiceIds->unique()->filter();
-
-            if ($document->service_id && $visibleServiceIds->contains($document->service_id)) {
-                return true;
-            }
-        }
-
-        if ($user->can('view department document') && $user->departments()->pluck('departments.id')->contains($document->department_id)) {
+        // Accès par catégorie directement assignée à l'utilisateur
+        $categoryIds = $user->accessibleCategories()->pluck('categories.id');
+        if ($document->category_id && $categoryIds->contains($document->category_id)) {
             return true;
         }
 
-        if ($user->can('view own document') && $user->id === $document->created_by) {
+        // Accès par sous-catégorie directement assignée
+        $subcategoryIds = $user->accessibleSubcategories()->pluck('subcategories.id');
+        if ($document->subcategory_id && $subcategoryIds->contains($document->subcategory_id)) {
             return true;
         }
 
-        // Doc visible via catégorie partagée (peu importe dept/service)
-        if ($document->category_id !== null) {
-            $accessibleCategoryIds = app(\App\Services\ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
-            if ($accessibleCategoryIds !== null && $accessibleCategoryIds->contains($document->category_id)) {
+        // Doc dont la catégorie parente est accessible via une sous-catégorie assignée
+        if ($document->category_id && $subcategoryIds->isNotEmpty()) {
+            $parentCatIds = \App\Models\Subcategory::whereIn('id', $subcategoryIds)
+                ->pluck('category_id');
+            if ($parentCatIds->contains($document->category_id)) {
                 return true;
             }
         }
@@ -152,25 +88,20 @@ class DocumentPolicy
 
         if ($user->can('view service document')) {
             $visibleServiceIds = collect();
-
-            if ($user->relationLoaded('services') || method_exists($user, 'services')) {
+            if (method_exists($user, 'services')) {
                 $visibleServiceIds = $visibleServiceIds->merge($user->services->pluck('id'));
             }
-
             $subDeptIds = collect();
-            if ($user->relationLoaded('subDepartments') || method_exists($user, 'subDepartments')) {
+            if (method_exists($user, 'subDepartments')) {
                 $subDeptIds = $subDeptIds->merge($user->subDepartments->pluck('id'));
             }
             $subDeptIds = $subDeptIds->unique()->filter();
-
             if ($subDeptIds->isNotEmpty()) {
                 $visibleServiceIds = $visibleServiceIds->merge(
                     Service::whereIn('sub_department_id', $subDeptIds)->pluck('id')
                 );
             }
-
             $visibleServiceIds = $visibleServiceIds->unique()->filter();
-
             if ($document->service_id && $visibleServiceIds->contains($document->service_id)) {
                 return true;
             }
@@ -194,7 +125,7 @@ class DocumentPolicy
         }
 
         $isLocked = in_array($document->status, ['valide', 'attente_archivage', 'approved', 'archived'], true);
-        if ($isLocked && ! $this->isDocumentExpired($document)) {
+        if ($isLocked && !$this->isDocumentExpired($document)) {
             return $user->can('manage document global expiry');
         }
 
@@ -213,6 +144,7 @@ class DocumentPolicy
         if ($user->can('view own document') && $user->id === $document->created_by) {
             return $this->isDocumentExpired($document);
         }
+
         return false;
     }
 
@@ -233,6 +165,7 @@ class DocumentPolicy
         if ($user->can('view own document') && $user->id === $document->created_by) {
             return true;
         }
+
         return false;
     }
 
@@ -253,6 +186,7 @@ class DocumentPolicy
         if ($user->can('view own document') && $user->id === $document->created_by) {
             return true;
         }
+
         return false;
     }
 
@@ -266,10 +200,6 @@ class DocumentPolicy
         return $user->can('decline document');
     }
 
-    /**
-     * Determine whether the user can move a document to a different physical location (box).
-     * Allowed for: master, Directrice du SPCR, Chargée de dépôt.
-     */
     public function move(User $user, Document $document): bool
     {
         return $user->can('move document');
@@ -291,7 +221,7 @@ class DocumentPolicy
     public function permanentDelete(User $user, Document $document): bool
     {
         $isLocked = in_array($document->status, ['valide', 'attente_archivage', 'approved', 'archived'], true);
-        if ($isLocked && ! $this->isDocumentExpired($document)) {
+        if ($isLocked && !$this->isDocumentExpired($document)) {
             return $user->can('manage document global expiry');
         }
 

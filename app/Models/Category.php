@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\ProfileCategoryAccessService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,13 +23,12 @@ class Category extends Model
         static::addGlobalScope('category_access', function ($query) {
             if (! auth()->check()) {
                 $query->whereRaw('1 = 0');
-
                 return;
             }
 
             $user = auth()->user();
 
-            // Accès liste complète des catégories (hors filtre profils) : rôles gestionnaires.
+            // Bypass : rôles avec accès total
             if ($user->can('view any document')
                 || $user->can('create category')
                 || $user->can('update category')
@@ -38,16 +36,25 @@ class Category extends Model
                 return;
             }
 
-            $ids = app(ProfileCategoryAccessService::class)->accessibleCategoryIdsFor($user);
-            if ($ids === null) {
-                return;
-            }
-            if ($ids->isEmpty()) {
-                $query->whereRaw('1 = 0');
+            // Catégories directement assignées à l'utilisateur
+            $directIds = \DB::table('user_category_access')
+                ->where('user_id', $user->id)
+                ->pluck('category_id');
 
+            // Catégories parentes des sous-catégories assignées
+            $subCatParentIds = \DB::table('user_subcategory_access')
+                ->join('subcategories', 'subcategories.id', '=', 'user_subcategory_access.subcategory_id')
+                ->where('user_subcategory_access.user_id', $user->id)
+                ->pluck('subcategories.category_id');
+
+            $allIds = $directIds->merge($subCatParentIds)->unique()->filter()->values();
+
+            if ($allIds->isEmpty()) {
+                $query->whereRaw('1 = 0');
                 return;
             }
-            $query->whereIn('categories.id', $ids);
+
+            $query->whereIn('categories.id', $allIds);
         });
     }
 

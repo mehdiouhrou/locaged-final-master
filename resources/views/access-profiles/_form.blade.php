@@ -21,7 +21,7 @@
 </div>
 
 <div class="mb-3">
-    <label for="category_ids" class="form-label">{{ __('Catégories') }}</label>
+    <label for="category_ids" class="form-label">{{ __('Dossiers') }}</label>
     <select name="category_ids[]" id="category_ids" class="form-select" multiple size="12">
         @foreach($categories as $cat)
             <option value="{{ $cat->id }}"

@@ -144,6 +144,11 @@ class Box extends Model
             ? (int) $selectedServiceId
             : null;
 
+        // Les rôles bypass voient tout — même si un service_id est sélectionné
+        if ($user && static::getAccessibleServiceIds($user) === 'all') {
+            return;
+        }
+
         if ($selectedServiceId) {
             $query->where('service_id', $selectedServiceId);
 
