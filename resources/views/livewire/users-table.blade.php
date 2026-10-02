@@ -14,12 +14,12 @@
                     @endforeach
                 </select>
 
-                <select class="form-select" wire:model.change="department">
+{{--                 <select class="form-select" wire:model.change="department">
                     <option value="">{{ ui_t('pages.users_page.filters.department') }}</option>
                     @foreach($departments as $department)
                         <option value="{{ $department->id }}">{{ $department->name }}</option>
                     @endforeach
-                </select>
+                </select> --}}
                 <div class="d-flex align-items-center gap-1">
                     <label>{{ ui_t('pages.users_page.filters.from') }}: </label>
                     <input type="date" class="form-control" wire:model.change="dateFrom" placeholder="{{ ui_t('pages.users_page.filters.from') }}" />
@@ -46,7 +46,7 @@
                 </th>
                 <th>{{ ui_t('pages.users_page.table.user') }}</th>
                 <th>{{ ui_t('pages.users_page.table.email') }}</th>
-                <th>{{ ui_t('pages.users_page.table.department') }}</th>
+                {{-- <th>{{ ui_t('pages.users_page.table.department') }}</th> --}}
                 <th>{{ ui_t('pages.users_page.table.role') }}</th>
                 <th>{{ ui_t('pages.users_page.table.joined') }}</th>
                 <th class="d-flex justify-content-center">{{ ui_t('pages.users_page.table.actions') }}</th>
@@ -80,14 +80,14 @@
                     <td>
                         <div>{{ $user->email}}</div>
                     </td>
-                    <td>
+{{--                     <td>
                         <div>
                             @php
                                 $catNames = $user->accessibleCategories->pluck('name');
                             @endphp
                             {{ $catNames->isNotEmpty() ? $catNames->join(', ') : '-' }}
                         </div>
-                    </td>
+                    </td> --}}
                     <td>
                         <div>{{ $user->role }}</div>
                     </td>
